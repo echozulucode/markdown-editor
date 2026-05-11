@@ -1,0 +1,16 @@
+project: "markdown-editor"
+created: 2026-05-10
+docs:
+  - file: docs/plan.md
+    type: plan
+    status: active
+  - file: docs/status.md
+    type: status
+    status: active
+  - file: docs/research.md
+    type: research
+    status: active
+  - file: docs/mvp-implementation-plan.md
+    type: implementation-plan
+    status: active
+
