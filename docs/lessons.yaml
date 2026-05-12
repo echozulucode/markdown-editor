@@ -1,0 +1,39 @@
+type: lessons
+project: "markdown-editor"
+updated: 2026-05-11
+lessons:
+  - id: LESSON-001
+    date: 2026-05-11
+    area: workspace
+    lesson: "Use pnpm from the workspace root for all package work."
+    rationale: "Parallel package work with npm produced package-lock files and package-local installs that had to be cleaned up during integration."
+    applies_to:
+      - "root package management"
+      - "subagent instructions"
+      - "future package scaffolding"
+  - id: LESSON-002
+    date: 2026-05-11
+    area: contracts
+    lesson: "Keep public cross-package types in @markdown-editor/core before downstream packages deepen their implementations."
+    rationale: "The CodeMirror and renderer lanes initially created local compatible types; aligning CodeMirror back to core was easy early, but this would become expensive after more behavior lands."
+    applies_to:
+      - "packages/core"
+      - "packages/codemirror"
+      - "packages/renderers"
+      - "packages/react"
+  - id: LESSON-003
+    date: 2026-05-11
+    area: parallel-work
+    lesson: "Give subagents disjoint write scopes and integrate immediately after they return."
+    rationale: "Parallel lanes completed quickly without file conflicts because ownership was explicit; the coordinator pass then caught workspace-level drift."
+    applies_to:
+      - "subagent dispatch"
+      - "package integration"
+  - id: LESSON-004
+    date: 2026-05-11
+    area: examples
+    lesson: "The dev harness should consume public package APIs only."
+    rationale: "The harness is intended to become the regression surface for embeddability; importing internals would hide package-boundary problems."
+    applies_to:
+      - "examples/dev-harness"
+      - "future gallery examples"

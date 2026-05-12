@@ -3,24 +3,24 @@ type: plan
 project: "markdown-editor"
 status: active
 version: 1
-updated: 2026-05-10
+updated: 2026-05-11
 phases:
   - id: 1
     name: "Reference Extraction & Product Contract"
     status: completed
   - id: 2
     name: "Standalone Package Architecture"
-    status: in_progress
+    status: completed
   - id: 3
     name: "Core Editor Implementation"
-    status: pending
+    status: in_progress
   - id: 4
     name: "Example Sites & Integration Gallery"
     status: pending
   - id: 5
     name: "Hardening, Docs, and Release"
     status: pending
-current_phase: 2
+current_phase: 3
 ---
 
 # Plan: Standalone Markdown Editor Control
@@ -68,17 +68,19 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 - [x] Review Knowledge E3 editor specs, plans, tests, and source.
 - [x] Identify reusable code paths and app-specific code to avoid carrying forward.
 - [x] Define standalone package boundaries and public component contract.
-- [ ] Convert this plan into an implementation-ready technical design with file layout and API types.
+- [x] Convert this plan into an implementation-ready technical design with file layout and API types.
 
 ## Phase 2: Standalone Package Architecture
-- [ ] Initialize package workspace, build system, lint/typecheck/test stack, Storybook or equivalent visual harness.
-- [ ] Extract and adapt the Markdown codec plus fixture corpus.
-- [ ] Define extension interfaces for block renderers, inline syntax, commands, toolbars, completion sources, and host services.
-- [ ] Build design-token CSS contract and responsive layout primitives.
-- [ ] Decide PlantUML strategy: default to host/server renderer, with public PlantUML server only as an explicit demo fallback.
+- [x] Initialize package workspace, build system, lint/typecheck/test stack, and visual harness placeholder.
+- [x] Extract and adapt the Markdown codec plus fixture corpus.
+- [x] Define extension interfaces for block renderers, commands, completion sources, and host services.
+- [ ] Build design-token CSS contract and responsive layout primitives in `packages/react`.
+- [x] Decide PlantUML strategy: default to host/server renderer, with public PlantUML server only as an explicit demo fallback.
 
 ## Phase 3: Core Editor Implementation
-- [ ] Build CodeMirror 6 raw Markdown mode with high-quality Markdown editing, shortcuts, search, line wrapping, and selection APIs.
+- [x] Build CodeMirror 6 raw Markdown mode foundation with search, line wrapping, read-only control, and selection APIs.
+- [ ] Create `@markdown-editor/react` public component shell and imperative handle.
+- [ ] Wire `examples/dev-harness` to consume public package APIs instead of placeholders.
 - [ ] Build hybrid mode on the same CodeMirror state using syntax-tree/decorations, active-range reveal, and rendered inactive blocks.
 - [ ] Build preview/read-only mode with the same renderer pipeline and no editing chrome.
 - [ ] Port WYSIWYG as an optional Lexical adapter with strict Markdown import/export gates.
@@ -123,8 +125,11 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 | 2026-05-10 | Use Markdown text as canonical state. | The reference codec and CodeMirror approach preserve source fidelity and reduce round-trip drift. |
 | 2026-05-10 | Treat WYSIWYG as an optional adapter. | Useful for nontechnical hosts, but it should not own persistence or become the primary document model. |
 | 2026-05-10 | Build example sites as product-grade host shells, not demos with placeholder chrome. | Reusability has to be proven across real layout constraints and mode combinations. |
+| 2026-05-11 | Use pnpm as the only workspace package manager. | Mixed npm/pnpm artifacts created package-lock files and local node_modules drift during parallel work. |
 
 ## Errors Encountered
 | Date | Error | Resolution |
 |------|-------|------------|
+| 2026-05-11 | Port `5173` was occupied when starting the dev harness. | Vite selected `5174`; use the reported URL for the current running harness. |
+| 2026-05-11 | Subagents using npm created package-lock files inside a pnpm workspace. | Removed npm lockfiles and normalized packages under the root pnpm workspace. |
 

@@ -13,4 +13,13 @@ docs:
   - file: docs/mvp-implementation-plan.md
     type: implementation-plan
     status: active
+  - file: docs/api-design.md
+    type: api-design
+    status: draft
+  - file: docs/test-matrix.md
+    type: test-matrix
+    status: draft
+  - file: docs/lessons.yaml
+    type: lessons
+    status: active
 
