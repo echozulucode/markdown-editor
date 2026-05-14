@@ -12,6 +12,7 @@ import type {
   CalloutBlock,
   HeadingBlock,
   ImageBlock,
+  ListBlock,
   ParagraphBlock,
   SimpleBlock,
   TableBlock
@@ -50,7 +51,7 @@ export function createDefaultRendererRegistry(options: RendererRegistryOptions =
 
   registry.register<ParagraphBlock>('paragraph', (block) => ok(`<p>${escapeHtml(block.text)}</p>`));
   registry.register<HeadingBlock>('heading', (block) => ok(`<h${block.depth}>${escapeHtml(block.text)}</h${block.depth}>`));
-  registry.register<SimpleBlock>('list', (block) => ok(`<pre class="me-renderer-list">${escapeHtml(block.text)}</pre>`));
+  registry.register<ListBlock>('list', (block) => ok(renderList(block)));
   registry.register<SimpleBlock>('blockquote', (block) => ok(`<blockquote>${escapeHtml(block.text)}</blockquote>`));
   registry.register<SimpleBlock>('html', (block) => ok(`<pre class="me-renderer-html">${escapeHtml(block.raw)}</pre>`));
   registry.register<TableBlock>('table', (block) => ok(renderTable(block.rows)));
@@ -156,6 +157,24 @@ function isRendererResult(result: unknown): result is RendererResult {
 function renderPlainCode(block: CodeBlock): RendererResult {
   const language = block.language ? ` data-language="${escapeAttribute(block.language)}"` : '';
   return ok(`<pre class="me-renderer-code"${language}><code>${escapeHtml(block.source)}</code></pre>`);
+}
+
+function renderList(block: ListBlock): string {
+  const tag = block.ordered ? 'ol' : 'ul';
+  const hasTasks = block.items.some((item) => item.checked !== undefined);
+  const className = hasTasks ? ' class="me-renderer-list me-renderer-task-list"' : ' class="me-renderer-list"';
+  const items = block.items
+    .map((item) => {
+      if (item.checked === undefined) {
+        return `<li>${escapeHtml(item.text)}</li>`;
+      }
+
+      const checked = item.checked ? ' checked' : '';
+      return `<li class="me-renderer-task-item"><input class="me-renderer-task-checkbox" type="checkbox" disabled${checked}> <span>${escapeHtml(item.text)}</span></li>`;
+    })
+    .join('');
+
+  return `<${tag}${className}>${items}</${tag}>`;
 }
 
 function renderTable(rows: string[][]): string {

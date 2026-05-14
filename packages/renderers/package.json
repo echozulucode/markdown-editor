@@ -15,5 +15,10 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@markdown-editor/core": "workspace:*",
+    "mermaid": "^11.15.0",
+    "shiki": "^4.0.2"
   }
 }

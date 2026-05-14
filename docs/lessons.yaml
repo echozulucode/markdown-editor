@@ -1,6 +1,6 @@
 type: lessons
 project: "markdown-editor"
-updated: 2026-05-11
+updated: 2026-05-13
 lessons:
   - id: LESSON-001
     date: 2026-05-11
@@ -37,3 +37,57 @@ lessons:
     applies_to:
       - "examples/dev-harness"
       - "future gallery examples"
+  - id: LESSON-005
+    date: 2026-05-12
+    area: frontend
+    lesson: "Add bundle splitting before expanding the example gallery."
+    rationale: "Once the public React shell pulled CodeMirror into the harness, the Vite production build emitted a large chunk warning. This is acceptable for the scaffold but should not become the gallery baseline."
+    applies_to:
+      - "packages/react"
+      - "packages/codemirror"
+      - "examples/dev-harness"
+      - "future gallery examples"
+  - id: LESSON-006
+    date: 2026-05-12
+    area: repository-hygiene
+    lesson: "Generated declaration and JavaScript artifacts do not belong under package src directories."
+    rationale: "Generated files appeared under `packages/core/src`; source directories should contain authored TypeScript only, with build output isolated to ignored `dist` directories."
+    applies_to:
+      - "packages/core"
+      - "all package build configs"
+  - id: LESSON-007
+    date: 2026-05-13
+    area: testing
+    lesson: "Run CodeMirror package tests in jsdom when validating editor behavior."
+    rationale: "Type-only tests kept the public API honest, but real editing, selection, lifecycle, and change-event behavior needed a DOM-backed Vitest suite."
+    applies_to:
+      - "packages/codemirror"
+      - "packages/react"
+      - "future interaction tests"
+  - id: LESSON-008
+    date: 2026-05-13
+    area: bundling
+    lesson: "Prefer simple vendor chunk boundaries before finely splitting CodeMirror internals."
+    rationale: "A fine-grained CodeMirror language/UI split removed the large chunk warning but introduced a Rollup circular chunk warning; splitting React, CodeMirror, and Lezer kept the build clean."
+    applies_to:
+      - "examples/dev-harness"
+      - "future gallery examples"
+      - "package consumption guidance"
+  - id: LESSON-009
+    date: 2026-05-13
+    area: renderers
+    lesson: "Expose heavyweight renderers as explicit registry factories before making them defaults."
+    rationale: "Adding the Shiki renderer as an opt-in factory gives hosts syntax highlighting support while preserving a small, safe plaintext default and keeping bundle strategy decisions visible."
+    applies_to:
+      - "packages/renderers"
+      - "packages/react"
+      - "example gallery renderer setup"
+  - id: LESSON-010
+    date: 2026-05-13
+    area: bundling
+    lesson: "Use Shiki core and explicit language/theme loaders for browser-facing examples."
+    rationale: "The top-level Shiki bundle pulled every bundled language and theme into the Vite output once the renderer fixture consumed it. Fine-grained core loading kept the build clean while still supporting the MVP language set."
+    applies_to:
+      - "packages/renderers/src/shiki.ts"
+      - "examples/dev-harness"
+      - "future syntax-highlighting expansion"

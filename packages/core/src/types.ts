@@ -180,10 +180,12 @@ export interface MarkdownEditorProps {
   defaultValue?: string;
   mode?: EditorMode;
   defaultMode?: EditorMode;
+  initialMode?: EditorMode;
   modes?: EditorMode[];
   readOnly?: boolean;
   extensions?: MarkdownEditorExtension[];
   rendererRegistry?: RendererRegistry;
+  renderers?: RendererRegistry;
   hostServices?: HostServices;
   features?: Partial<EditorFeatureFlags>;
   theme?: 'light' | 'dark' | 'system' | Partial<EditorThemeTokens>;

@@ -1,3 +1,8 @@
+import type {
+  MarkdownDiagnostic,
+  RenderResult as CoreRenderResult,
+} from '@markdown-editor/core';
+
 export type RendererBlockKind =
   | 'paragraph'
   | 'heading'
@@ -11,19 +16,7 @@ export type RendererBlockKind =
   | 'plantuml'
   | 'html';
 
-export interface CompatibleCoreDiagnostic {
-  code: string;
-  message: string;
-  severity: 'info' | 'warning' | 'error';
-  source?: string;
-}
-
-export interface CompatibleCoreRenderResult {
-  html: string;
-  diagnostics?: CompatibleCoreDiagnostic[];
-}
-
-export interface RendererDiagnostic extends Omit<CompatibleCoreDiagnostic, 'severity'> {
+export interface RendererDiagnostic extends Omit<MarkdownDiagnostic, 'severity'> {
   severity: 'error' | 'warning';
   blockId?: string;
   cause?: unknown;
@@ -32,12 +25,12 @@ export interface RendererDiagnostic extends Omit<CompatibleCoreDiagnostic, 'seve
 export type RendererResult =
   | {
       ok: true;
-      html: CompatibleCoreRenderResult['html'];
+      html: CoreRenderResult['html'];
       diagnostics?: RendererDiagnostic[];
     }
   | {
       ok: false;
-      html: CompatibleCoreRenderResult['html'];
+      html: CoreRenderResult['html'];
       error: RendererDiagnostic;
       diagnostics?: RendererDiagnostic[];
     };
@@ -89,8 +82,19 @@ export interface CalloutBlock extends MarkdownBlockBase {
   body: string;
 }
 
+export interface ListItem {
+  text: string;
+  checked?: boolean;
+}
+
+export interface ListBlock extends MarkdownBlockBase {
+  kind: 'list';
+  ordered: boolean;
+  items: ListItem[];
+}
+
 export interface SimpleBlock extends MarkdownBlockBase {
-  kind: 'list' | 'blockquote' | 'html';
+  kind: 'blockquote' | 'html';
   text: string;
 }
 
@@ -101,6 +105,7 @@ export type MarkdownBlock =
   | TableBlock
   | ImageBlock
   | CalloutBlock
+  | ListBlock
   | SimpleBlock;
 
 export type BlockRenderer<TBlock extends MarkdownBlock = MarkdownBlock> = (
@@ -128,7 +133,7 @@ export interface PlantUmlHostRenderer {
   renderPlantUml(
     source: string,
     options?: Record<string, unknown>
-  ): Promise<CompatibleCoreRenderResult | RendererResult>;
+  ): Promise<CoreRenderResult | RendererResult>;
 }
 
 export interface RendererRegistryOptions {

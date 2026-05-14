@@ -12,6 +12,8 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@markdown-editor/react": "workspace:*",
+    "@markdown-editor/renderers": "workspace:^",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

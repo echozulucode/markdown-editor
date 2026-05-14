@@ -3,7 +3,7 @@ type: plan
 project: "markdown-editor"
 status: active
 version: 1
-updated: 2026-05-11
+updated: 2026-05-13
 phases:
   - id: 1
     name: "Reference Extraction & Product Contract"
@@ -74,17 +74,22 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 - [x] Initialize package workspace, build system, lint/typecheck/test stack, and visual harness placeholder.
 - [x] Extract and adapt the Markdown codec plus fixture corpus.
 - [x] Define extension interfaces for block renderers, commands, completion sources, and host services.
-- [ ] Build design-token CSS contract and responsive layout primitives in `packages/react`.
+- [x] Consolidate renderer contracts onto `@markdown-editor/core` public types.
+- [x] Build initial design-token CSS contract and responsive layout primitives in `packages/react`.
 - [x] Decide PlantUML strategy: default to host/server renderer, with public PlantUML server only as an explicit demo fallback.
 
 ## Phase 3: Core Editor Implementation
 - [x] Build CodeMirror 6 raw Markdown mode foundation with search, line wrapping, read-only control, and selection APIs.
-- [ ] Create `@markdown-editor/react` public component shell and imperative handle.
-- [ ] Wire `examples/dev-harness` to consume public package APIs instead of placeholders.
+- [x] Add jsdom behavior coverage for CodeMirror markdown-mode editing, selection, lifecycle, and change events.
+- [x] Create `@markdown-editor/react` public component shell and imperative handle.
+- [x] Wire `examples/dev-harness` to consume public package APIs instead of placeholders.
+- [x] Build preview/read-only mode with the same renderer pipeline and no editing chrome.
+- [x] Split the dev harness production bundle into React, CodeMirror, and Lezer chunks.
+- [x] Add an opt-in Shiki code renderer factory with broad bundled-language support and plaintext fallback tests.
+- [x] Wire Shiki into the renderer harness route with success, fallback, and diagnostic coverage.
+- [x] Replace full-bundle Shiki usage with fine-grained core language/theme loading for the MVP language set.
 - [ ] Build hybrid mode on the same CodeMirror state using syntax-tree/decorations, active-range reveal, and rendered inactive blocks.
-- [ ] Build preview/read-only mode with the same renderer pipeline and no editing chrome.
 - [ ] Port WYSIWYG as an optional Lexical adapter with strict Markdown import/export gates.
-- [ ] Integrate Shiki for broad language syntax highlighting with lazy-loaded grammars/themes.
 - [ ] Integrate Mermaid rendering with async execution, timeout, error panels, and no page crashes.
 - [ ] Integrate PlantUML through a renderer interface so hosts can provide a secure server endpoint.
 - [ ] Build table, image, code block, callout, link, wiki-link, and diagram widgets with source-edit affordances.
@@ -126,10 +131,16 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 | 2026-05-10 | Treat WYSIWYG as an optional adapter. | Useful for nontechnical hosts, but it should not own persistence or become the primary document model. |
 | 2026-05-10 | Build example sites as product-grade host shells, not demos with placeholder chrome. | Reusability has to be proven across real layout constraints and mode combinations. |
 | 2026-05-11 | Use pnpm as the only workspace package manager. | Mixed npm/pnpm artifacts created package-lock files and local node_modules drift during parallel work. |
+| 2026-05-13 | Keep preview rendering in `@markdown-editor/react` backed by `@markdown-editor/renderers`. | This proves the shared renderer pipeline through the public component before hybrid decorations and WYSIWYG are added. |
+| 2026-05-13 | Split harness bundles by React, CodeMirror, and Lezer first. | This removes the immediate Vite chunk warning without introducing brittle circular manual chunks. |
+| 2026-05-13 | Make Shiki syntax highlighting opt-in through the renderer registry. | Hosts should choose the syntax-highlighting bundle strategy explicitly; the default renderer remains lightweight and safe. |
+| 2026-05-13 | Use Shiki core with explicit language/theme loaders instead of `shiki` full bundle. | The full bundle pulled every bundled language into the harness build; fine-grained loading keeps syntax highlighting usable without blowing up MVP chunks. |
 
 ## Errors Encountered
 | Date | Error | Resolution |
 |------|-------|------------|
 | 2026-05-11 | Port `5173` was occupied when starting the dev harness. | Vite selected `5174`; use the reported URL for the current running harness. |
 | 2026-05-11 | Subagents using npm created package-lock files inside a pnpm workspace. | Removed npm lockfiles and normalized packages under the root pnpm workspace. |
+| 2026-05-13 | Aggressive CodeMirror subchunking created a Rollup circular chunk warning. | Simplified manual chunks to React, CodeMirror, and Lezer; build is clean and chunks stay below the warning threshold. |
+| 2026-05-13 | Importing Shiki's top-level bundle restored Vite large-chunk warnings and emitted hundreds of language/theme chunks. | Switched `createShikiCodeRenderer` to `shiki/core`, JavaScript regex engine, explicit language loaders, and a single default theme loader. |
 

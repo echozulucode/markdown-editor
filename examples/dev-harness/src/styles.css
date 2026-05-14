@@ -175,25 +175,76 @@ textarea:focus {
   color: #34444f;
 }
 
-.mode-grid {
+.mode-stack {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  gap: 18px;
 }
 
 .mode-card {
   display: grid;
-  gap: 8px;
-  min-height: 92px;
-  padding: 14px;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
   background: #fbfcfe;
   border: 1px solid #dbe2e8;
   border-radius: 6px;
 }
 
+.mode-card .me-editor {
+  min-height: 420px;
+}
+
 .mode-card span {
   color: #5f6e78;
   font-size: 0.9rem;
+}
+
+.renderer-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+}
+
+.diagnostic-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.diagnostic-list li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  color: #3c2f18;
+  background: #fff7dd;
+  border: 1px solid #ead48e;
+  border-radius: 6px;
+}
+
+.diagnostic-list li[data-severity="error"] {
+  color: #5f2020;
+  background: #fff1f1;
+  border-color: #efb8b8;
+}
+
+.diagnostic-list strong {
+  font-size: 0.82rem;
+}
+
+.diagnostic-list span,
+.empty-state {
+  margin: 0;
+  color: #4c5a63;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.fixture-source {
+  margin-top: 18px;
+}
+
+.fixture-source .me-editor {
+  max-height: 360px;
 }
 
 @media (max-width: 780px) {
@@ -214,7 +265,8 @@ textarea:focus {
   }
 
   .workspace-header,
-  .panel-grid {
+  .panel-grid,
+  .renderer-grid {
     grid-template-columns: 1fr;
   }
 

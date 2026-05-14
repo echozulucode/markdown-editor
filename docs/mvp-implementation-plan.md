@@ -2,7 +2,7 @@
 type: implementation-plan
 project: "markdown-editor"
 status: active
-updated: 2026-05-11
+updated: 2026-05-13
 scope: "MVP"
 ---
 
@@ -19,6 +19,13 @@ Ship a standalone React/TypeScript Markdown editor control that proves the core 
 - The package includes enough example sites to prove real reuse, not just a component demo.
 
 ## MVP Scope
+
+### Current Progress Snapshot
+- Workspace, core codec, renderer registry, CodeMirror markdown foundation, React component shell, preview mode, and dev harness wiring are in place.
+- CodeMirror markdown behavior has jsdom coverage for edits, selection, lifecycle, and change events.
+- Syntax highlighting has an opt-in fine-grained Shiki renderer factory, plaintext fallback tests, and a renderer harness route using public package APIs.
+- Mermaid and PlantUML have async renderer interfaces and failure isolation tests, but not full renderer implementations yet.
+- Hybrid decorations, WYSIWYG Lexical adapter, example gallery, Playwright coverage, and hardening remain open.
 
 ### Included
 - Monorepo package setup with TypeScript, React, Vite, Vitest, Playwright, package builds, and examples app.

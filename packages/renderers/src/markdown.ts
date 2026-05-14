@@ -1,5 +1,5 @@
 import { createDefaultRendererRegistry, RendererRegistry } from './registry';
-import type { CalloutBlock, MarkdownBlock, RendererDiagnostic, RendererResult } from './types';
+import type { CalloutBlock, ListBlock, MarkdownBlock, RendererDiagnostic, RendererResult } from './types';
 
 export interface RenderMarkdownOptions {
   registry?: RendererRegistry;
@@ -111,6 +111,19 @@ export function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
       continue;
     }
 
+    if (isListLine(line)) {
+      const start = index;
+      const listLines: string[] = [];
+
+      while (index < lines.length && isListLine(lines[index])) {
+        listLines.push(lines[index]);
+        index += 1;
+      }
+
+      blocks.push(parseList(blocks.length, listLines, lines.slice(start, index).join('\n')));
+      continue;
+    }
+
     if (isTableLine(line) && index + 1 < lines.length && isTableSeparator(lines[index + 1])) {
       const start = index;
       const tableLines: string[] = [];
@@ -150,6 +163,30 @@ export function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
   return blocks;
 }
 
+function parseList(index: number, lines: string[], raw: string): ListBlock {
+  const ordered = /^\s*\d+[.)]\s+/.test(lines[0]);
+
+  return {
+    id: blockId(index),
+    kind: 'list',
+    ordered,
+    items: lines.map((line) => {
+      const stripped = line.replace(/^\s*(?:[-*+]\s+|\d+[.)]\s+)/, '');
+      const task = stripped.match(/^\[([ xX])\]\s+(.*)$/);
+
+      if (!task) {
+        return { text: stripped };
+      }
+
+      return {
+        text: task[2],
+        checked: task[1].toLowerCase() === 'x'
+      };
+    }),
+    raw
+  };
+}
+
 function parseCallout(index: number, lines: string[], raw: string): CalloutBlock {
   const first = lines[0].replace(/^>\s?/, '');
   const match = first.match(/^\[!(\w+)\]\s*(.*)$/);
@@ -171,6 +208,10 @@ function blockId(index: number): string {
 
 function isCalloutStart(line: string): boolean {
   return /^>\s?\[!\w+\]/.test(line);
+}
+
+function isListLine(line: string): boolean {
+  return /^\s*(?:[-*+]\s+|\d+[.)]\s+)/.test(line);
 }
 
 function isTableLine(line: string): boolean {

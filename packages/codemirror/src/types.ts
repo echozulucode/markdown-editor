@@ -14,6 +14,22 @@ export interface ChangeRangeMeta {
   inserted: string;
 }
 
+export type HybridFrontmatterMode = "table" | "hidden" | "source";
+
+export interface HybridRenderContext {
+  blockId: string;
+  signal?: AbortSignal;
+}
+
+export interface HybridRenderResult {
+  html: string;
+}
+
+export type HybridMarkdownRenderer = (
+  markdown: string,
+  context: HybridRenderContext
+) => HybridRenderResult | Promise<HybridRenderResult>;
+
 export interface MarkdownEditorViewOptions {
   parent: HTMLElement;
   markdown?: string;
@@ -23,6 +39,8 @@ export interface MarkdownEditorViewOptions {
   placeholder?: string;
   attributes?: Record<string, string>;
   extensions?: Extension[];
+  hybridFrontmatterMode?: HybridFrontmatterMode;
+  hybridRenderMarkdown?: HybridMarkdownRenderer;
   onChange?: (markdown: string, meta: ChangeMeta) => void;
 }
 

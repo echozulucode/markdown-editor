@@ -1,5 +1,13 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { MarkdownEditor, type EditorDiagnostic, type EditorMode } from "@markdown-editor/react";
+import {
+  createDefaultRendererRegistry,
+  createMermaidRenderer,
+  createShikiCodeRenderer,
+  type RendererRegistry
+} from "@markdown-editor/renderers";
+import "@markdown-editor/react/styles.css";
 import "./styles.css";
 
 type HarnessRoute = {
@@ -57,7 +65,7 @@ title: Dev Harness Sample
 This placeholder keeps Markdown as plain text until package APIs are ready.
 
 - [ ] Preserve source bytes on no-op paths
-- [ ] Exercise configured editor modes
+- [x] Exercise configured editor modes
 - [ ] Render code and diagram blocks through safe adapters
 
 \`\`\`ts
@@ -69,6 +77,53 @@ graph TD
   Plan --> Harness
   Harness --> Packages
 \`\`\`
+`;
+
+const rendererMarkdown = `# Renderer fixture
+
+This route exercises the shared renderer pipeline through the public React component.
+
+| Block | Expected behavior |
+| --- | --- |
+| TypeScript | Shiki highlighted |
+| Unknown language | Plaintext fallback with warning |
+| Mermaid | Rendered SVG diagram |
+| PlantUML | Source fallback until host endpoint is configured |
+
+> [!warning] Renderer contract
+> Invalid or missing renderers should report diagnostics without crashing the editor.
+
+\`\`\`ts
+type EditorMode = "markdown" | "hybrid" | "preview";
+
+export function label(mode: EditorMode) {
+  return \`Current mode: \${mode}\`;
+}
+\`\`\`
+
+\`\`\`python
+def normalize_title(value: str) -> str:
+    return value.strip().title()
+\`\`\`
+
+\`\`\`madeup
+const unsafe = "<tag>";
+\`\`\`
+
+\`\`\`mermaid
+graph TD
+  Markdown --> Renderer
+  Renderer --> Preview
+\`\`\`
+
+\`\`\`plantuml
+@startuml
+Alice -> Bob: Preview renderer
+Bob --> Alice: Diagnostics
+@enduml
+\`\`\`
+
+![Inline renderer asset](data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20320%20120'%3E%3Crect%20width='320'%20height='120'%20rx='12'%20fill='%23edf7f2'/%3E%3Cpath%20d='M52%2076h216'%20stroke='%23243a31'%20stroke-width='10'%20stroke-linecap='round'/%3E%3Ccircle%20cx='96'%20cy='48'%20r='18'%20fill='%23f6c85f'/%3E%3Ccircle%20cx='160'%20cy='48'%20r='18'%20fill='%232f6f9f'/%3E%3Ccircle%20cx='224'%20cy='48'%20r='18'%20fill='%23945f43'/%3E%3C/svg%3E)
 `;
 
 function getCurrentPath() {
@@ -116,7 +171,7 @@ function App() {
       <section className="workspace" aria-labelledby="route-title">
         <header className="workspace-header">
           <div>
-            <p className="eyebrow">Phase 0/1 placeholder</p>
+            <p className="eyebrow">MVP fixture harness</p>
             <h2 id="route-title">{activeRoute.label}</h2>
             <p>{activeRoute.description}</p>
           </div>
@@ -138,16 +193,27 @@ function RoutePanel({
   markdown: string;
   onMarkdownChange: (value: string) => void;
 }) {
+  const [diagnostics, setDiagnostics] = React.useState<EditorDiagnostic[]>([]);
+  const rendererRegistry = React.useMemo(
+    () =>
+      createDefaultRendererRegistry({
+        mermaid: createMermaidRenderer(),
+        shiki: createShikiCodeRenderer()
+      }),
+    []
+  );
+
   if (route.id === "markdown") {
     return (
       <div className="panel-grid">
         <section className="panel" aria-labelledby="source-title">
-          <h3 id="source-title">Source Placeholder</h3>
-          <textarea
-            aria-label="Markdown source placeholder"
+          <h3 id="source-title">Public Component</h3>
+          <MarkdownEditor
+            ariaLabel="Markdown source harness"
             value={markdown}
-            onChange={(event) => onMarkdownChange(event.target.value)}
-            spellCheck={false}
+            modes={["markdown"]}
+            initialMode="markdown"
+            onChange={onMarkdownChange}
           />
         </section>
         <section className="panel" aria-labelledby="planned-title">
@@ -164,17 +230,48 @@ function RoutePanel({
     );
   }
 
+  if (route.id === "renderers") {
+    return (
+      <div className="panel-grid renderer-grid">
+        <section className="panel" aria-labelledby="renderer-preview-title">
+          <h3 id="renderer-preview-title">Preview Renderer</h3>
+          <MarkdownEditor
+            ariaLabel="Renderer preview harness"
+            value={rendererMarkdown}
+            modes={["preview"]}
+            initialMode="preview"
+            readOnly
+            renderers={rendererRegistry}
+            onDiagnostics={setDiagnostics}
+          />
+        </section>
+        <section className="panel" aria-labelledby="renderer-diagnostics-title">
+          <h3 id="renderer-diagnostics-title">Diagnostics</h3>
+          <DiagnosticList diagnostics={diagnostics} />
+          <div className="fixture-source" aria-label="Renderer fixture source">
+            <MarkdownEditor
+              ariaLabel="Renderer fixture Markdown source"
+              value={rendererMarkdown}
+              modes={["markdown"]}
+              initialMode="markdown"
+              readOnly
+            />
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   if (route.id === "modes") {
     return (
       <section className="panel">
         <h3>Mode Configurations</h3>
-        <div className="mode-grid">
-          {["hybrid only", "markdown + preview", "wysiwyg only", "all modes", "read-only preview"].map((mode) => (
-            <article className="mode-card" key={mode}>
-              <strong>{mode}</strong>
-              <span>Awaiting public API wiring.</span>
-            </article>
-          ))}
+        <div className="mode-stack">
+          <ModeCard title="hybrid only" modes={["hybrid"]} markdown={markdown} renderers={rendererRegistry} onMarkdownChange={onMarkdownChange} />
+          <ModeCard title="markdown + preview" modes={["markdown", "preview"]} markdown={markdown} renderers={rendererRegistry} onMarkdownChange={onMarkdownChange} />
+          <ModeCard title="wysiwyg only" modes={["wysiwyg"]} markdown={markdown} renderers={rendererRegistry} onMarkdownChange={onMarkdownChange} />
+          <ModeCard title="all modes" modes={["hybrid", "markdown", "preview", "wysiwyg"]} markdown={markdown} renderers={rendererRegistry} onMarkdownChange={onMarkdownChange} />
+          <ModeCard title="read-only preview" modes={["preview"]} markdown={markdown} renderers={rendererRegistry} readOnly onMarkdownChange={onMarkdownChange} />
         </div>
       </section>
     );
@@ -191,6 +288,54 @@ function RoutePanel({
         ]}
       />
     </section>
+  );
+}
+
+function DiagnosticList({ diagnostics }: { diagnostics: EditorDiagnostic[] }) {
+  if (diagnostics.length === 0) {
+    return <p className="empty-state">No renderer diagnostics.</p>;
+  }
+
+  return (
+    <ul className="diagnostic-list">
+      {diagnostics.map((diagnostic, index) => (
+        <li key={`${diagnostic.code}-${index}`} data-severity={diagnostic.severity}>
+          <strong>{diagnostic.code}</strong>
+          <span>{diagnostic.message}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ModeCard({
+  title,
+  modes,
+  markdown,
+  renderers,
+  readOnly = false,
+  onMarkdownChange
+}: {
+  title: string;
+  modes: EditorMode[];
+  markdown: string;
+  renderers: RendererRegistry;
+  readOnly?: boolean;
+  onMarkdownChange: (value: string) => void;
+}) {
+  return (
+    <article className="mode-card">
+      <strong>{title}</strong>
+      <MarkdownEditor
+        ariaLabel={`${title} editor`}
+        value={markdown}
+        modes={modes}
+        initialMode={modes[0]}
+        readOnly={readOnly}
+        renderers={renderers}
+        onChange={onMarkdownChange}
+      />
+    </article>
   );
 }
 
