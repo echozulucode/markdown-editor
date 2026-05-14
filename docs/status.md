@@ -4,7 +4,7 @@ updated: 2026-05-14
 current_phase: "Phase 3 - Core Editor Implementation"
 blockers: []
 next_actions:
-  - "Port WYSIWYG as an optional Lexical adapter with Markdown import/export gates"
+  - "Expand WYSIWYG adapter coverage for tables, images, PlantUML, and documented normalizations"
   - "Start the example gallery once WYSIWYG has a package boundary or explicit placeholder decision"
   - "Design post-MVP Obsidian-style properties editing with reorder, add/remove, and typed editors"
 ---
@@ -118,6 +118,21 @@ next_actions:
 - Adjusted `ArrowUp` into rendered blocks to land at the end of the source block, avoiding the feeling that keyboard navigation skipped the block's inner lines.
 - Replaced block-boundary arrow handling with logical source-line movement in hybrid mode so arrow keys visit each Markdown row predictably while still revealing rendered blocks as source.
 - Updated read-only preview rendering to convert leading YAML frontmatter into a read-only properties table instead of exposing raw YAML.
+- Added `@markdown-editor/wysiwyg-lexical` as the first optional Lexical-backed WYSIWYG package.
+- Wired React WYSIWYG mode to lazy-load the Lexical adapter instead of showing the raw Markdown placeholder.
+- Added headless WYSIWYG import/export tests for frontmatter preservation and common prose constructs.
+- Adjusted dev-harness manual chunks so Lexical stays in its own optional chunk and does not bloat the main React chunk.
+- Removed the WYSIWYG adapter's runtime dependency on the core parser to avoid pulling `gray-matter` into browser builds.
+- Added an initial WYSIWYG toolbar with paragraph, heading, bold, italic, inline code, list, quote, code-block, and Mermaid insertion controls.
+- Added WYSIWYG code-block insertion with a language selector and a Markdown-backed export path.
+- Added WYSIWYG Mermaid diagram nodes that render visually by default while exposing an edit/apply source workflow for diagram text.
+- Added WYSIWYG Mermaid round-trip coverage so rendered diagram nodes continue exporting fenced Mermaid Markdown.
+- Reworked the WYSIWYG toolbar away from one-off Mermaid insertion controls toward a scalable block-style selector plus generic insert menu.
+- Added selection-aware WYSIWYG toolbar state so the current paragraph/heading/list/quote/code style and inline bold/italic/code states reflect the active selection.
+- Moved WYSIWYG code-block language selection out of the global toolbar and onto the active code block surface.
+- Enabled Lexical Prism highlighting for WYSIWYG code blocks with supported language selections.
+- Added WYSIWYG checkbox-list insertion, Obsidian-style checkbox rendering, and click-to-toggle behavior through Lexical checklist support.
+- Added WYSIWYG checkbox-list round-trip coverage.
 - Captured the future requirement for an Obsidian-style properties panel in `docs/requirements.md`.
 - Updated the MVP implementation plan to keep current properties editing scoped to simple scalar rows and defer advanced typed property editing.
 - Updated the main plan decision log with the rationale for treating advanced properties as deliberate post-MVP UX/API work and for keeping PlantUML behind a host-renderer boundary.
@@ -131,10 +146,11 @@ next_actions:
 - `pnpm -r build` passed.
 - Dev harness at `http://127.0.0.1:5175/modes` returned HTTP 200.
 
-**Outcome:** The advanced properties direction is documented without expanding the current MVP implementation scope. PlantUML now has a production-shaped host-renderer integration path with local fixture coverage. Hybrid mode now covers the initial MVP block-widget set except WYSIWYG-specific behavior, and preview now shares the properties presentation path for read-only frontmatter.
+**Outcome:** The advanced properties direction is documented without expanding the current MVP implementation scope. PlantUML now has a production-shaped host-renderer integration path with local fixture coverage. Hybrid mode now covers the initial MVP block-widget set. WYSIWYG now has a real lazy-loaded Lexical package boundary, a selection-aware editing toolbar, scalable block insertion, block-level code language controls with syntax highlighting, checkbox lists, and rendered source-backed Mermaid diagrams, but still needs broader technical-block coverage before it can be considered MVP-complete.
 
 **Carry-forward notes:**
-- Hybrid and diagram basics should now be treated as initial MVP-complete; remaining work is WYSIWYG, examples, Playwright coverage, and hardening.
+- Hybrid and diagram basics should now be treated as initial MVP-complete; remaining work is WYSIWYG hardening, examples, Playwright coverage, and release hardening.
+- Current WYSIWYG coverage is intentionally narrow: headings, prose, inline formatting, links, ordered/bulleted/checkbox lists, blockquotes, highlighted fenced code, rendered Mermaid diagrams, and frontmatter envelope preservation.
 - Future properties work should support reorder, add/remove, date/time/tag/boolean/link-aware editors, and host-defined property schemas.
 
 ---

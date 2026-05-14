@@ -26,7 +26,9 @@ Ship a standalone React/TypeScript Markdown editor control that proves the core 
 - Syntax highlighting has an opt-in fine-grained Shiki renderer factory, plaintext fallback tests, and a renderer harness route using public package APIs.
 - Mermaid has an async renderer with timeout/error fallback, and PlantUML has a host-renderer factory with timeout/error fallback.
 - Initial hybrid decorations are in place for headings, lists, task lists, inline links/wiki-links, frontmatter properties, rendered inactive fenced blocks, tables, images, and callouts.
-- WYSIWYG Lexical adapter, example gallery, Playwright coverage, and hardening remain open.
+- Initial WYSIWYG Lexical package boundary is in place with lazy React loading and headless import/export coverage for common prose constructs.
+- WYSIWYG now has a selection-aware toolbar, scalable block insert menu, block-level code language controls with Prism highlighting, checkbox-list support, and rendered source-backed Mermaid diagram editing.
+- WYSIWYG tables, images, PlantUML, example gallery, Playwright coverage, and hardening remain open.
 
 ### Included
 - Monorepo package setup with TypeScript, React, Vite, Vitest, Playwright, package builds, and examples app.
@@ -338,7 +340,10 @@ Coordination rule: each lane owns disjoint files. Cross-lane contracts must be c
   - image as Markdown-backed node or source fallback;
   - diagram blocks as rendered source-backed nodes.
 - Route all export through core serialization.
-- Add WYSIWYG toolbar commands.
+- Add WYSIWYG toolbar commands with active selection state and current block-style display.
+- Add a Hashnode-like code-block insertion affordance with language selection on the code block surface.
+- Add ordered, bulleted, and checkbox list controls with editable checkbox toggles.
+- Render diagram blocks visually in WYSIWYG and expose source editing through an explicit edit/apply control.
 - Add mode switch checkpoints from CodeMirror to Lexical and back.
 - Lazy-load WYSIWYG package from React component when `wysiwyg` is enabled.
 

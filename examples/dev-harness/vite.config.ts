@@ -12,13 +12,20 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("@lezer")) {
+          const normalizedId = id.replace(/\\/g, "/");
+          if (normalizedId.includes("@lezer")) {
             return "lezer";
           }
-          if (id.includes("@codemirror")) {
+          if (normalizedId.includes("@codemirror")) {
             return "codemirror";
           }
-          if (id.includes("react") || id.includes("react-dom")) {
+          if (normalizedId.includes("@lexical") || normalizedId.includes("/lexical/")) {
+            return "wysiwyg-lexical";
+          }
+          if (
+            normalizedId.includes("/node_modules/.pnpm/react@") ||
+            normalizedId.includes("/node_modules/.pnpm/react-dom@")
+          ) {
             return "react";
           }
         }

@@ -21,6 +21,10 @@ import {
 
 const CODEMIRROR_MODES = new Set<EditorMode>(['markdown', 'hybrid']);
 const DEFAULT_MODES: EditorMode[] = ['hybrid', 'markdown', 'preview'];
+const LazyWysiwygLexicalEditor = React.lazy(async () => {
+  const module = await import('@markdown-editor/wysiwyg-lexical');
+  return { default: module.WysiwygLexicalEditor };
+});
 
 export interface MarkdownEditorComponentProps
   extends Omit<MarkdownEditorProps, 'extensions' | 'rendererRegistry' | 'renderers'> {
@@ -301,21 +305,24 @@ export const MarkdownEditor = React.forwardRef<
           onDiagnostics={(diagnostics) => onDiagnosticsRef.current?.(diagnostics)}
         />
       ) : (
-        <WysiwygPlaceholder
-          markdown={markdown}
-          readOnly={readOnly}
-          onChange={(nextMarkdown) => {
-            markdownRef.current = nextMarkdown;
-            if (value === undefined) {
-              setInternalMarkdown(nextMarkdown);
-            }
-            onChange?.(nextMarkdown, {
-              source: 'user',
-              mode: activeMode,
-              timestamp: Date.now(),
-            });
-          }}
-        />
+        <React.Suspense fallback={<div className="me-wysiwyg-loading" role="status">Loading WYSIWYG editor...</div>}>
+          <LazyWysiwygLexicalEditor
+            markdown={markdown}
+            readOnly={readOnly}
+            ariaLabel={ariaLabel}
+            onDiagnostics={(diagnostics) => onDiagnosticsRef.current?.(diagnostics)}
+            onChange={(nextMarkdown, meta) => {
+              markdownRef.current = nextMarkdown;
+              if (value === undefined) {
+                setInternalMarkdown(nextMarkdown);
+              }
+              onChange?.(nextMarkdown, {
+                ...meta,
+                mode: activeMode,
+              });
+            }}
+          />
+        </React.Suspense>
       )}
     </section>
   );
@@ -379,30 +386,6 @@ function PreviewSurface({
       aria-label="Markdown preview"
       dangerouslySetInnerHTML={{ __html: result?.html ?? '<p>Rendering preview...</p>' }}
     />
-  );
-}
-
-function WysiwygPlaceholder({
-  markdown,
-  readOnly,
-  onChange,
-}: {
-  markdown: string;
-  readOnly: boolean;
-  onChange(markdown: string): void;
-}) {
-  return (
-    <div className="me-wysiwyg-placeholder">
-      <div className="me-placeholder-note" role="status">
-        WYSIWYG adapter pending. Editing raw Markdown until the Lexical adapter lands.
-      </div>
-      <textarea
-        aria-label="WYSIWYG placeholder Markdown source"
-        value={markdown}
-        readOnly={readOnly}
-        onChange={(event) => onChange(event.currentTarget.value)}
-      />
-    </div>
   );
 }
 

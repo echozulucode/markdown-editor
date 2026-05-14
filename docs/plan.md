@@ -93,6 +93,9 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 - [x] Integrate Mermaid rendering with async execution, timeout, error panels, and no page crashes.
 - [x] Integrate PlantUML through a renderer interface so hosts can provide a secure server endpoint.
 - [x] Build initial table, image, code block, callout, link, wiki-link, and diagram hybrid widgets with source-edit affordances.
+- [x] Establish the optional WYSIWYG package boundary and lazy React loading path.
+- [x] Add initial WYSIWYG toolbar commands, selection-aware block style display, scalable block insertion, block-level code language controls with syntax highlighting, checkbox lists, and rendered source-backed Mermaid diagram editing.
+- [ ] Expand WYSIWYG import/export coverage for MVP technical blocks and accepted normalizations.
 - [ ] Track advanced Obsidian-style properties editing as post-MVP/frontmatter UX work: reorder, add/remove, typed date/time/tag/boolean editors, and host-defined property schemas.
 
 ## Phase 4: Example Sites & Integration Gallery
@@ -138,6 +141,10 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 | 2026-05-13 | Use Shiki core with explicit language/theme loaders instead of `shiki` full bundle. | The full bundle pulled every bundled language into the harness build; fine-grained loading keeps syntax highlighting usable without blowing up MVP chunks. |
 | 2026-05-14 | Keep MVP properties editing simple, but reserve the API/UX path for an Obsidian-style properties panel. | The richer properties panel needs typed editors, reordering, add/remove flows, and host property schemas, which should be designed deliberately after the hybrid editing basics are stable. |
 | 2026-05-14 | Expose PlantUML as a host-renderer factory instead of a built-in network renderer. | Production hosts need to own the secure PlantUML endpoint; the package should provide timeout, abort, diagnostics, and fallback behavior around that boundary. |
+| 2026-05-14 | Lazy-load the WYSIWYG Lexical adapter from `@markdown-editor/react`. | Hosts that do not enable WYSIWYG should not pay the Lexical bundle cost; the first adapter package proves the boundary while later work broadens import/export coverage. |
+| 2026-05-14 | Treat WYSIWYG diagrams as rendered, source-backed blocks rather than graphical editors. | Mermaid has no native graphical editing surface in this MVP; rendering by default with an explicit source edit/apply path matches Confluence-style expectations while preserving Markdown fidelity. |
+| 2026-05-14 | Use a generic WYSIWYG insert control instead of per-block toolbar textboxes. | The toolbar needs to scale to more block types; Mermaid source editing belongs on the rendered block, while insertion should stay generic and compact. |
+| 2026-05-14 | Keep code-block language selection on the code block, not the global toolbar. | Language is code-block metadata and should travel with the block surface, especially once multiple code blocks with different languages are present. |
 
 ## Errors Encountered
 | Date | Error | Resolution |

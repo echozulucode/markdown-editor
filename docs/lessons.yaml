@@ -100,3 +100,47 @@ lessons:
       - "packages/codemirror"
       - "hybrid rendered widgets"
       - "future keyboard accessibility tests"
+  - id: LESSON-012
+    date: 2026-05-14
+    area: bundling
+    lesson: "Keep WYSIWYG behind a dynamic import and a dedicated manual chunk."
+    rationale: "A static React import pulled Lexical into the main React chunk. Lazy loading plus a `wysiwyg-lexical` manual chunk preserved the optional package boundary."
+    applies_to:
+      - "packages/react"
+      - "packages/wysiwyg-lexical"
+      - "examples/dev-harness/vite.config.ts"
+  - id: LESSON-013
+    date: 2026-05-14
+    area: browser-runtime
+    lesson: "Avoid importing the core parser into browser-only WYSIWYG code when only the frontmatter envelope is needed."
+    rationale: "The core parser depends on `gray-matter`, which created a browser build warning. A small local envelope splitter preserved frontmatter without pulling parser internals into the WYSIWYG chunk."
+    applies_to:
+      - "packages/wysiwyg-lexical"
+      - "browser bundle hygiene"
+  - id: LESSON-014
+    date: 2026-05-14
+    area: wysiwyg
+    lesson: "Represent WYSIWYG diagram blocks as rendered views with explicit source editing."
+    rationale: "Mermaid diagrams need to feel visual in WYSIWYG, but the durable editable artifact is still fenced Markdown source. A Confluence-style edit/apply control keeps the diagram inspectable without pretending there is a graphical editor."
+    applies_to:
+      - "packages/wysiwyg-lexical"
+      - "diagram rendering"
+      - "future PlantUML WYSIWYG support"
+  - id: LESSON-015
+    date: 2026-05-14
+    area: toolbar
+    lesson: "Keep WYSIWYG block insertion generic and move block-specific editing into the block surface."
+    rationale: "A toolbar textbox for Mermaid does not scale once more block types arrive. A compact insert menu plus per-block editing affordances keeps the toolbar stable while preserving rich source editing where it belongs."
+    applies_to:
+      - "packages/wysiwyg-lexical"
+      - "packages/react"
+      - "future toolbar design"
+  - id: LESSON-016
+    date: 2026-05-14
+    area: code-blocks
+    lesson: "Treat code-block language as block metadata controlled from the block surface."
+    rationale: "A global toolbar language dropdown is ambiguous when a document contains multiple code blocks. The active code block should expose its own language control, and the selected language should drive syntax highlighting."
+    applies_to:
+      - "packages/wysiwyg-lexical"
+      - "code block UX"
+      - "future block controls"
