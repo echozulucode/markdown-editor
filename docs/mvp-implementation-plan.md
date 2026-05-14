@@ -2,7 +2,7 @@
 type: implementation-plan
 project: "markdown-editor"
 status: active
-updated: 2026-05-13
+updated: 2026-05-14
 scope: "MVP"
 ---
 
@@ -24,8 +24,9 @@ Ship a standalone React/TypeScript Markdown editor control that proves the core 
 - Workspace, core codec, renderer registry, CodeMirror markdown foundation, React component shell, preview mode, and dev harness wiring are in place.
 - CodeMirror markdown behavior has jsdom coverage for edits, selection, lifecycle, and change events.
 - Syntax highlighting has an opt-in fine-grained Shiki renderer factory, plaintext fallback tests, and a renderer harness route using public package APIs.
-- Mermaid and PlantUML have async renderer interfaces and failure isolation tests, but not full renderer implementations yet.
-- Hybrid decorations, WYSIWYG Lexical adapter, example gallery, Playwright coverage, and hardening remain open.
+- Mermaid has an async renderer with timeout/error fallback, and PlantUML has a host-renderer factory with timeout/error fallback.
+- Initial hybrid decorations are in place for headings, lists, task lists, inline links/wiki-links, frontmatter properties, rendered inactive fenced blocks, tables, images, and callouts.
+- WYSIWYG Lexical adapter, example gallery, Playwright coverage, and hardening remain open.
 
 ### Included
 - Monorepo package setup with TypeScript, React, Vite, Vitest, Playwright, package builds, and examples app.
@@ -37,6 +38,7 @@ Ship a standalone React/TypeScript Markdown editor control that proves the core 
 - Mermaid renderer with async render, timeout, error boundary, and no document crash on invalid diagrams.
 - PlantUML renderer interface with a demo renderer and a production expectation that hosts provide the endpoint.
 - Render/edit support for headings, paragraphs, emphasis, links, wiki-links, lists, task lists, blockquotes, horizontal rules, fenced code, tables, images by URL, callouts, Mermaid, and PlantUML.
+- Basic frontmatter properties table in hybrid mode for simple scalar `key: value` rows.
 - Responsive editor shell, toolbar slots, mode switcher, small-screen layouts, and keyboard shortcuts.
 - At least six example host shells.
 - Automated tests for codec, mode sync, renderer failures, WYSIWYG import/export, responsive layout, and examples smoke coverage.
@@ -46,6 +48,7 @@ Ship a standalone React/TypeScript Markdown editor control that proves the core 
 - Attachment upload pipeline beyond host-service interface and demo mock.
 - Full plugin marketplace.
 - Advanced table operations such as merge/split cells.
+- Advanced Obsidian-style properties editing: property reordering, add/remove UI, typed date/time/tag/boolean/link editors, and host-defined property schemas.
 - Math rendering unless it falls out cheaply from the renderer system.
 - Native desktop/Tauri wrapper.
 - Production telemetry backend; keep local perf marks and callback hooks.

@@ -1,8 +1,10 @@
 export { RendererRegistry, createDefaultRendererRegistry } from './registry';
 export { parseMarkdownBlocks, renderMarkdownToHtml } from './markdown';
 export { createMermaidRenderer } from './mermaid';
+export { createPlantUmlRenderer } from './plantuml';
 export { createShikiCodeRenderer } from './shiki';
 export type { MermaidRendererOptions } from './mermaid';
+export type { PlantUmlRendererOptions } from './plantuml';
 export type { RenderMarkdownToHtmlResult } from './markdown';
 export type { ShikiCodeRendererOptions } from './shiki';
 export type {

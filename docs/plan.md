@@ -3,7 +3,7 @@ type: plan
 project: "markdown-editor"
 status: active
 version: 1
-updated: 2026-05-13
+updated: 2026-05-14
 phases:
   - id: 1
     name: "Reference Extraction & Product Contract"
@@ -88,11 +88,12 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 - [x] Add an opt-in Shiki code renderer factory with broad bundled-language support and plaintext fallback tests.
 - [x] Wire Shiki into the renderer harness route with success, fallback, and diagnostic coverage.
 - [x] Replace full-bundle Shiki usage with fine-grained core language/theme loading for the MVP language set.
-- [ ] Build hybrid mode on the same CodeMirror state using syntax-tree/decorations, active-range reveal, and rendered inactive blocks.
+- [x] Build initial hybrid mode on the same CodeMirror state with active-block reveal, rendered inactive fenced blocks, rendered headings/lists/task lists, and properties table support.
 - [ ] Port WYSIWYG as an optional Lexical adapter with strict Markdown import/export gates.
-- [ ] Integrate Mermaid rendering with async execution, timeout, error panels, and no page crashes.
-- [ ] Integrate PlantUML through a renderer interface so hosts can provide a secure server endpoint.
-- [ ] Build table, image, code block, callout, link, wiki-link, and diagram widgets with source-edit affordances.
+- [x] Integrate Mermaid rendering with async execution, timeout, error panels, and no page crashes.
+- [x] Integrate PlantUML through a renderer interface so hosts can provide a secure server endpoint.
+- [x] Build initial table, image, code block, callout, link, wiki-link, and diagram hybrid widgets with source-edit affordances.
+- [ ] Track advanced Obsidian-style properties editing as post-MVP/frontmatter UX work: reorder, add/remove, typed date/time/tag/boolean editors, and host-defined property schemas.
 
 ## Phase 4: Example Sites & Integration Gallery
 - [ ] Full-page docs editor using all modes.
@@ -135,6 +136,8 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 | 2026-05-13 | Split harness bundles by React, CodeMirror, and Lezer first. | This removes the immediate Vite chunk warning without introducing brittle circular manual chunks. |
 | 2026-05-13 | Make Shiki syntax highlighting opt-in through the renderer registry. | Hosts should choose the syntax-highlighting bundle strategy explicitly; the default renderer remains lightweight and safe. |
 | 2026-05-13 | Use Shiki core with explicit language/theme loaders instead of `shiki` full bundle. | The full bundle pulled every bundled language into the harness build; fine-grained loading keeps syntax highlighting usable without blowing up MVP chunks. |
+| 2026-05-14 | Keep MVP properties editing simple, but reserve the API/UX path for an Obsidian-style properties panel. | The richer properties panel needs typed editors, reordering, add/remove flows, and host property schemas, which should be designed deliberately after the hybrid editing basics are stable. |
+| 2026-05-14 | Expose PlantUML as a host-renderer factory instead of a built-in network renderer. | Production hosts need to own the secure PlantUML endpoint; the package should provide timeout, abort, diagnostics, and fallback behavior around that boundary. |
 
 ## Errors Encountered
 | Date | Error | Resolution |

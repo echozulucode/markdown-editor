@@ -1,4 +1,5 @@
 import { createDefaultRendererRegistry, RendererRegistry } from './registry';
+import { escapeHtml } from './escape';
 import type { CalloutBlock, ListBlock, MarkdownBlock, RendererDiagnostic, RendererResult } from './types';
 
 export interface RenderMarkdownOptions {
@@ -17,7 +18,8 @@ export async function renderMarkdownToHtml(
   options: RenderMarkdownOptions = {}
 ): Promise<RenderMarkdownToHtmlResult> {
   const registry = options.registry ?? createDefaultRendererRegistry();
-  const blocks = parseMarkdownBlocks(markdown);
+  const frontmatter = parseFrontmatter(markdown);
+  const blocks = parseMarkdownBlocks(frontmatter?.body ?? markdown);
   const results: RendererResult[] = [];
 
   for (const block of blocks) {
@@ -25,7 +27,10 @@ export async function renderMarkdownToHtml(
   }
 
   return {
-    html: results.map((result) => result.html).join('\n'),
+    html: [
+      frontmatter ? renderFrontmatterProperties(frontmatter.entries) : '',
+      ...results.map((result) => result.html)
+    ].filter(Boolean).join('\n'),
     blocks,
     diagnostics: results.flatMap((result) => result.diagnostics ?? [])
   };
@@ -224,4 +229,65 @@ function isTableSeparator(line: string): boolean {
 
 function parseTableRow(line: string): string[] {
   return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|');
+}
+
+interface FrontmatterProperty {
+  key: string;
+  value: string;
+}
+
+interface ParsedFrontmatter {
+  entries: FrontmatterProperty[];
+  body: string;
+}
+
+function parseFrontmatter(markdown: string): ParsedFrontmatter | null {
+  const normalized = markdown.replace(/\r\n?/g, '\n');
+  const lines = normalized.split('\n');
+
+  if (lines.length < 3 || lines[0].trim() !== '---') {
+    return null;
+  }
+
+  const closingIndex = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
+  if (closingIndex < 0) {
+    return null;
+  }
+
+  return {
+    entries: lines.slice(1, closingIndex).map(parseFrontmatterProperty).filter(isFrontmatterProperty),
+    body: lines.slice(closingIndex + 1).join('\n')
+  };
+}
+
+function parseFrontmatterProperty(line: string): FrontmatterProperty | null {
+  const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    key: match[1],
+    value: trimYamlScalar(match[2])
+  };
+}
+
+function trimYamlScalar(value: string): string {
+  const trimmed = value.trim();
+  const quoted = trimmed.match(/^(['"])(.*)\1$/);
+  return quoted ? quoted[2] : trimmed;
+}
+
+function isFrontmatterProperty(entry: FrontmatterProperty | null): entry is FrontmatterProperty {
+  return entry !== null;
+}
+
+function renderFrontmatterProperties(entries: FrontmatterProperty[]): string {
+  const rows = entries.length === 0
+    ? '<tr><td colspan="2">No properties</td></tr>'
+    : entries
+      .map((entry) => `<tr><th>${escapeHtml(entry.key)}</th><td>${escapeHtml(entry.value)}</td></tr>`)
+      .join('');
+
+  return `<section class="me-renderer-properties" aria-label="Markdown properties"><table class="me-renderer-properties-table"><tbody>${rows}</tbody></table></section>`;
 }

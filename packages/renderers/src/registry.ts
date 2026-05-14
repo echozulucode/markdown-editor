@@ -1,4 +1,5 @@
 import { escapeAttribute, escapeHtml } from './escape';
+import { createPlantUmlRenderer } from './plantuml';
 import type {
   AsyncDiagramRenderer,
   BlockRenderer,
@@ -131,27 +132,9 @@ function normalizePlantUmlRenderer(renderer: RendererRegistryOptions['plantUml']
     return renderer;
   }
 
-  return async (options) => {
-    const result = await renderer.renderPlantUml(options.source, {
-      blockId: options.blockId
-    });
-
-    if (isRendererResult(result)) {
-      return result;
-    }
-
-    return {
-      ok: true,
-      html: result.html,
-      diagnostics: result.diagnostics?.filter((diagnostic) => diagnostic.severity !== 'info') as
-        | RendererDiagnostic[]
-        | undefined
-    };
-  };
-}
-
-function isRendererResult(result: unknown): result is RendererResult {
-  return typeof result === 'object' && result !== null && 'ok' in result;
+  return createPlantUmlRenderer({
+    renderPlantUml: renderer.renderPlantUml.bind(renderer)
+  });
 }
 
 function renderPlainCode(block: CodeBlock): RendererResult {

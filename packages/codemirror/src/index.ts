@@ -221,11 +221,11 @@ function hybridMarkdownExtension(options: MarkdownEditorViewOptions): Extension 
     Prec.high(keymap.of([
       {
         key: "ArrowDown",
-        run: (view) => moveSelectionIntoAdjacentFencedBlock(view, "down")
+        run: (view) => moveSelectionByLogicalLine(view, "down", options)
       },
       {
         key: "ArrowUp",
-        run: (view) => moveSelectionIntoAdjacentFencedBlock(view, "up")
+        run: (view) => moveSelectionByLogicalLine(view, "up", options)
       }
     ])),
     field,
@@ -256,32 +256,32 @@ function buildHybridDecorations(state: EditorState, options: MarkdownEditorViewO
   }
 
   while (lineNumber <= state.doc.lines) {
-    if (lineNumber === activeLine) {
-      lineNumber += 1;
-      continue;
-    }
-
     const line = state.doc.line(lineNumber);
     const text = line.text;
 
-    const fencedBlock = findFencedBlock(state, lineNumber);
-    if (fencedBlock) {
-      if (activeLine < fencedBlock.startLine || activeLine > fencedBlock.endLine) {
+    const renderedBlock = findHybridRenderedBlock(state, lineNumber);
+    if (renderedBlock) {
+      if (activeLine < renderedBlock.startLine || activeLine > renderedBlock.endLine) {
         builder.add(
-          fencedBlock.from,
-          fencedBlock.to,
+          renderedBlock.from,
+          renderedBlock.to,
           Decoration.replace({
             block: true,
             widget: new RenderedMarkdownBlockWidget(
-              fencedBlock.raw,
-              `hybrid-block-${fencedBlock.startLine}`,
-              fencedBlock.from,
+              renderedBlock.raw,
+              `hybrid-block-${renderedBlock.startLine}`,
+              renderedBlock.from,
               options.hybridRenderMarkdown
             )
           })
         );
       }
-      lineNumber = fencedBlock.endLine + 1;
+      lineNumber = renderedBlock.endLine + 1;
+      continue;
+    }
+
+    if (lineNumber === activeLine) {
+      lineNumber += 1;
       continue;
     }
 
@@ -341,29 +341,50 @@ function buildHybridDecorations(state: EditorState, options: MarkdownEditorViewO
       builder.add(line.from, line.from + blockquote[0].length, Decoration.replace({}));
     }
 
+    addInlineLinkDecorations(builder, line.from, text);
+
     lineNumber += 1;
   }
 
   return builder.finish();
 }
 
-function moveSelectionIntoAdjacentFencedBlock(view: EditorView, direction: "up" | "down"): boolean {
+function moveSelectionByLogicalLine(
+  view: EditorView,
+  direction: "up" | "down",
+  options: MarkdownEditorViewOptions
+): boolean {
   const selection = view.state.selection.main;
   if (!selection.empty) {
     return false;
   }
 
   const currentLine = view.state.doc.lineAt(selection.head);
-  const fencedBlock = direction === "down"
-    ? findFencedBlock(view.state, currentLine.number + 1)
-    : findFencedBlockEndingAt(view.state, currentLine.number - 1);
+  let targetLineNumber = direction === "down" ? currentLine.number + 1 : currentLine.number - 1;
 
-  if (!fencedBlock) {
+  if (targetLineNumber < 1 || targetLineNumber > view.state.doc.lines) {
     return false;
   }
 
+  const frontmatter = options.hybridFrontmatterMode === "source" ? null : findFrontmatterRange(view.state);
+  if (
+    frontmatter &&
+    targetLineNumber >= frontmatter.startLine &&
+    targetLineNumber <= frontmatter.endLine
+  ) {
+    targetLineNumber = direction === "down" ? frontmatter.endLine + 1 : frontmatter.startLine - 1;
+  }
+
+  if (targetLineNumber < 1 || targetLineNumber > view.state.doc.lines) {
+    return false;
+  }
+
+  const column = selection.head - currentLine.from;
+  const targetLine = view.state.doc.line(targetLineNumber);
+  const targetPosition = Math.min(targetLine.from + column, targetLine.to);
+
   view.dispatch({
-    selection: EditorSelection.cursor(fencedBlock.from)
+    selection: EditorSelection.cursor(targetPosition)
   });
   return true;
 }
@@ -427,19 +448,114 @@ function findFencedBlock(state: EditorState, startLine: number): LineRange | nul
   return null;
 }
 
-function findFencedBlockEndingAt(state: EditorState, endLine: number): LineRange | null {
-  if (endLine < 2 || endLine > state.doc.lines) {
+function findHybridRenderedBlock(state: EditorState, startLine: number): LineRange | null {
+  return findFencedBlock(state, startLine)
+    ?? findCalloutBlock(state, startLine)
+    ?? findTableBlock(state, startLine)
+    ?? findImageBlock(state, startLine);
+}
+
+function findCalloutBlock(state: EditorState, startLine: number): LineRange | null {
+  if (startLine < 1 || startLine > state.doc.lines) {
     return null;
   }
 
-  for (let lineNumber = endLine - 1; lineNumber >= 1; lineNumber -= 1) {
-    const fencedBlock = findFencedBlock(state, lineNumber);
-    if (fencedBlock?.endLine === endLine) {
-      return fencedBlock;
-    }
+  const firstLine = state.doc.line(startLine);
+  if (!/^>\s?\[!\w+\]/.test(firstLine.text)) {
+    return null;
   }
 
-  return null;
+  let endLineNumber = startLine;
+  while (endLineNumber + 1 <= state.doc.lines && state.doc.line(endLineNumber + 1).text.startsWith(">")) {
+    endLineNumber += 1;
+  }
+
+  const endLine = state.doc.line(endLineNumber);
+  return {
+    from: firstLine.from,
+    to: endLine.to,
+    startLine,
+    endLine: endLineNumber,
+    raw: state.sliceDoc(firstLine.from, endLine.to)
+  };
+}
+
+function findTableBlock(state: EditorState, startLine: number): LineRange | null {
+  if (startLine < 1 || startLine + 1 > state.doc.lines) {
+    return null;
+  }
+
+  const firstLine = state.doc.line(startLine);
+  const separatorLine = state.doc.line(startLine + 1);
+  if (!isTableLine(firstLine.text) || !isTableSeparator(separatorLine.text)) {
+    return null;
+  }
+
+  let endLineNumber = startLine + 1;
+  while (endLineNumber + 1 <= state.doc.lines && isTableLine(state.doc.line(endLineNumber + 1).text)) {
+    endLineNumber += 1;
+  }
+
+  const endLine = state.doc.line(endLineNumber);
+  return {
+    from: firstLine.from,
+    to: endLine.to,
+    startLine,
+    endLine: endLineNumber,
+    raw: state.sliceDoc(firstLine.from, endLine.to)
+  };
+}
+
+function findImageBlock(state: EditorState, startLine: number): LineRange | null {
+  if (startLine < 1 || startLine > state.doc.lines) {
+    return null;
+  }
+
+  const line = state.doc.line(startLine);
+  if (!/^!\[[^\]]*]\([^)]+\)$/.test(line.text.trim())) {
+    return null;
+  }
+
+  return {
+    from: line.from,
+    to: line.to,
+    startLine,
+    endLine: startLine,
+    raw: line.text
+  };
+}
+
+function isTableLine(text: string): boolean {
+  return /^\|.*\|$/.test(text.trim());
+}
+
+function isTableSeparator(text: string): boolean {
+  return /^\|\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(text.trim());
+}
+
+function addInlineLinkDecorations(builder: RangeSetBuilder<Decoration>, lineFrom: number, text: string): void {
+  const inlineLinkPattern = /(!)?\[([^\]]+)]\(([^)]+)\)|\[\[([^\]|]+)(?:\|([^\]]+))?]]/g;
+
+  for (const match of text.matchAll(inlineLinkPattern)) {
+    if (match.index === undefined || match[1] === "!") {
+      continue;
+    }
+
+    const from = lineFrom + match.index;
+    const to = from + match[0].length;
+    if (match[2] !== undefined) {
+      builder.add(from, to, Decoration.replace({
+        widget: new InlineLinkWidget(match[2], match[3], from, false)
+      }));
+      continue;
+    }
+
+    const target = match[4];
+    const label = match[5] ?? target;
+    builder.add(from, to, Decoration.replace({
+      widget: new InlineLinkWidget(label, target, from, true)
+    }));
+  }
 }
 
 interface FrontmatterEntry {
@@ -510,6 +626,38 @@ class OrderedMarkerWidget extends WidgetType {
     marker.className = "cm-me-ordered-marker";
     marker.textContent = `${this.marker} `;
     return marker;
+  }
+}
+
+class InlineLinkWidget extends WidgetType {
+  constructor(
+    private readonly label: string,
+    private readonly href: string,
+    private readonly from: number,
+    private readonly wikiLink: boolean
+  ) {
+    super();
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const link = document.createElement("a");
+    link.className = this.wikiLink ? "cm-me-hybrid-link cm-me-hybrid-wiki-link" : "cm-me-hybrid-link";
+    link.href = this.wikiLink ? `#${this.href}` : this.href;
+    link.textContent = this.label;
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+    });
+    link.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      view.dispatch({
+        selection: EditorSelection.cursor(this.from)
+      });
+    });
+    return link;
+  }
+
+  ignoreEvent(): boolean {
+    return false;
   }
 }
 

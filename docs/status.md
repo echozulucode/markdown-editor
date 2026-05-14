@@ -1,12 +1,12 @@
 ---
 type: status
-updated: 2026-05-13
+updated: 2026-05-14
 current_phase: "Phase 3 - Core Editor Implementation"
 blockers: []
 next_actions:
-  - "Build hybrid live-preview decorations on the CodeMirror state"
-  - "Integrate Mermaid and PlantUML rendering through the existing async renderer interfaces"
   - "Port WYSIWYG as an optional Lexical adapter with Markdown import/export gates"
+  - "Start the example gallery once WYSIWYG has a package boundary or explicit placeholder decision"
+  - "Design post-MVP Obsidian-style properties editing with reorder, add/remove, and typed editors"
 ---
 
 # Status Log
@@ -100,5 +100,41 @@ next_actions:
 - Shiki is implemented as an opt-in fine-grained renderer factory; expanding supported languages should be deliberate because each language adds an async chunk.
 - Mermaid and PlantUML integrations are still renderer-interface work, not complete feature implementations.
 - WYSIWYG remains a placeholder until the optional Lexical package is added.
+
+---
+
+## Session: 2026-05-14
+**Phase:** 3 - Core Editor Implementation
+**Actions taken:**
+- Added an exported `createPlantUmlRenderer` factory in `@markdown-editor/renderers`.
+- Routed object-form PlantUML host services through the same timeout, abort, diagnostics, and source-fallback behavior.
+- Added PlantUML renderer tests for host-rendered success and timeout fallback.
+- Updated the dev harness renderer registry to use a local host-provided PlantUML demo renderer instead of showing only missing-renderer fallback.
+- Extended hybrid mode to render inactive tables, images, and callouts through the shared Markdown renderer.
+- Added source-edit affordances for the new rendered hybrid blocks by clicking the rendered block or arrowing into it.
+- Added inactive inline link and wiki-link rendering with click-to-source behavior.
+- Fixed hybrid active-block detection so selected multi-line blocks are skipped as a whole before line decorations are considered.
+- Added regression coverage for adjacent code and Mermaid fences so a closing fence cannot be misread as a new opening fence.
+- Adjusted `ArrowUp` into rendered blocks to land at the end of the source block, avoiding the feeling that keyboard navigation skipped the block's inner lines.
+- Replaced block-boundary arrow handling with logical source-line movement in hybrid mode so arrow keys visit each Markdown row predictably while still revealing rendered blocks as source.
+- Updated read-only preview rendering to convert leading YAML frontmatter into a read-only properties table instead of exposing raw YAML.
+- Captured the future requirement for an Obsidian-style properties panel in `docs/requirements.md`.
+- Updated the MVP implementation plan to keep current properties editing scoped to simple scalar rows and defer advanced typed property editing.
+- Updated the main plan decision log with the rationale for treating advanced properties as deliberate post-MVP UX/API work and for keeping PlantUML behind a host-renderer boundary.
+
+**Verification:**
+- `pnpm --filter @markdown-editor/renderers typecheck` passed.
+- `pnpm --filter @markdown-editor/renderers test` passed.
+- `pnpm --filter @markdown-editor/dev-harness typecheck` passed.
+- `pnpm -r typecheck` passed.
+- `pnpm -r test` passed.
+- `pnpm -r build` passed.
+- Dev harness at `http://127.0.0.1:5175/modes` returned HTTP 200.
+
+**Outcome:** The advanced properties direction is documented without expanding the current MVP implementation scope. PlantUML now has a production-shaped host-renderer integration path with local fixture coverage. Hybrid mode now covers the initial MVP block-widget set except WYSIWYG-specific behavior, and preview now shares the properties presentation path for read-only frontmatter.
+
+**Carry-forward notes:**
+- Hybrid and diagram basics should now be treated as initial MVP-complete; remaining work is WYSIWYG, examples, Playwright coverage, and hardening.
+- Future properties work should support reorder, add/remove, date/time/tag/boolean/link-aware editors, and host-defined property schemas.
 
 ---

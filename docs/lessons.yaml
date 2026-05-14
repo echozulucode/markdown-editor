@@ -1,6 +1,6 @@
 type: lessons
 project: "markdown-editor"
-updated: 2026-05-13
+updated: 2026-05-14
 lessons:
   - id: LESSON-001
     date: 2026-05-11
@@ -91,3 +91,12 @@ lessons:
       - "packages/renderers/src/shiki.ts"
       - "examples/dev-harness"
       - "future syntax-highlighting expansion"
+  - id: LESSON-011
+    date: 2026-05-14
+    area: hybrid-navigation
+    lesson: "Hybrid arrow-key movement should operate on logical Markdown source lines, not rendered block boundaries."
+    rationale: "Block-boundary navigation made adjacent rendered blocks easy to reveal but still felt like it skipped rows. Moving by source line lets every arrow press reveal or visit exactly one Markdown row."
+    applies_to:
+      - "packages/codemirror"
+      - "hybrid rendered widgets"
+      - "future keyboard accessibility tests"

@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultRendererRegistry, createShikiCodeRenderer, renderMarkdownToHtml } from '../src';
+import { createDefaultRendererRegistry, createPlantUmlRenderer, createShikiCodeRenderer, renderMarkdownToHtml } from '../src';
 
 describe('renderer fallbacks', () => {
+  it('renders leading YAML frontmatter as read-only properties', async () => {
+    const markdown = ['---', 'title: Preview note', 'status: draft', '---', '# Body'].join('\n');
+
+    const result = await renderMarkdownToHtml(markdown);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.html).toContain('class="me-renderer-properties"');
+    expect(result.html).toContain('<th>title</th><td>Preview note</td>');
+    expect(result.html).toContain('<th>status</th><td>draft</td>');
+    expect(result.html).toContain('<h1>Body</h1>');
+    expect(result.html).not.toContain('title: Preview note');
+  });
+
   it('renders bullet lists and task checkboxes as list markup', async () => {
     const result = await renderMarkdownToHtml('- [ ] Draft plan\n- [x] Ship preview\n- Review feedback');
 
@@ -53,6 +66,37 @@ describe('async renderer errors', () => {
           throw new Error('endpoint unavailable');
         }
       }
+    });
+
+    const result = await renderMarkdownToHtml('```plantuml\n@startuml\nAlice -> Bob\n@enduml\n```', { registry });
+
+    expect(result.diagnostics).toHaveLength(1);
+    expect(result.diagnostics[0].code).toBe('renderer.plantuml.failed');
+    expect(result.html).toContain('@startuml');
+  });
+
+  it('renders PlantUML through the host renderer factory without network assumptions', async () => {
+    const registry = createDefaultRendererRegistry({
+      plantUml: createPlantUmlRenderer({
+        renderPlantUml: async (source) => ({
+          html: `<figure class="me-renderer-diagram me-renderer-plantuml">${source.includes('Alice') ? 'sequence' : 'diagram'}</figure>`
+        })
+      })
+    });
+
+    const result = await renderMarkdownToHtml('```plantuml\n@startuml\nAlice -> Bob\n@enduml\n```', { registry });
+
+    expect(result.diagnostics).toEqual([]);
+    expect(result.html).toContain('me-renderer-plantuml');
+    expect(result.html).toContain('sequence');
+  });
+
+  it('turns PlantUML timeouts into inline error results', async () => {
+    const registry = createDefaultRendererRegistry({
+      plantUml: createPlantUmlRenderer({
+        timeoutMs: 1,
+        renderPlantUml: async () => new Promise(() => undefined)
+      })
     });
 
     const result = await renderMarkdownToHtml('```plantuml\n@startuml\nAlice -> Bob\n@enduml\n```', { registry });

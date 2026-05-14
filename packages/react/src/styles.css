@@ -159,10 +159,51 @@
   border-collapse: collapse;
 }
 
+.me-renderer-properties {
+  margin: 0 0 16px;
+  padding: 8px;
+  border: 1px solid var(--me-border);
+  border-radius: 6px;
+  background: #fbfcfe;
+}
+
+.me-renderer-properties-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.me-renderer-properties-table th,
+.me-renderer-properties-table td {
+  border-bottom: 1px solid var(--me-border);
+  padding: 6px 8px;
+  vertical-align: top;
+}
+
+.me-renderer-properties-table tr:last-child th,
+.me-renderer-properties-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.me-renderer-properties-table th {
+  width: 160px;
+  color: var(--me-muted);
+  font-weight: 600;
+  text-align: left;
+}
+
 .me-preview td,
 .me-preview th {
   border: 1px solid var(--me-border);
   padding: 6px 8px;
+}
+
+.me-preview .me-renderer-properties-table td,
+.me-preview .me-renderer-properties-table th {
+  border-right: 0;
+  border-left: 0;
+  border-top: 0;
 }
 
 .me-renderer-callout {
@@ -242,6 +283,20 @@
   background-size: 0.36em 0.12em, 0.48em 0.12em, 0.12em 0.28em;
 }
 
+.me-codemirror .cm-me-hybrid-link {
+  color: var(--me-accent);
+  cursor: text;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.me-codemirror .cm-me-hybrid-wiki-link {
+  border-radius: 4px;
+  background: #eff6ff;
+  padding: 0 3px;
+  text-decoration: none;
+}
+
 .me-codemirror .cm-me-rendered-block {
   margin: 8px 0;
   color: var(--me-text);
@@ -261,6 +316,29 @@
 
 .me-codemirror .cm-me-rendered-block .me-renderer-code-highlight,
 .me-codemirror .cm-me-rendered-block .me-renderer-diagram {
+  margin: 8px 0;
+}
+
+.me-codemirror .cm-me-rendered-block table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.me-codemirror .cm-me-rendered-block td,
+.me-codemirror .cm-me-rendered-block th {
+  border: 1px solid var(--me-border);
+  padding: 6px 8px;
+}
+
+.me-codemirror .cm-me-rendered-block img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 8px 0;
+}
+
+.me-codemirror .cm-me-rendered-block .me-renderer-callout {
   margin: 8px 0;
 }
 

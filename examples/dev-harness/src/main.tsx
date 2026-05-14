@@ -4,6 +4,7 @@ import { MarkdownEditor, type EditorDiagnostic, type EditorMode } from "@markdow
 import {
   createDefaultRendererRegistry,
   createMermaidRenderer,
+  createPlantUmlRenderer,
   createShikiCodeRenderer,
   type RendererRegistry
 } from "@markdown-editor/renderers";
@@ -88,7 +89,7 @@ This route exercises the shared renderer pipeline through the public React compo
 | TypeScript | Shiki highlighted |
 | Unknown language | Plaintext fallback with warning |
 | Mermaid | Rendered SVG diagram |
-| PlantUML | Source fallback until host endpoint is configured |
+| PlantUML | Rendered through a host-provided demo service |
 
 > [!warning] Renderer contract
 > Invalid or missing renderers should report diagnostics without crashing the editor.
@@ -198,6 +199,11 @@ function RoutePanel({
     () =>
       createDefaultRendererRegistry({
         mermaid: createMermaidRenderer(),
+        plantUml: createPlantUmlRenderer({
+          renderPlantUml: async (source) => ({
+            html: renderPlantUmlFixture(source)
+          })
+        }),
         shiki: createShikiCodeRenderer()
       }),
     []
@@ -289,6 +295,23 @@ function RoutePanel({
       />
     </section>
   );
+}
+
+function renderPlantUmlFixture(source: string): string {
+  const message = source.match(/([A-Za-z]+)\s*-+>+\s*([A-Za-z]+):\s*(.+)/);
+  const from = escapeSvgText(message?.[1] ?? "Alice");
+  const to = escapeSvgText(message?.[2] ?? "Bob");
+  const label = escapeSvgText(message?.[3] ?? "PlantUML host renderer");
+
+  return `<figure class="me-renderer-diagram me-renderer-plantuml" data-renderer="host-demo"><svg viewBox="0 0 520 170" role="img" aria-label="PlantUML host rendered sequence diagram" xmlns="http://www.w3.org/2000/svg"><rect width="520" height="170" rx="8" fill="#ffffff"/><line x1="130" y1="42" x2="130" y2="144" stroke="#94a3b8" stroke-dasharray="4 4"/><line x1="390" y1="42" x2="390" y2="144" stroke="#94a3b8" stroke-dasharray="4 4"/><rect x="80" y="18" width="100" height="32" rx="4" fill="#eff6ff" stroke="#2563eb"/><rect x="340" y="18" width="100" height="32" rx="4" fill="#eff6ff" stroke="#2563eb"/><text x="130" y="39" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="14" fill="#18202a">${from}</text><text x="390" y="39" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="14" fill="#18202a">${to}</text><path d="M140 92h228" stroke="#2563eb" stroke-width="2" marker-end="url(#arrow)"/><text x="254" y="82" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="13" fill="#18202a">${label}</text><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/></marker></defs></svg></figure>`;
+}
+
+function escapeSvgText(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function DiagnosticList({ diagnostics }: { diagnostics: EditorDiagnostic[] }) {

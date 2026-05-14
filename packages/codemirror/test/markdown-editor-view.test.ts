@@ -153,6 +153,58 @@ describe('createMarkdownEditorView', () => {
     parent.remove();
   });
 
+  it('keeps adjacent active code and inactive Mermaid fences separated in hybrid mode', async () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const markdown = [
+      '# Adjacent fences',
+      '```ts',
+      'const value = "---";',
+      '```',
+      '```mermaid',
+      'graph TD',
+      'A --> B',
+      '```',
+      'After',
+    ].join('\n');
+    const renderedBlocks: string[] = [];
+
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+      hybridRenderMarkdown(blockMarkdown) {
+        renderedBlocks.push(blockMarkdown);
+        return {
+          html: blockMarkdown.startsWith('```mermaid')
+            ? '<div class="rendered-mermaid">diagram</div>'
+            : '<div class="rendered-code">code</div>',
+        };
+      },
+    });
+
+    editor.setSelection({ anchor: markdown.indexOf('After'), head: markdown.indexOf('After') });
+    await flushPromises();
+
+    expect(parent.querySelector('.rendered-code')).toBeInstanceOf(HTMLElement);
+    expect(parent.querySelector('.rendered-mermaid')).toBeInstanceOf(HTMLElement);
+
+    parent.querySelector<HTMLElement>('.rendered-code')?.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true }),
+    );
+    await flushPromises();
+
+    expect(parent.querySelector('.rendered-code')).toBeNull();
+    expect(parent.querySelector('.rendered-mermaid')).toBeInstanceOf(HTMLElement);
+    expect(parent.textContent).toContain('const value = "---";');
+    expect(parent.textContent).not.toContain('```mermaid');
+    expect(renderedBlocks).not.toContain('```\n```mermaid');
+    expect(editor.getSelection().anchor).toBe(markdown.indexOf('```ts'));
+
+    editor.destroy();
+    parent.remove();
+  });
+
   it('moves into inactive hybrid fenced blocks with arrow keys', async () => {
     const parent = document.createElement('section');
     document.body.appendChild(parent);
@@ -183,7 +235,145 @@ describe('createMarkdownEditorView', () => {
     );
     await flushPromises();
 
-    expect(editor.getSelection().anchor).toBe(markdown.indexOf('```ts'));
+    expect(editor.getSelection().anchor).toBe(markdown.lastIndexOf('```', afterPosition));
+
+    parent.querySelector('.cm-content')?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }),
+    );
+    await flushPromises();
+
+    expect(editor.getSelection().anchor).toBe(markdown.indexOf('const value = 1;'));
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('renders inactive hybrid table image and callout blocks through the markdown renderer', async () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const markdown = [
+      '# Blocks',
+      '| Name | Status |',
+      '| --- | --- |',
+      '| Hybrid | Ready |',
+      '',
+      '![Alt text](data:image/svg+xml,%3Csvg%3E%3C/svg%3E)',
+      '',
+      '> [!note] Heads up',
+      '> Render this callout',
+    ].join('\n');
+
+    const renderedBlocks: string[] = [];
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+      hybridRenderMarkdown(blockMarkdown) {
+        renderedBlocks.push(blockMarkdown);
+        if (blockMarkdown.startsWith('|')) {
+          return { html: '<table class="rendered-table"><tbody><tr><td>Hybrid</td></tr></tbody></table>' };
+        }
+        if (blockMarkdown.startsWith('![')) {
+          return { html: '<img class="rendered-image" alt="Alt text">' };
+        }
+        return { html: '<aside class="rendered-callout">Heads up</aside>' };
+      },
+    });
+
+    editor.setSelection({ anchor: 2, head: 2 });
+    await flushPromises();
+
+    expect(parent.querySelector('.rendered-table')).toBeInstanceOf(HTMLTableElement);
+    expect(parent.querySelector('.rendered-image')).toBeInstanceOf(HTMLImageElement);
+    expect(parent.querySelector('.rendered-callout')).toBeInstanceOf(HTMLElement);
+    expect(renderedBlocks).toContain('| Name | Status |\n| --- | --- |\n| Hybrid | Ready |');
+
+    parent.querySelector<HTMLElement>('.rendered-table')?.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true }),
+    );
+    await flushPromises();
+
+    expect(parent.querySelector('.rendered-table')).toBeNull();
+    expect(editor.getSelection().anchor).toBe(markdown.indexOf('| Name | Status |'));
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('renders inactive hybrid links and wiki-links while leaving the selected line editable', () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const markdown = 'See [docs](https://example.test) and [[Page Name|page]].\nNext line';
+
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+    });
+
+    editor.setSelection({ anchor: markdown.indexOf('Next line'), head: markdown.indexOf('Next line') });
+
+    expect(parent.querySelector('.cm-me-hybrid-link')?.textContent).toBe('docs');
+    expect(parent.querySelector('.cm-me-hybrid-wiki-link')?.textContent).toBe('page');
+
+    parent.querySelector<HTMLElement>('.cm-me-hybrid-link')?.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true }),
+    );
+
+    expect(parent.querySelector('.cm-me-hybrid-link')).toBeNull();
+    expect(editor.getSelection().anchor).toBe(markdown.indexOf('[docs]'));
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('moves into inactive hybrid table image and callout blocks with arrow keys', async () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const markdown = [
+      'Before table',
+      '| Name | Status |',
+      '| --- | --- |',
+      '| Hybrid | Ready |',
+      'After table',
+      '![Alt text](data:image/svg+xml,%3Csvg%3E%3C/svg%3E)',
+      'After image',
+      '> [!note] Heads up',
+      '> Render this callout',
+      'After callout',
+    ].join('\n');
+
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+      hybridRenderMarkdown(blockMarkdown) {
+        return { html: `<div class="rendered-fixture">${blockMarkdown.slice(0, 8)}</div>` };
+      },
+    });
+
+    editor.setSelection({ anchor: 0, head: 0 });
+    parent.querySelector('.cm-content')?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+    );
+    await flushPromises();
+    expect(editor.getSelection().anchor).toBe(markdown.indexOf('| Name | Status |'));
+
+    const afterImage = markdown.indexOf('After image');
+    editor.setSelection({ anchor: afterImage, head: afterImage });
+    parent.querySelector('.cm-content')?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }),
+    );
+    await flushPromises();
+    expect(editor.getSelection().anchor).toBe(markdown.indexOf('![Alt text]'));
+
+    const afterCallout = markdown.indexOf('After callout');
+    editor.setSelection({ anchor: afterCallout, head: afterCallout });
+    parent.querySelector('.cm-content')?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }),
+    );
+    await flushPromises();
+    expect(editor.getSelection().anchor).toBe(markdown.indexOf('> Render this callout'));
 
     editor.destroy();
     parent.remove();
