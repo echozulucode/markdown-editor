@@ -18,6 +18,7 @@ import {
   type RenderMarkdownToHtmlResult,
   type RendererRegistry,
 } from '@markdown-editor/renderers';
+import type { WysiwygToolbarIcons } from '@markdown-editor/wysiwyg-lexical';
 
 const CODEMIRROR_MODES = new Set<EditorMode>(['markdown', 'hybrid']);
 const DEFAULT_MODES: EditorMode[] = ['hybrid', 'markdown', 'preview'];
@@ -29,6 +30,7 @@ const LazyWysiwygLexicalEditor = React.lazy(async () => {
 export interface MarkdownEditorComponentProps
   extends Omit<MarkdownEditorProps, 'extensions' | 'rendererRegistry' | 'renderers'> {
   renderers?: RendererRegistry;
+  wysiwygToolbarIcons?: WysiwygToolbarIcons;
   className?: string;
 }
 
@@ -52,6 +54,8 @@ export const MarkdownEditor = React.forwardRef<
     onCancelShortcut,
     onDiagnostics,
     renderers,
+    hostServices,
+    wysiwygToolbarIcons,
   },
   forwardedRef,
 ) {
@@ -94,6 +98,24 @@ export const MarkdownEditor = React.forwardRef<
       return { html: result.html };
     },
     [renderers],
+  );
+  const wysiwygRenderServices = React.useMemo(
+    () => ({
+      renderPlantUml: async (source: string, context: { signal?: AbortSignal }) => {
+        if (hostServices?.renderPlantUml) {
+          const result = await hostServices.renderPlantUml(source, { signal: context.signal });
+          return { html: result.html, diagnostics: result.diagnostics };
+        }
+
+        const activeRegistry = renderers ?? createDefaultRendererRegistry();
+        const result = await renderMarkdownToHtml(`\`\`\`plantuml\n${source}\n\`\`\``, {
+          registry: activeRegistry,
+          signal: context.signal,
+        });
+        return { html: result.html, diagnostics: result.diagnostics };
+      },
+    }),
+    [hostServices, renderers],
   );
 
   React.useEffect(() => {
@@ -310,6 +332,8 @@ export const MarkdownEditor = React.forwardRef<
             markdown={markdown}
             readOnly={readOnly}
             ariaLabel={ariaLabel}
+            renderServices={wysiwygRenderServices}
+            toolbarIcons={wysiwygToolbarIcons}
             onDiagnostics={(diagnostics) => onDiagnosticsRef.current?.(diagnostics)}
             onChange={(nextMarkdown, meta) => {
               markdownRef.current = nextMarkdown;

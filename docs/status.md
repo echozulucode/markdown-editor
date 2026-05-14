@@ -1,11 +1,11 @@
 ---
 type: status
 updated: 2026-05-14
-current_phase: "Phase 3 - Core Editor Implementation"
+current_phase: "Phase 4 - Example Sites & Integration Gallery"
 blockers: []
 next_actions:
-  - "Expand WYSIWYG adapter coverage for tables, images, PlantUML, and documented normalizations"
-  - "Start the example gallery once WYSIWYG has a package boundary or explicit placeholder decision"
+  - "Expand WYSIWYG adapter coverage for tables and documented normalizations"
+  - "Expand Playwright coverage from gallery smoke checks into mode-switch and renderer-failure workflows"
   - "Design post-MVP Obsidian-style properties editing with reorder, add/remove, and typed editors"
 ---
 
@@ -132,25 +132,43 @@ next_actions:
 - Moved WYSIWYG code-block language selection out of the global toolbar and onto the active code block surface.
 - Enabled Lexical Prism highlighting for WYSIWYG code blocks with supported language selections.
 - Added WYSIWYG checkbox-list insertion, Obsidian-style checkbox rendering, and click-to-toggle behavior through Lexical checklist support.
+- Fixed WYSIWYG Markdown import for existing task lists so `- [ ]` and `- [x]` load as real checklist items instead of unordered-list text.
 - Added WYSIWYG checkbox-list round-trip coverage.
+- Added WYSIWYG PlantUML diagram nodes that render through the existing host-renderer boundary and expose the same edit/apply source workflow as Mermaid.
+- Routed React WYSIWYG rendering services through the active renderer registry or host `renderPlantUml` service.
+- Added WYSIWYG PlantUML round-trip coverage.
+- Added WYSIWYG image nodes that render Markdown images visually and expose URL, alt text, and title editing.
+- Added an image option to the WYSIWYG insert menu without expanding into upload pipeline scope.
+- Added WYSIWYG image round-trip coverage.
 - Captured the future requirement for an Obsidian-style properties panel in `docs/requirements.md`.
 - Updated the MVP implementation plan to keep current properties editing scoped to simple scalar rows and defer advanced typed property editing.
 - Updated the main plan decision log with the rationale for treating advanced properties as deliberate post-MVP UX/API work and for keeping PlantUML behind a host-renderer boundary.
+- Captured the toolbar icon direction: support Font Awesome through a future icon adapter/slot, but do not add a hard dependency to the reusable control by default.
+- Added a `/examples` dev-harness route with the six required MVP example shells: all-modes technical docs, markdown plus preview split workflow, hybrid-only knowledge editing, WYSIWYG-only contributor editing, read-only published docs, and compact comment composer.
+- Added Playwright e2e smoke coverage for the examples route across desktop and mobile Chromium projects.
+- Installed Playwright's Chromium browser runtime locally so `pnpm --filter @markdown-editor/dev-harness test:e2e` can execute in this workspace.
+- Added a host-supplied WYSIWYG toolbar icon slot and wired the dev-harness examples to use Font Awesome icons for bold, italic, inline code, bulleted list, numbered list, and checkbox list controls.
+- Added Playwright coverage proving the WYSIWYG contributor example renders Font Awesome toolbar SVGs.
 
 **Verification:**
 - `pnpm --filter @markdown-editor/renderers typecheck` passed.
 - `pnpm --filter @markdown-editor/renderers test` passed.
 - `pnpm --filter @markdown-editor/dev-harness typecheck` passed.
+- `pnpm --filter @markdown-editor/wysiwyg-lexical test` passed.
+- `pnpm --filter @markdown-editor/react typecheck` passed.
+- `pnpm --filter @markdown-editor/dev-harness test:e2e` passed with 14 Playwright checks across desktop and mobile Chromium.
 - `pnpm -r typecheck` passed.
 - `pnpm -r test` passed.
 - `pnpm -r build` passed.
 - Dev harness at `http://127.0.0.1:5175/modes` returned HTTP 200.
 
-**Outcome:** The advanced properties direction is documented without expanding the current MVP implementation scope. PlantUML now has a production-shaped host-renderer integration path with local fixture coverage. Hybrid mode now covers the initial MVP block-widget set. WYSIWYG now has a real lazy-loaded Lexical package boundary, a selection-aware editing toolbar, scalable block insertion, block-level code language controls with syntax highlighting, checkbox lists, and rendered source-backed Mermaid diagrams, but still needs broader technical-block coverage before it can be considered MVP-complete.
+**Outcome:** The advanced properties direction is documented without expanding the current MVP implementation scope. PlantUML now has a production-shaped host-renderer integration path with local fixture coverage. Hybrid mode now covers the initial MVP block-widget set. WYSIWYG now has a real lazy-loaded Lexical package boundary, a selection-aware editing toolbar, scalable block insertion, block-level code language controls with syntax highlighting, imported and newly inserted checkbox lists, source-backed images, and rendered source-backed Mermaid and PlantUML diagrams, but still needs table coverage before it can be considered MVP-complete. The required MVP example shells now exist in the dev harness and have initial desktop/mobile e2e smoke coverage.
 
 **Carry-forward notes:**
 - Hybrid and diagram basics should now be treated as initial MVP-complete; remaining work is WYSIWYG hardening, examples, Playwright coverage, and release hardening.
-- Current WYSIWYG coverage is intentionally narrow: headings, prose, inline formatting, links, ordered/bulleted/checkbox lists, blockquotes, highlighted fenced code, rendered Mermaid diagrams, and frontmatter envelope preservation.
+- Current WYSIWYG coverage is intentionally narrow: headings, prose, inline formatting, links, ordered/bulleted/checkbox lists, blockquotes, highlighted fenced code, source-backed images, rendered Mermaid and PlantUML diagrams, and frontmatter envelope preservation.
 - Future properties work should support reorder, add/remove, date/time/tag/boolean/link-aware editors, and host-defined property schemas.
+- Toolbar icon support should be designed as a host-swappable icon slot/adapter so hosts can choose Font Awesome, Lucide, or a lightweight default without forcing all consumers to carry the same icon package.
+- The examples route is currently a practical integration gallery, not final product-grade example-site polish. Next passes should add deeper workflow assertions, screenshots, and refined shell-specific UX.
 
 ---

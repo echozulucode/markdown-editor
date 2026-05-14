@@ -1,9 +1,9 @@
 ---
 type: test-matrix
 project: "markdown-editor"
-status: draft
-updated: 2026-05-11
-scope: "MVP Phase 0/1 gates"
+status: active
+updated: 2026-05-14
+scope: "MVP gates"
 owner: "QA/Examples lane"
 ---
 
@@ -24,7 +24,7 @@ This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into co
 | Renderers isolate async failures | Phase 3 | Unit, integration, Playwright | Renderers, QA | Planned |
 | Mode switching preserves exact Markdown where expected | Phase 4+ | Integration, Playwright | CodeMirror, React UX, QA | Planned |
 | Public React API supports required host shapes | Phase 5+ | Integration, Playwright | React UX, QA | Planned |
-| Required examples use public package APIs only | Phase 7+ | Static review, Playwright smoke | React UX, QA | Planned |
+| Required examples use public package APIs only | Phase 7+ | Static review, Playwright smoke | React UX, QA | Initial smoke coverage |
 | Accessibility and responsive gates pass | Phase 5+ | Playwright, axe, manual keyboard pass | React UX, QA | Planned |
 | MVP performance smoke stays within targets | Phase 2+ | Playwright perf marks | Engine lanes, QA | Planned |
 
@@ -71,7 +71,9 @@ This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into co
 | Preview read-only | 390px, 1440px | Try keyboard input in preview-only route | No source mutation; links/buttons remain reachable | 4/5 |
 | Renderer failures | 1440px | Load invalid Mermaid/PlantUML samples | Error panel appears inline; page/editor remains interactive | 3/4 |
 | Wiki-link completion | 1440px | Type `[[` and query | Host-backed options appear; unresolved link styling visible | 4 |
-| Required examples | 390px, 1440px | Visit each required example shell | Each shell renders with public API and no overflow-breaking layout | 7 |
+| Required examples | 390px, 1440px | Visit each required example shell | Each shell renders with public API and no overflow-breaking layout | 7 - initial coverage added |
+| Example mode options | Mobile Chromium, desktop Chromium | Assert all-modes controls, split markdown/preview surfaces, single-mode focused shells, read-only chrome, and compact editing | Configured options render and host state updates through public APIs | 7 - initial coverage added |
+| Example toolbar icons | Mobile Chromium, desktop Chromium | Visit WYSIWYG-only contributor shell and inspect toolbar SVGs | Host-supplied Font Awesome icons render inside graphical toolbar controls | 7 - initial coverage added |
 | No-op save | 1440px | Load fixture, switch modes, save | Saved Markdown equals initial Markdown for no-op paths | 4+ |
 
 ## Accessibility Checks

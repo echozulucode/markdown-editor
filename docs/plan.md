@@ -16,11 +16,11 @@ phases:
     status: in_progress
   - id: 4
     name: "Example Sites & Integration Gallery"
-    status: pending
+    status: in_progress
   - id: 5
     name: "Hardening, Docs, and Release"
     status: pending
-current_phase: 3
+current_phase: 4
 ---
 
 # Plan: Standalone Markdown Editor Control
@@ -94,17 +94,17 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 - [x] Integrate PlantUML through a renderer interface so hosts can provide a secure server endpoint.
 - [x] Build initial table, image, code block, callout, link, wiki-link, and diagram hybrid widgets with source-edit affordances.
 - [x] Establish the optional WYSIWYG package boundary and lazy React loading path.
-- [x] Add initial WYSIWYG toolbar commands, selection-aware block style display, scalable block insertion, block-level code language controls with syntax highlighting, checkbox lists, and rendered source-backed Mermaid diagram editing.
+- [x] Add initial WYSIWYG toolbar commands, selection-aware block style display, scalable block insertion, block-level code language controls with syntax highlighting, checkbox lists, source-backed image editing, and rendered source-backed Mermaid and PlantUML diagram editing.
 - [ ] Expand WYSIWYG import/export coverage for MVP technical blocks and accepted normalizations.
 - [ ] Track advanced Obsidian-style properties editing as post-MVP/frontmatter UX work: reorder, add/remove, typed date/time/tag/boolean editors, and host-defined property schemas.
 
 ## Phase 4: Example Sites & Integration Gallery
-- [ ] Full-page docs editor using all modes.
-- [ ] Markdown plus preview split or toggle workflow.
-- [ ] Hybrid-only knowledge-base editor.
-- [ ] WYSIWYG-only nontechnical contributor editor.
-- [ ] Read-only published documentation site.
-- [ ] Compact comment composer.
+- [x] Full-page docs editor using all modes.
+- [x] Markdown plus preview split or toggle workflow.
+- [x] Hybrid-only knowledge-base editor.
+- [x] WYSIWYG-only nontechnical contributor editor.
+- [x] Read-only published documentation site.
+- [x] Compact comment composer.
 - [ ] Side-pane review editor.
 - [ ] Modal quick-edit editor.
 - [ ] Technical runbook editor with diagrams and code-heavy samples.
@@ -145,6 +145,11 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 | 2026-05-14 | Treat WYSIWYG diagrams as rendered, source-backed blocks rather than graphical editors. | Mermaid has no native graphical editing surface in this MVP; rendering by default with an explicit source edit/apply path matches Confluence-style expectations while preserving Markdown fidelity. |
 | 2026-05-14 | Use a generic WYSIWYG insert control instead of per-block toolbar textboxes. | The toolbar needs to scale to more block types; Mermaid source editing belongs on the rendered block, while insertion should stay generic and compact. |
 | 2026-05-14 | Keep code-block language selection on the code block, not the global toolbar. | Language is code-block metadata and should travel with the block surface, especially once multiple code blocks with different languages are present. |
+| 2026-05-14 | Route WYSIWYG PlantUML rendering through host/render-registry services. | PlantUML must stay behind the same host-owned rendering boundary in WYSIWYG as it does in preview and hybrid modes. |
+| 2026-05-14 | Keep WYSIWYG image support URL-backed for MVP. | Uploads are a host-service concern; the WYSIWYG adapter should render and edit Markdown image metadata first, then plug into uploads later through the host boundary. |
+| 2026-05-14 | Keep toolbar iconography host-swappable instead of hard-wiring Font Awesome. | Font Awesome is a valid host choice, but the reusable control should expose an icon slot or adapter so consumers can use Font Awesome, Lucide, or a default lightweight icon set without forcing one dependency into every bundle. |
+| 2026-05-14 | Start the example gallery in the existing dev harness instead of a separate app. | The harness already consumes public APIs and hosts the mode/renderer fixtures, so adding `/examples` there keeps smoke coverage close to the integration surface while the examples mature. |
+| 2026-05-14 | Use Font Awesome in examples through the WYSIWYG toolbar icon slot. | This proves graphical toolbar integration with a real icon library while keeping the package-level toolbar library-agnostic for other hosts. |
 
 ## Errors Encountered
 | Date | Error | Resolution |
@@ -153,4 +158,5 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 | 2026-05-11 | Subagents using npm created package-lock files inside a pnpm workspace. | Removed npm lockfiles and normalized packages under the root pnpm workspace. |
 | 2026-05-13 | Aggressive CodeMirror subchunking created a Rollup circular chunk warning. | Simplified manual chunks to React, CodeMirror, and Lezer; build is clean and chunks stay below the warning threshold. |
 | 2026-05-13 | Importing Shiki's top-level bundle restored Vite large-chunk warnings and emitted hundreds of language/theme chunks. | Switched `createShikiCodeRenderer` to `shiki/core`, JavaScript regex engine, explicit language loaders, and a single default theme loader. |
+| 2026-05-14 | WYSIWYG imported Markdown task-list syntax as unordered lists containing literal `[ ]` and `[x]` text. | Added Lexical's `CHECK_LIST` Markdown transformer before the default transformer set so existing Markdown task lists become real checklist items on import. |
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseMarkdown } from '@markdown-editor/core';
-import { roundTripWysiwygMarkdown } from '../src';
+import { inspectWysiwygMarkdownForTests, roundTripWysiwygMarkdown } from '../src';
 
 describe('roundTripWysiwygMarkdown', () => {
   it('preserves leading frontmatter while round-tripping body markdown', () => {
@@ -61,5 +61,39 @@ describe('roundTripWysiwygMarkdown', () => {
 
     expect(result).toContain('- [ ] Draft toolbar');
     expect(result).toContain('- [x] Render checkbox state');
+  });
+
+  it('imports checkbox list markdown as checklist nodes instead of literal marker text', () => {
+    const markdown = ['- [ ] Draft toolbar', '- [x] Render checkbox state'].join('\n');
+
+    const [list] = inspectWysiwygMarkdownForTests(markdown);
+
+    expect(list).toEqual({
+      type: 'list',
+      listType: 'check',
+      items: [
+        { checked: false, text: 'Draft toolbar' },
+        { checked: true, text: 'Render checkbox state' },
+      ],
+    });
+  });
+
+  it('round-trips PlantUML diagrams as source-backed WYSIWYG diagram nodes', () => {
+    const markdown = ['```plantuml', '@startuml', 'Alice -> Bob: Hello', '@enduml', '```'].join('\n');
+
+    const result = roundTripWysiwygMarkdown(markdown);
+
+    expect(result).toContain('```plantuml');
+    expect(result).toContain('@startuml');
+    expect(result).toContain('Alice -> Bob: Hello');
+    expect(result).toContain('@enduml');
+  });
+
+  it('round-trips Markdown images as editable WYSIWYG image nodes', () => {
+    const markdown = '![Architecture diagram](https://example.test/diagram.png "System overview")';
+
+    const result = roundTripWysiwygMarkdown(markdown);
+
+    expect(result).toContain('![Architecture diagram](https://example.test/diagram.png "System overview")');
   });
 });

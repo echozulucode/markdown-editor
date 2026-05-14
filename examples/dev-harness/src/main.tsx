@@ -1,6 +1,20 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { MarkdownEditor, type EditorDiagnostic, type EditorMode } from "@markdown-editor/react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faBold,
+  faCheckSquare,
+  faCode,
+  faItalic,
+  faListOl,
+  faListUl
+} from "@fortawesome/free-solid-svg-icons";
+import {
+  MarkdownEditor,
+  type EditorDiagnostic,
+  type EditorMode,
+  type WysiwygToolbarIcons
+} from "@markdown-editor/react";
 import {
   createDefaultRendererRegistry,
   createMermaidRenderer,
@@ -36,6 +50,12 @@ const routes: HarnessRoute[] = [
     label: "Mode Matrix",
     path: "/modes",
     description: "Host configuration checks for markdown, hybrid, preview, and WYSIWYG subsets."
+  },
+  {
+    id: "examples",
+    label: "Examples",
+    path: "/examples",
+    description: "Public API example shells for the required MVP host configurations."
   },
   {
     id: "responsive",
@@ -126,6 +146,115 @@ Bob --> Alice: Diagnostics
 
 ![Inline renderer asset](data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20320%20120'%3E%3Crect%20width='320'%20height='120'%20rx='12'%20fill='%23edf7f2'/%3E%3Cpath%20d='M52%2076h216'%20stroke='%23243a31'%20stroke-width='10'%20stroke-linecap='round'/%3E%3Ccircle%20cx='96'%20cy='48'%20r='18'%20fill='%23f6c85f'/%3E%3Ccircle%20cx='160'%20cy='48'%20r='18'%20fill='%232f6f9f'/%3E%3Ccircle%20cx='224'%20cy='48'%20r='18'%20fill='%23945f43'/%3E%3C/svg%3E)
 `;
+
+const technicalDocsMarkdown = `---
+title: Release Runbook
+owner: Platform
+published: true
+---
+
+# Release Runbook
+
+Use this runbook to validate the editor inside a dense technical writing surface.
+
+- [ ] Confirm migration notes
+- [x] Validate renderer isolation
+- [ ] Publish package notes
+
+| Check | Owner | Status |
+| --- | --- | --- |
+| Syntax highlighting | Docs | Ready |
+| Mermaid rendering | Platform | Ready |
+| PlantUML rendering | Host | Demo |
+
+\`\`\`ts
+export function releaseChannel(version: string) {
+  return version.includes("-") ? "preview" : "stable";
+}
+\`\`\`
+
+\`\`\`mermaid
+graph TD
+  Draft --> Review
+  Review --> Publish
+\`\`\`
+
+\`\`\`plantuml
+@startuml
+Docs -> Platform: Validate release
+Platform --> Docs: Approved
+@enduml
+\`\`\`
+`;
+
+const knowledgeMarkdown = `---
+title: Knowledge Note
+area: Editor UX
+---
+
+# Knowledge Note
+
+Hybrid mode should feel like a rendered note while keeping the active source line editable.
+
+> [!note] Decision
+> Keep Markdown as canonical source even when the document looks rendered.
+
+- [[Renderer Registry]]
+- [[WYSIWYG Adapter]]
+- [[Host Services]]
+`;
+
+const articleMarkdown = `# Contributor Article
+
+This WYSIWYG-only example is for nontechnical authors who should not need Markdown chrome.
+
+## Publishing checklist
+
+- [ ] Add summary
+- [x] Attach diagram
+- [ ] Request review
+
+\`\`\`mermaid
+graph LR
+  Author --> Review
+  Review --> Publish
+\`\`\`
+`;
+
+const publishedDocsMarkdown = `---
+title: Published API Guide
+version: 0.1
+---
+
+# Published API Guide
+
+The read-only example uses preview mode with renderer services and no editing toolbar.
+
+## Supported modes
+
+- Markdown source
+- Hybrid source reveal
+- WYSIWYG visual editing
+- Read-only preview
+
+\`\`\`tsx
+<MarkdownEditor modes={["preview"]} readOnly value={markdown} />
+\`\`\`
+`;
+
+const commentMarkdown = `Quick note for [[Release Runbook]]:
+
+- [ ] Check mobile toolbar
+`;
+
+const fontAwesomeToolbarIcons: WysiwygToolbarIcons = {
+  bold: <FontAwesomeIcon icon={faBold} fixedWidth />,
+  italic: <FontAwesomeIcon icon={faItalic} fixedWidth />,
+  inlineCode: <FontAwesomeIcon icon={faCode} fixedWidth />,
+  bulletedList: <FontAwesomeIcon icon={faListUl} fixedWidth />,
+  numberedList: <FontAwesomeIcon icon={faListOl} fixedWidth />,
+  checkboxList: <FontAwesomeIcon icon={faCheckSquare} fixedWidth />
+};
 
 function getCurrentPath() {
   return window.location.pathname === "/" ? "/markdown" : window.location.pathname;
@@ -275,12 +404,16 @@ function RoutePanel({
         <div className="mode-stack">
           <ModeCard title="hybrid only" modes={["hybrid"]} markdown={markdown} renderers={rendererRegistry} onMarkdownChange={onMarkdownChange} />
           <ModeCard title="markdown + preview" modes={["markdown", "preview"]} markdown={markdown} renderers={rendererRegistry} onMarkdownChange={onMarkdownChange} />
-          <ModeCard title="wysiwyg only" modes={["wysiwyg"]} markdown={markdown} renderers={rendererRegistry} onMarkdownChange={onMarkdownChange} />
-          <ModeCard title="all modes" modes={["hybrid", "markdown", "preview", "wysiwyg"]} markdown={markdown} renderers={rendererRegistry} onMarkdownChange={onMarkdownChange} />
+          <ModeCard title="wysiwyg only" modes={["wysiwyg"]} markdown={markdown} renderers={rendererRegistry} toolbarIcons={fontAwesomeToolbarIcons} onMarkdownChange={onMarkdownChange} />
+          <ModeCard title="all modes" modes={["hybrid", "markdown", "preview", "wysiwyg"]} markdown={markdown} renderers={rendererRegistry} toolbarIcons={fontAwesomeToolbarIcons} onMarkdownChange={onMarkdownChange} />
           <ModeCard title="read-only preview" modes={["preview"]} markdown={markdown} renderers={rendererRegistry} readOnly onMarkdownChange={onMarkdownChange} />
         </div>
       </section>
     );
+  }
+
+  if (route.id === "examples") {
+    return <ExamplesGallery renderers={rendererRegistry} />;
   }
 
   return (
@@ -293,6 +426,155 @@ function RoutePanel({
           "Record route-specific gates in docs/test-matrix.md as behavior lands."
         ]}
       />
+    </section>
+  );
+}
+
+function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
+  const [technicalDocs, setTechnicalDocs] = React.useState(technicalDocsMarkdown);
+  const [splitMarkdown, setSplitMarkdown] = React.useState(technicalDocsMarkdown);
+  const [knowledge, setKnowledge] = React.useState(knowledgeMarkdown);
+  const [article, setArticle] = React.useState(articleMarkdown);
+  const [comment, setComment] = React.useState(commentMarkdown);
+
+  return (
+    <div className="examples-gallery" data-testid="examples-gallery">
+      <ExampleShell
+        id="full-page-docs"
+        eyebrow="All modes"
+        title="Full-page technical docs editor"
+        description="A complete authoring surface with Markdown, hybrid, preview, and WYSIWYG available."
+      >
+        <MarkdownEditor
+          ariaLabel="Full-page technical docs editor"
+          value={technicalDocs}
+          modes={["hybrid", "markdown", "preview", "wysiwyg"]}
+          initialMode="hybrid"
+          renderers={renderers}
+          wysiwygToolbarIcons={fontAwesomeToolbarIcons}
+          onChange={setTechnicalDocs}
+        />
+      </ExampleShell>
+
+      <ExampleShell
+        id="markdown-preview"
+        eyebrow="Markdown + preview"
+        title="Split source and preview workflow"
+        description="A source-first documentation layout with an always-visible read-only preview."
+      >
+        <div className="example-split">
+          <MarkdownEditor
+            ariaLabel="Markdown plus preview source editor"
+            value={splitMarkdown}
+            modes={["markdown"]}
+            initialMode="markdown"
+            onChange={setSplitMarkdown}
+          />
+          <MarkdownEditor
+            ariaLabel="Markdown plus preview rendered output"
+            value={splitMarkdown}
+            modes={["preview"]}
+            initialMode="preview"
+            readOnly
+            renderers={renderers}
+          />
+        </div>
+      </ExampleShell>
+
+      <ExampleShell
+        id="hybrid-knowledge"
+        eyebrow="Hybrid only"
+        title="Knowledge-base note editor"
+        description="Document-first editing with rendered inactive blocks and no mode switcher."
+      >
+        <MarkdownEditor
+          ariaLabel="Hybrid-only knowledge editor"
+          value={knowledge}
+          modes={["hybrid"]}
+          initialMode="hybrid"
+          renderers={renderers}
+          onChange={setKnowledge}
+        />
+      </ExampleShell>
+
+      <ExampleShell
+        id="wysiwyg-contributor"
+        eyebrow="WYSIWYG only"
+        title="Contributor article editor"
+        description="A visual editing surface for authors who should not need Markdown controls."
+      >
+        <MarkdownEditor
+          ariaLabel="WYSIWYG-only contributor editor"
+          value={article}
+          modes={["wysiwyg"]}
+          initialMode="wysiwyg"
+          renderers={renderers}
+          wysiwygToolbarIcons={fontAwesomeToolbarIcons}
+          onChange={setArticle}
+        />
+      </ExampleShell>
+
+      <ExampleShell
+        id="published-docs"
+        eyebrow="Read-only preview"
+        title="Published documentation page"
+        description="A preview-only publishing surface with properties rendered and all editing chrome removed."
+      >
+        <MarkdownEditor
+          ariaLabel="Read-only published documentation"
+          value={publishedDocsMarkdown}
+          modes={["preview"]}
+          initialMode="preview"
+          readOnly
+          renderers={renderers}
+        />
+      </ExampleShell>
+
+      <ExampleShell
+        id="comment-composer"
+        eyebrow="Compact"
+        title="Comment composer"
+        description="A constrained Markdown composer suitable for review sidebars, comments, and quick notes."
+      >
+        <div className="comment-example">
+          <MarkdownEditor
+            ariaLabel="Compact comment composer"
+            value={comment}
+            modes={["markdown"]}
+            initialMode="markdown"
+            onChange={setComment}
+          />
+          <div className="comment-actions">
+            <span>{comment.length} characters</span>
+            <button type="button">Submit</button>
+          </div>
+        </div>
+      </ExampleShell>
+    </div>
+  );
+}
+
+function ExampleShell({
+  id,
+  eyebrow,
+  title,
+  description,
+  children
+}: {
+  id: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="example-shell" data-testid={`example-${id}`} aria-labelledby={`${id}-title`}>
+      <header>
+        <p className="eyebrow">{eyebrow}</p>
+        <h3 id={`${id}-title`}>{title}</h3>
+        <p>{description}</p>
+      </header>
+      {children}
     </section>
   );
 }
@@ -337,6 +619,7 @@ function ModeCard({
   markdown,
   renderers,
   readOnly = false,
+  toolbarIcons,
   onMarkdownChange
 }: {
   title: string;
@@ -344,6 +627,7 @@ function ModeCard({
   markdown: string;
   renderers: RendererRegistry;
   readOnly?: boolean;
+  toolbarIcons?: WysiwygToolbarIcons;
   onMarkdownChange: (value: string) => void;
 }) {
   return (
@@ -356,6 +640,7 @@ function ModeCard({
         initialMode={modes[0]}
         readOnly={readOnly}
         renderers={renderers}
+        wysiwygToolbarIcons={toolbarIcons}
         onChange={onMarkdownChange}
       />
     </article>

@@ -41,6 +41,7 @@ import {
 import { LinkNode, AutoLinkNode } from '@lexical/link';
 import {
   $isListNode,
+  $isListItemNode,
   INSERT_CHECK_LIST_COMMAND,
   INSERT_ORDERED_LIST_COMMAND,
   INSERT_UNORDERED_LIST_COMMAND,
@@ -58,18 +59,43 @@ import {
 import {
   $convertFromMarkdownString,
   $convertToMarkdownString,
+  CHECK_LIST,
   TRANSFORMERS,
+  type ElementTransformer,
   type MultilineElementTransformer,
 } from '@lexical/markdown';
 import { $setBlocksType } from '@lexical/selection';
 import type { ChangeMeta, MarkdownDiagnostic } from '@markdown-editor/core';
 
 const INSERT_MERMAID_COMMAND: LexicalCommand<string> = createCommand('INSERT_MERMAID_COMMAND');
+const INSERT_PLANTUML_COMMAND: LexicalCommand<string> = createCommand('INSERT_PLANTUML_COMMAND');
+const INSERT_IMAGE_COMMAND: LexicalCommand<WysiwygImagePayload> = createCommand('INSERT_IMAGE_COMMAND');
 
 type WysiwygBlockType = 'paragraph' | 'h1' | 'h2' | 'h3' | 'quote' | 'code' | 'bullet' | 'number' | 'check';
-type InsertBlockType = 'code' | 'mermaid';
+type InsertBlockType = 'code' | 'image' | 'mermaid' | 'plantuml';
+type WysiwygDiagramKind = 'mermaid' | 'plantuml';
+
+interface WysiwygImagePayload {
+  src: string;
+  alt?: string;
+  title?: string;
+}
+
+interface WysiwygRenderServices {
+  renderPlantUml?: (
+    source: string,
+    context: { signal?: AbortSignal },
+  ) => Promise<{ html: string; diagnostics?: MarkdownDiagnostic[] }> | { html: string; diagnostics?: MarkdownDiagnostic[] };
+  reportDiagnostics?: (diagnostics: MarkdownDiagnostic[]) => void;
+}
 
 const DEFAULT_MERMAID_SOURCE = 'graph TD\n  A[Start] --> B[Done]';
+const DEFAULT_PLANTUML_SOURCE = '@startuml\nAlice -> Bob: Hello\n@enduml';
+const DEFAULT_IMAGE: WysiwygImagePayload = {
+  src: 'https://placehold.co/960x540?text=Image',
+  alt: 'Image',
+};
+const WysiwygRenderServicesContext = React.createContext<WysiwygRenderServices>({});
 
 const BLOCK_OPTIONS: Array<{ value: WysiwygBlockType; label: string }> = [
   { value: 'paragraph', label: 'Paragraph' },
@@ -126,6 +152,16 @@ function normalizeCodeLanguageForControl(language: string | null | undefined): s
 
 interface SerializedMermaidNode extends SerializedLexicalNode {
   source: string;
+}
+
+interface SerializedPlantUmlNode extends SerializedLexicalNode {
+  source: string;
+}
+
+interface SerializedImageNode extends SerializedLexicalNode {
+  src: string;
+  alt: string;
+  title?: string;
 }
 
 class MermaidNode extends DecoratorNode<React.ReactElement> {
@@ -193,12 +229,178 @@ class MermaidNode extends DecoratorNode<React.ReactElement> {
   }
 }
 
+class PlantUmlNode extends DecoratorNode<React.ReactElement> {
+  __source: string;
+
+  static override getType(): string {
+    return 'plantuml';
+  }
+
+  static override clone(node: PlantUmlNode): PlantUmlNode {
+    return new PlantUmlNode(node.__source, node.__key);
+  }
+
+  static override importJSON(serializedNode: SerializedPlantUmlNode): PlantUmlNode {
+    return $createPlantUmlNode(serializedNode.source);
+  }
+
+  constructor(source: string, key?: NodeKey) {
+    super(key);
+    this.__source = source;
+  }
+
+  override createDOM(): HTMLElement {
+    const element = document.createElement('div');
+    element.className = 'me-wysiwyg-plantuml-node';
+    return element;
+  }
+
+  override updateDOM(): false {
+    return false;
+  }
+
+  override exportJSON(): SerializedPlantUmlNode {
+    return {
+      ...super.exportJSON(),
+      type: 'plantuml',
+      version: 1,
+      source: this.__source,
+    };
+  }
+
+  override getTextContent(): string {
+    return `\`\`\`plantuml\n${this.__source}\n\`\`\``;
+  }
+
+  setSource(source: string): void {
+    const writable = this.getWritable();
+    writable.__source = source;
+  }
+
+  getSource(): string {
+    return this.getLatest().__source;
+  }
+
+  override isInline(): false {
+    return false;
+  }
+
+  override isIsolated(): true {
+    return true;
+  }
+
+  override decorate(editor: LexicalEditor): React.ReactElement {
+    return <PlantUmlBlock source={this.__source} nodeKey={this.__key} editor={editor} />;
+  }
+}
+
+class ImageNode extends DecoratorNode<React.ReactElement> {
+  __src: string;
+  __alt: string;
+  __title?: string;
+
+  static override getType(): string {
+    return 'image';
+  }
+
+  static override clone(node: ImageNode): ImageNode {
+    return new ImageNode(
+      { src: node.__src, alt: node.__alt, title: node.__title },
+      node.__key,
+    );
+  }
+
+  static override importJSON(serializedNode: SerializedImageNode): ImageNode {
+    return $createImageNode({
+      src: serializedNode.src,
+      alt: serializedNode.alt,
+      title: serializedNode.title,
+    });
+  }
+
+  constructor(payload: WysiwygImagePayload, key?: NodeKey) {
+    super(key);
+    this.__src = payload.src;
+    this.__alt = payload.alt ?? '';
+    this.__title = payload.title;
+  }
+
+  override createDOM(): HTMLElement {
+    const element = document.createElement('div');
+    element.className = 'me-wysiwyg-image-node';
+    return element;
+  }
+
+  override updateDOM(): false {
+    return false;
+  }
+
+  override exportJSON(): SerializedImageNode {
+    return {
+      ...super.exportJSON(),
+      type: 'image',
+      version: 1,
+      src: this.__src,
+      alt: this.__alt,
+      title: this.__title,
+    };
+  }
+
+  override getTextContent(): string {
+    return formatImageMarkdown(this.getImage());
+  }
+
+  setImage(payload: WysiwygImagePayload): void {
+    const writable = this.getWritable();
+    writable.__src = payload.src;
+    writable.__alt = payload.alt ?? '';
+    writable.__title = payload.title;
+  }
+
+  getImage(): Required<Pick<WysiwygImagePayload, 'src' | 'alt'>> & Pick<WysiwygImagePayload, 'title'> {
+    const latest = this.getLatest();
+    return {
+      src: latest.__src,
+      alt: latest.__alt,
+      title: latest.__title,
+    };
+  }
+
+  override isInline(): false {
+    return false;
+  }
+
+  override isIsolated(): true {
+    return true;
+  }
+
+  override decorate(editor: LexicalEditor): React.ReactElement {
+    return <ImageBlock image={this.getImage()} nodeKey={this.__key} editor={editor} />;
+  }
+}
+
 function $createMermaidNode(source: string): MermaidNode {
   return $applyNodeReplacement(new MermaidNode(source));
 }
 
 function $isMermaidNode(node: LexicalNode | null | undefined): node is MermaidNode {
   return node instanceof MermaidNode;
+}
+
+function $createPlantUmlNode(source: string): PlantUmlNode {
+  return $applyNodeReplacement(new PlantUmlNode(source));
+}
+
+function $isPlantUmlNode(node: LexicalNode | null | undefined): node is PlantUmlNode {
+  return node instanceof PlantUmlNode;
+}
+
+function $createImageNode(payload: WysiwygImagePayload): ImageNode {
+  return $applyNodeReplacement(new ImageNode(payload));
+}
+
+function $isImageNode(node: LexicalNode | null | undefined): node is ImageNode {
+  return node instanceof ImageNode;
 }
 
 const MERMAID_TRANSFORMER: MultilineElementTransformer = {
@@ -218,7 +420,51 @@ const MERMAID_TRANSFORMER: MultilineElementTransformer = {
   },
 };
 
-const WYSIWYG_TRANSFORMERS = [MERMAID_TRANSFORMER, ...TRANSFORMERS];
+const PLANTUML_TRANSFORMER: MultilineElementTransformer = {
+  type: 'multiline-element',
+  dependencies: [PlantUmlNode],
+  regExpStart: /^```(?:plantuml|puml)\s*$/,
+  regExpEnd: /^```\s*$/,
+  replace(rootNode, _children, _startMatch, _endMatch, linesInBetween) {
+    rootNode.append($createPlantUmlNode((linesInBetween ?? []).join('\n')));
+  },
+  export(node) {
+    if (!$isPlantUmlNode(node)) {
+      return null;
+    }
+
+    return `\`\`\`plantuml\n${node.getSource()}\n\`\`\``;
+  },
+};
+
+const IMAGE_TRANSFORMER: ElementTransformer = {
+  type: 'element',
+  dependencies: [ImageNode],
+  regExp: /^!\[([^\]]*)\]\((\S+?)(?:\s+"((?:[^"\\]|\\.)*)")?\)\s*$/,
+  replace(parentNode, _children, match) {
+    const [, alt, src, title] = match;
+    parentNode.replace($createImageNode({
+      src: unescapeMarkdownAttribute(src ?? ''),
+      alt: unescapeMarkdownAttribute(alt ?? ''),
+      title: title ? unescapeMarkdownAttribute(title) : undefined,
+    }));
+  },
+  export(node) {
+    if (!$isImageNode(node)) {
+      return null;
+    }
+
+    return formatImageMarkdown(node.getImage());
+  },
+};
+
+const WYSIWYG_TRANSFORMERS = [
+  IMAGE_TRANSFORMER,
+  MERMAID_TRANSFORMER,
+  PLANTUML_TRANSFORMER,
+  CHECK_LIST,
+  ...TRANSFORMERS,
+];
 const WYSIWYG_NODES = [
   HeadingNode,
   QuoteNode,
@@ -228,14 +474,28 @@ const WYSIWYG_NODES = [
   AutoLinkNode,
   CodeNode,
   CodeHighlightNode,
+  ImageNode,
   MermaidNode,
+  PlantUmlNode,
 ];
+
+export type WysiwygToolbarIconKey =
+  | 'bold'
+  | 'italic'
+  | 'inlineCode'
+  | 'bulletedList'
+  | 'numberedList'
+  | 'checkboxList';
+
+export type WysiwygToolbarIcons = Partial<Record<WysiwygToolbarIconKey, React.ReactNode>>;
 
 export interface WysiwygLexicalEditorProps {
   markdown: string;
   readOnly?: boolean;
   ariaLabel?: string;
   placeholder?: string;
+  renderServices?: WysiwygRenderServices;
+  toolbarIcons?: WysiwygToolbarIcons;
   onChange?: (markdown: string, meta: ChangeMeta) => void;
   onDiagnostics?: (diagnostics: MarkdownDiagnostic[]) => void;
 }
@@ -245,10 +505,19 @@ export function WysiwygLexicalEditor({
   readOnly = false,
   ariaLabel = 'WYSIWYG Markdown editor',
   placeholder = 'Start typing...',
+  renderServices,
+  toolbarIcons,
   onChange,
   onDiagnostics,
 }: WysiwygLexicalEditorProps): React.ReactElement {
   const lastEmittedMarkdown = React.useRef<string | null>(null);
+  const renderServiceValue = React.useMemo<WysiwygRenderServices>(
+    () => ({
+      ...renderServices,
+      reportDiagnostics: onDiagnostics,
+    }),
+    [onDiagnostics, renderServices],
+  );
   const editorConfig = React.useMemo<InitialConfigType>(
     () => ({
       namespace: 'MarkdownEditorWysiwyg',
@@ -275,34 +544,36 @@ export function WysiwygLexicalEditor({
 
   return (
     <div className="me-wysiwyg" data-readonly={readOnly ? 'true' : 'false'}>
-      <LexicalComposer initialConfig={editorConfig}>
-        <EditableStatePlugin readOnly={readOnly} />
-        <ExternalMarkdownPlugin markdown={markdown} lastEmittedMarkdown={lastEmittedMarkdown} />
-        <WysiwygCommandPlugin />
-        {!readOnly ? <WysiwygToolbar /> : null}
-        {!readOnly ? <WysiwygCodeLanguagePlugin /> : null}
-        <WysiwygCodeHighlightPlugin />
-        <RichTextPlugin
-          contentEditable={
-            <ContentEditable
-              className="me-wysiwyg-input"
-              aria-label={ariaLabel}
-              spellCheck={false}
-            />
-          }
-          placeholder={<div className="me-wysiwyg-placeholder-text">{placeholder}</div>}
-          ErrorBoundary={LexicalErrorBoundary}
-        />
-        <HistoryPlugin />
-        <ListPlugin />
-        <CheckListPlugin />
-        <LinkPlugin />
-        <WysiwygChangePlugin
-          sourceMarkdown={markdown}
-          lastEmittedMarkdown={lastEmittedMarkdown}
-          onChange={onChange}
-        />
-      </LexicalComposer>
+      <WysiwygRenderServicesContext.Provider value={renderServiceValue}>
+        <LexicalComposer initialConfig={editorConfig}>
+          <EditableStatePlugin readOnly={readOnly} />
+          <ExternalMarkdownPlugin markdown={markdown} lastEmittedMarkdown={lastEmittedMarkdown} />
+          <WysiwygCommandPlugin />
+          {!readOnly ? <WysiwygToolbar icons={toolbarIcons} /> : null}
+          {!readOnly ? <WysiwygCodeLanguagePlugin /> : null}
+          <WysiwygCodeHighlightPlugin />
+          <RichTextPlugin
+            contentEditable={
+              <ContentEditable
+                className="me-wysiwyg-input"
+                aria-label={ariaLabel}
+                spellCheck={false}
+              />
+            }
+            placeholder={<div className="me-wysiwyg-placeholder-text">{placeholder}</div>}
+            ErrorBoundary={LexicalErrorBoundary}
+          />
+          <HistoryPlugin />
+          <ListPlugin />
+          <CheckListPlugin />
+          <LinkPlugin />
+          <WysiwygChangePlugin
+            sourceMarkdown={markdown}
+            lastEmittedMarkdown={lastEmittedMarkdown}
+            onChange={onChange}
+          />
+        </LexicalComposer>
+      </WysiwygRenderServicesContext.Provider>
     </div>
   );
 }
@@ -333,19 +604,90 @@ export function roundTripWysiwygMarkdown(markdown: string): string {
   return replaceEnvelopeBody(envelope, body);
 }
 
+export interface WysiwygMarkdownListSummary {
+  type: 'list';
+  listType: 'number' | 'bullet' | 'check';
+  items: Array<{
+    checked: boolean | undefined;
+    text: string;
+  }>;
+}
+
+/** @internal Test-only semantic inspection helper; not part of the stable package API. */
+export function inspectWysiwygMarkdownForTests(markdown: string): WysiwygMarkdownListSummary[] {
+  const editor = createEditor({
+    namespace: 'MarkdownEditorWysiwygHeadlessInspect',
+    nodes: WYSIWYG_NODES,
+    theme: lexicalTheme,
+    onError(error) {
+      throw error;
+    },
+  });
+
+  editor.update(
+    () => {
+      importMarkdownBody(markdown);
+    },
+    { discrete: true },
+  );
+
+  const lists: WysiwygMarkdownListSummary[] = [];
+  editor.getEditorState().read(() => {
+    for (const node of $getRoot().getChildren()) {
+      if (!$isListNode(node)) {
+        continue;
+      }
+
+      lists.push({
+        type: 'list',
+        listType: node.getListType(),
+        items: node.getChildren().map((child) => ({
+          checked: $isListItemNode(child) ? child.getChecked() : undefined,
+          text: child.getTextContent(),
+        })),
+      });
+    }
+  });
+
+  return lists;
+}
+
 function WysiwygCommandPlugin(): null {
   const [editor] = useLexicalComposerContext();
 
   React.useEffect(
-    () =>
-      editor.registerCommand(
+    () => {
+      const removeMermaidCommand = editor.registerCommand(
         INSERT_MERMAID_COMMAND,
         (source) => {
           $insertNodes([$createMermaidNode(source), $createParagraphNode()]);
           return true;
         },
         COMMAND_PRIORITY_LOW,
-      ),
+      );
+      const removePlantUmlCommand = editor.registerCommand(
+        INSERT_PLANTUML_COMMAND,
+        (source) => {
+          $insertNodes([$createPlantUmlNode(source), $createParagraphNode()]);
+          return true;
+        },
+        COMMAND_PRIORITY_LOW,
+      );
+      const removeImageCommand = editor.registerCommand(
+        INSERT_IMAGE_COMMAND,
+        (payload) => {
+          $insertNodes([$createImageNode(payload), $createParagraphNode()]);
+          return true;
+        },
+        COMMAND_PRIORITY_LOW,
+      );
+
+      return () => {
+        removeMermaidCommand();
+        removePlantUmlCommand();
+        removeImageCommand();
+      };
+    },
     [editor],
   );
 
@@ -471,7 +813,7 @@ function WysiwygCodeLanguagePlugin(): React.ReactElement | null {
   );
 }
 
-function WysiwygToolbar(): React.ReactElement {
+function WysiwygToolbar({ icons = {} }: { icons?: WysiwygToolbarIcons }): React.ReactElement {
   const [editor] = useLexicalComposerContext();
   const [activeBlock, setActiveBlock] = React.useState<WysiwygBlockType>('paragraph');
   const [isBold, setIsBold] = React.useState(false);
@@ -601,7 +943,17 @@ function WysiwygToolbar(): React.ReactElement {
         return;
       }
 
-      editor.dispatchCommand(INSERT_MERMAID_COMMAND, DEFAULT_MERMAID_SOURCE);
+      if (block === 'image') {
+        editor.dispatchCommand(INSERT_IMAGE_COMMAND, DEFAULT_IMAGE);
+        return;
+      }
+
+      if (block === 'mermaid') {
+        editor.dispatchCommand(INSERT_MERMAID_COMMAND, DEFAULT_MERMAID_SOURCE);
+        return;
+      }
+
+      editor.dispatchCommand(INSERT_PLANTUML_COMMAND, DEFAULT_PLANTUML_SOURCE);
     },
     [editor, insertCodeBlock],
   );
@@ -630,7 +982,7 @@ function WysiwygToolbar(): React.ReactElement {
           data-active={isBold ? 'true' : 'false'}
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold')}
         >
-          B
+          {icons.bold ?? 'B'}
         </button>
         <button
           type="button"
@@ -639,7 +991,7 @@ function WysiwygToolbar(): React.ReactElement {
           data-active={isItalic ? 'true' : 'false'}
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic')}
         >
-          I
+          {icons.italic ?? 'I'}
         </button>
         <button
           type="button"
@@ -648,7 +1000,7 @@ function WysiwygToolbar(): React.ReactElement {
           data-active={isCode ? 'true' : 'false'}
           onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code')}
         >
-          &lt;/&gt;
+          {icons.inlineCode ?? '</>'}
         </button>
       </span>
       <span className="me-wysiwyg-toolbar-group" aria-label="List formatting">
@@ -660,7 +1012,7 @@ function WysiwygToolbar(): React.ReactElement {
           data-active={activeBlock === 'bullet' ? 'true' : 'false'}
           onClick={() => setBlock('bullet')}
         >
-          •
+          {icons.bulletedList ?? '•'}
         </button>
         <button
           type="button"
@@ -670,7 +1022,7 @@ function WysiwygToolbar(): React.ReactElement {
           data-active={activeBlock === 'number' ? 'true' : 'false'}
           onClick={() => setBlock('number')}
         >
-          1.
+          {icons.numberedList ?? '1.'}
         </button>
         <button
           type="button"
@@ -680,7 +1032,7 @@ function WysiwygToolbar(): React.ReactElement {
           data-active={activeBlock === 'check' ? 'true' : 'false'}
           onClick={() => setBlock('check')}
         >
-          ☑
+          {icons.checkboxList ?? '☑'}
         </button>
       </span>
       <span className="me-wysiwyg-toolbar-group" aria-label="Insert blocks">
@@ -696,7 +1048,9 @@ function WysiwygToolbar(): React.ReactElement {
             Insert
           </option>
           <option value="code">Code block</option>
+          <option value="image">Image</option>
           <option value="mermaid">Mermaid diagram</option>
+          <option value="plantuml">PlantUML diagram</option>
         </select>
       </span>
     </div>
@@ -785,6 +1139,180 @@ function MermaidBlock({
         <div className="me-wysiwyg-mermaid-rendered" dangerouslySetInnerHTML={{ __html: html }} />
       ) : (
         <div className="me-wysiwyg-mermaid-loading">Rendering diagram...</div>
+      )}
+    </figure>
+  );
+}
+
+function PlantUmlBlock({
+  source,
+  nodeKey,
+  editor,
+}: {
+  source: string;
+  nodeKey: NodeKey;
+  editor: LexicalEditor;
+}): React.ReactElement {
+  const services = React.useContext(WysiwygRenderServicesContext);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(source);
+  const [html, setHtml] = React.useState('');
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setDraft(source);
+  }, [source]);
+
+  React.useEffect(() => {
+    if (isEditing) {
+      return;
+    }
+
+    if (!services.renderPlantUml) {
+      setHtml('');
+      setError('PlantUML rendering requires a host renderer.');
+      return;
+    }
+
+    const controller = new AbortController();
+    setError(null);
+    setHtml('');
+
+    Promise.resolve(services.renderPlantUml(source, { signal: controller.signal }))
+      .then((result) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setHtml(result.html);
+        if (result.diagnostics && result.diagnostics.length > 0) {
+          services.reportDiagnostics?.(result.diagnostics);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(cause instanceof Error ? cause.message : String(cause));
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [isEditing, services, source]);
+
+  function saveSource() {
+    editor.update(() => {
+      const node = $getNodeByKey(nodeKey);
+      if ($isPlantUmlNode(node)) {
+        node.setSource(draft);
+      }
+    });
+    setIsEditing(false);
+  }
+
+  return (
+    <figure className="me-wysiwyg-plantuml">
+      <figcaption>
+        <span>PlantUML</span>
+        <button type="button" onClick={() => setIsEditing((current) => !current)}>
+          {isEditing ? 'Preview' : 'Edit'}
+        </button>
+      </figcaption>
+      {isEditing ? (
+        <div className="me-wysiwyg-diagram-editor">
+          <textarea
+            aria-label="PlantUML diagram source"
+            value={draft}
+            onChange={(event) => setDraft(event.currentTarget.value)}
+            rows={7}
+          />
+          <button type="button" onClick={saveSource}>Apply</button>
+        </div>
+      ) : error ? (
+        <pre className="me-wysiwyg-diagram-error">{error}</pre>
+      ) : html ? (
+        <div className="me-wysiwyg-diagram-rendered" dangerouslySetInnerHTML={{ __html: html }} />
+      ) : (
+        <div className="me-wysiwyg-diagram-loading">Rendering diagram...</div>
+      )}
+    </figure>
+  );
+}
+
+function ImageBlock({
+  image,
+  nodeKey,
+  editor,
+}: {
+  image: Required<Pick<WysiwygImagePayload, 'src' | 'alt'>> & Pick<WysiwygImagePayload, 'title'>;
+  nodeKey: NodeKey;
+  editor: LexicalEditor;
+}): React.ReactElement {
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(image);
+
+  React.useEffect(() => {
+    setDraft(image);
+  }, [image]);
+
+  function saveImage() {
+    editor.update(() => {
+      const node = $getNodeByKey(nodeKey);
+      if ($isImageNode(node)) {
+        node.setImage({
+          src: draft.src.trim(),
+          alt: draft.alt,
+          title: draft.title?.trim() ? draft.title : undefined,
+        });
+      }
+    });
+    setIsEditing(false);
+  }
+
+  return (
+    <figure className="me-wysiwyg-image">
+      <figcaption>
+        <span>Image</span>
+        <button type="button" onClick={() => setIsEditing((current) => !current)}>
+          {isEditing ? 'Preview' : 'Edit'}
+        </button>
+      </figcaption>
+      {isEditing ? (
+        <div className="me-wysiwyg-image-editor">
+          <label>
+            <span>URL</span>
+            <input
+              type="url"
+              value={draft.src}
+              onChange={(event) => setDraft((current) => ({ ...current, src: event.currentTarget.value }))}
+            />
+          </label>
+          <label>
+            <span>Alt text</span>
+            <input
+              type="text"
+              value={draft.alt}
+              onChange={(event) => setDraft((current) => ({ ...current, alt: event.currentTarget.value }))}
+            />
+          </label>
+          <label>
+            <span>Title</span>
+            <input
+              type="text"
+              value={draft.title ?? ''}
+              onChange={(event) => setDraft((current) => ({ ...current, title: event.currentTarget.value }))}
+            />
+          </label>
+          <button type="button" onClick={saveImage}>Apply</button>
+        </div>
+      ) : image.src ? (
+        <>
+          <img src={image.src} alt={image.alt} title={image.title} />
+          {image.alt || image.title ? (
+            <p>{image.title || image.alt}</p>
+          ) : null}
+        </>
+      ) : (
+        <pre className="me-wysiwyg-diagram-error">Image URL is empty.</pre>
       )}
     </figure>
   );
@@ -923,6 +1451,21 @@ function splitMarkdownEnvelope(markdown: string): MarkdownEnvelope {
 
 function replaceEnvelopeBody(envelope: MarkdownEnvelope, body: string): string {
   return `${envelope.rawFrontmatter}${body}${envelope.trailing}`;
+}
+
+function formatImageMarkdown(image: WysiwygImagePayload): string {
+  const alt = escapeMarkdownAttribute(image.alt ?? '');
+  const src = escapeMarkdownAttribute(image.src);
+  const title = image.title?.trim();
+  return title ? `![${alt}](${src} "${escapeMarkdownAttribute(title)}")` : `![${alt}](${src})`;
+}
+
+function escapeMarkdownAttribute(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\]/g, '\\]');
+}
+
+function unescapeMarkdownAttribute(value: string): string {
+  return value.replace(/\\(["\\\]])/g, '$1');
 }
 
 const lexicalTheme = {

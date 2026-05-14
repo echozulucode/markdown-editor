@@ -27,8 +27,9 @@ Ship a standalone React/TypeScript Markdown editor control that proves the core 
 - Mermaid has an async renderer with timeout/error fallback, and PlantUML has a host-renderer factory with timeout/error fallback.
 - Initial hybrid decorations are in place for headings, lists, task lists, inline links/wiki-links, frontmatter properties, rendered inactive fenced blocks, tables, images, and callouts.
 - Initial WYSIWYG Lexical package boundary is in place with lazy React loading and headless import/export coverage for common prose constructs.
-- WYSIWYG now has a selection-aware toolbar, scalable block insert menu, block-level code language controls with Prism highlighting, checkbox-list support, and rendered source-backed Mermaid diagram editing.
-- WYSIWYG tables, images, PlantUML, example gallery, Playwright coverage, and hardening remain open.
+- WYSIWYG now has a selection-aware toolbar, scalable block insert menu, block-level code language controls with Prism highlighting, checkbox-list support, source-backed image editing, and rendered source-backed Mermaid and PlantUML diagram editing.
+- The dev harness now includes a `/examples` route with the six required MVP example shells and initial Playwright smoke coverage across desktop and mobile Chromium.
+- WYSIWYG tables, deeper workflow e2e coverage, example polish, and hardening remain open.
 
 ### Included
 - Monorepo package setup with TypeScript, React, Vite, Vitest, Playwright, package builds, and examples app.
@@ -343,6 +344,7 @@ Coordination rule: each lane owns disjoint files. Cross-lane contracts must be c
 - Add WYSIWYG toolbar commands with active selection state and current block-style display.
 - Add a Hashnode-like code-block insertion affordance with language selection on the code block surface.
 - Add ordered, bulleted, and checkbox list controls with editable checkbox toggles.
+- Render image blocks visually in WYSIWYG and expose URL, alt text, and title editing without taking on upload pipeline work.
 - Render diagram blocks visually in WYSIWYG and expose source editing through an explicit edit/apply control.
 - Add mode switch checkpoints from CodeMirror to Lexical and back.
 - Lazy-load WYSIWYG package from React component when `wysiwyg` is enabled.

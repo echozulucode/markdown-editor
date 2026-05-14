@@ -121,11 +121,11 @@ lessons:
     date: 2026-05-14
     area: wysiwyg
     lesson: "Represent WYSIWYG diagram blocks as rendered views with explicit source editing."
-    rationale: "Mermaid diagrams need to feel visual in WYSIWYG, but the durable editable artifact is still fenced Markdown source. A Confluence-style edit/apply control keeps the diagram inspectable without pretending there is a graphical editor."
+    rationale: "Mermaid and PlantUML diagrams need to feel visual in WYSIWYG, but the durable editable artifact is still fenced Markdown source. A Confluence-style edit/apply control keeps the diagram inspectable without pretending there is a graphical editor."
     applies_to:
       - "packages/wysiwyg-lexical"
       - "diagram rendering"
-      - "future PlantUML WYSIWYG support"
+      - "future diagram WYSIWYG support"
   - id: LESSON-015
     date: 2026-05-14
     area: toolbar
@@ -144,3 +144,48 @@ lessons:
       - "packages/wysiwyg-lexical"
       - "code block UX"
       - "future block controls"
+  - id: LESSON-017
+    date: 2026-05-14
+    area: host-services
+    lesson: "Use the same host-renderer boundary for PlantUML in every mode."
+    rationale: "PlantUML rendering needs a secure host-owned endpoint. WYSIWYG can own the editable source block, but rendering should still flow through the renderer registry or host service used by preview and hybrid."
+    applies_to:
+      - "packages/react"
+      - "packages/wysiwyg-lexical"
+      - "PlantUML rendering"
+  - id: LESSON-018
+    date: 2026-05-14
+    area: images
+    lesson: "Ship WYSIWYG image editing as URL-backed Markdown metadata before uploads."
+    rationale: "Image upload, storage, and asset resolution belong to host services. The reusable editor control should first preserve and edit Markdown image URL, alt text, and title data without taking ownership of asset lifecycle."
+    applies_to:
+      - "packages/wysiwyg-lexical"
+      - "host asset services"
+      - "future upload integration"
+  - id: LESSON-019
+    date: 2026-05-14
+    area: wysiwyg
+    lesson: "Semantic WYSIWYG imports need tests beyond byte-stable Markdown round trips."
+    rationale: "A task list imported as a plain unordered list with literal `[ ]` text can export the same Markdown bytes, so round-trip tests alone can miss broken editor semantics and visuals. Checklist behavior should be validated at the Lexical node or rendered-DOM level."
+    applies_to:
+      - "packages/wysiwyg-lexical"
+      - "checklist rendering"
+      - "future semantic WYSIWYG tests"
+  - id: LESSON-020
+    date: 2026-05-14
+    area: e2e
+    lesson: "Scope Playwright selectors to the specific editor chrome being asserted."
+    rationale: "Hybrid rendered blocks and nested editor surfaces can share accessible roles and labels with toolbar controls. Tests should use stable example shells plus toolbar or mode-surface scoping to avoid false strict-mode failures."
+    applies_to:
+      - "examples/dev-harness/e2e"
+      - "mode toolbar tests"
+      - "future rendered-block e2e coverage"
+  - id: LESSON-021
+    date: 2026-05-14
+    area: toolbar
+    lesson: "Keep toolbar icon libraries host-supplied through explicit icon slots."
+    rationale: "Font Awesome works well for the example toolbar, but making the reusable editor depend on it directly would force that bundle and visual vocabulary onto every consumer. A typed icon map lets examples and hosts choose their own icon library."
+    applies_to:
+      - "packages/react"
+      - "packages/wysiwyg-lexical"
+      - "examples/dev-harness"
