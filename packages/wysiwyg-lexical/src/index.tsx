@@ -70,9 +70,11 @@ import {
   $createTableCellNode,
   $createTableNode,
   $createTableRowNode,
+  $getTableCellNodeFromLexicalNode,
   $isTableCellNode,
   $isTableNode,
   $isTableRowNode,
+  $isTableSelection,
   TableCellHeaderStates,
   TableCellNode,
   TableNode,
@@ -84,10 +86,12 @@ const INSERT_MERMAID_COMMAND: LexicalCommand<string> = createCommand('INSERT_MER
 const INSERT_PLANTUML_COMMAND: LexicalCommand<string> = createCommand('INSERT_PLANTUML_COMMAND');
 const INSERT_IMAGE_COMMAND: LexicalCommand<WysiwygImagePayload> = createCommand('INSERT_IMAGE_COMMAND');
 const INSERT_TABLE_COMMAND: LexicalCommand<void> = createCommand('INSERT_TABLE_COMMAND');
+const APPLY_TABLE_ACTION_COMMAND: LexicalCommand<WysiwygTableAction> = createCommand('APPLY_TABLE_ACTION_COMMAND');
 
 type WysiwygBlockType = 'paragraph' | 'h1' | 'h2' | 'h3' | 'quote' | 'code' | 'bullet' | 'number' | 'check';
 type InsertBlockType = 'code' | 'table' | 'image' | 'mermaid' | 'plantuml';
 type WysiwygDiagramKind = 'mermaid' | 'plantuml';
+export type WysiwygTableAction = 'insert-row' | 'insert-column' | 'delete-row' | 'delete-column';
 
 interface WysiwygImagePayload {
   src: string;
@@ -691,6 +695,11 @@ export interface WysiwygMarkdownTableSummary {
   rows: string[][];
 }
 
+export interface WysiwygTableActionTarget {
+  rowIndex?: number;
+  columnIndex?: number;
+}
+
 /** @internal Test-only semantic inspection helper; not part of the stable package API. */
 export function inspectWysiwygMarkdownForTests(markdown: string): WysiwygMarkdownListSummary[] {
   const editor = createEditor({
@@ -765,6 +774,48 @@ export function inspectWysiwygMarkdownTablesForTests(markdown: string): WysiwygM
   return tables;
 }
 
+/** @internal Test-only table action helper; not part of the stable package API. */
+export function applyWysiwygTableActionForTests(
+  markdown: string,
+  action: WysiwygTableAction,
+  target: WysiwygTableActionTarget = {},
+): string {
+  const envelope = splitMarkdownEnvelope(markdown);
+  const editor = createEditor({
+    namespace: 'MarkdownEditorWysiwygHeadlessTableAction',
+    nodes: WYSIWYG_NODES,
+    theme: lexicalTheme,
+    onError(error) {
+      throw error;
+    },
+  });
+
+  editor.update(
+    () => {
+      importMarkdownBody(markdown);
+      const tableNode = $getRoot().getChildren().find($isTableNode);
+      if (!$isTableNode(tableNode)) {
+        return;
+      }
+
+      $applyMarkdownTableActionAt(
+        tableNode,
+        action,
+        target.rowIndex ?? 0,
+        target.columnIndex ?? 0,
+      );
+    },
+    { discrete: true },
+  );
+
+  let body = '';
+  editor.getEditorState().read(() => {
+    body = $convertToMarkdownString(WYSIWYG_TRANSFORMERS);
+  });
+
+  return replaceEnvelopeBody(envelope, body);
+}
+
 function WysiwygCommandPlugin(): null {
   const [editor] = useLexicalComposerContext();
 
@@ -804,12 +855,30 @@ function WysiwygCommandPlugin(): null {
         },
         COMMAND_PRIORITY_LOW,
       );
+      const removeTableActionCommand = editor.registerCommand(
+        APPLY_TABLE_ACTION_COMMAND,
+        (action) => {
+          const context = $getActiveMarkdownTableContext();
+          if (context === null) {
+            return false;
+          }
+
+          return $applyMarkdownTableActionAt(
+            context.tableNode,
+            action,
+            context.rowIndex,
+            context.columnIndex,
+          );
+        },
+        COMMAND_PRIORITY_LOW,
+      );
 
       return () => {
         removeMermaidCommand();
         removePlantUmlCommand();
         removeImageCommand();
         removeTableCommand();
+        removeTableActionCommand();
       };
     },
     [editor],
@@ -940,19 +1009,31 @@ function WysiwygCodeLanguagePlugin(): React.ReactElement | null {
 function WysiwygToolbar({ icons = {} }: { icons?: WysiwygToolbarIcons }): React.ReactElement {
   const [editor] = useLexicalComposerContext();
   const [activeBlock, setActiveBlock] = React.useState<WysiwygBlockType>('paragraph');
+  const [activeTable, setActiveTable] = React.useState<{ rowCount: number; columnCount: number } | null>(null);
   const [isBold, setIsBold] = React.useState(false);
   const [isItalic, setIsItalic] = React.useState(false);
   const [isCode, setIsCode] = React.useState(false);
 
   const updateToolbarState = React.useCallback(() => {
     const selection = $getSelection();
-    if (!$isRangeSelection(selection)) {
+    const tableContext = $getActiveMarkdownTableContext();
+    setActiveTable(tableContext === null ? null : {
+      rowCount: tableContext.rowCount,
+      columnCount: tableContext.columnCount,
+    });
+
+    if (!$isRangeSelection(selection) && !$isTableSelection(selection)) {
       return;
     }
 
     setIsBold(selection.hasFormat('bold'));
     setIsItalic(selection.hasFormat('italic'));
     setIsCode(selection.hasFormat('code'));
+
+    if (!$isRangeSelection(selection)) {
+      setActiveBlock('paragraph');
+      return;
+    }
 
     const anchorNode = selection.anchor.getNode();
     const topLevelNode = anchorNode.getTopLevelElement();
@@ -1087,6 +1168,13 @@ function WysiwygToolbar({ icons = {} }: { icons?: WysiwygToolbarIcons }): React.
     [editor, insertCodeBlock],
   );
 
+  const applyTableAction = React.useCallback(
+    (action: WysiwygTableAction) => {
+      editor.dispatchCommand(APPLY_TABLE_ACTION_COMMAND, action);
+    },
+    [editor],
+  );
+
   return (
     <div className="me-wysiwyg-toolbar" role="toolbar" aria-label="WYSIWYG formatting controls">
       <span className="me-wysiwyg-toolbar-group" aria-label="Block formatting">
@@ -1183,6 +1271,48 @@ function WysiwygToolbar({ icons = {} }: { icons?: WysiwygToolbarIcons }): React.
           <option value="plantuml">PlantUML diagram</option>
         </select>
       </span>
+      {activeTable === null ? null : (
+        <span className="me-wysiwyg-toolbar-group" aria-label="Table operations">
+          <button
+            className="me-wysiwyg-table-action"
+            type="button"
+            aria-label="Insert table row"
+            title="Insert table row"
+            onClick={() => applyTableAction('insert-row')}
+          >
+            R+
+          </button>
+          <button
+            className="me-wysiwyg-table-action"
+            type="button"
+            aria-label="Insert table column"
+            title="Insert table column"
+            onClick={() => applyTableAction('insert-column')}
+          >
+            C+
+          </button>
+          <button
+            className="me-wysiwyg-table-action"
+            type="button"
+            aria-label="Delete table row"
+            title="Delete table row"
+            disabled={activeTable.rowCount <= 1}
+            onClick={() => applyTableAction('delete-row')}
+          >
+            R-
+          </button>
+          <button
+            className="me-wysiwyg-table-action"
+            type="button"
+            aria-label="Delete table column"
+            title="Delete table column"
+            disabled={activeTable.columnCount <= 1}
+            onClick={() => applyTableAction('delete-column')}
+          >
+            C-
+          </button>
+        </span>
+      )}
     </div>
   );
 }
@@ -1583,6 +1713,118 @@ function replaceEnvelopeBody(envelope: MarkdownEnvelope, body: string): string {
   return `${envelope.rawFrontmatter}${body}${envelope.trailing}`;
 }
 
+interface ActiveMarkdownTableContext {
+  tableNode: TableNode;
+  rowIndex: number;
+  columnIndex: number;
+  rowCount: number;
+  columnCount: number;
+}
+
+function $getActiveMarkdownTableContext(): ActiveMarkdownTableContext | null {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) && !$isTableSelection(selection)) {
+    return null;
+  }
+
+  const cellNode =
+    $getTableCellNodeFromLexicalNode(selection.focus.getNode()) ??
+    $getTableCellNodeFromLexicalNode(selection.anchor.getNode());
+  if (cellNode === null) {
+    return null;
+  }
+
+  const rowNode = cellNode.getParent();
+  const tableNode = rowNode?.getParent();
+  if (!$isTableRowNode(rowNode) || !$isTableNode(tableNode)) {
+    return null;
+  }
+
+  const rowIndex = getChildNodeIndex(tableNode, rowNode);
+  const columnIndex = getChildNodeIndex(rowNode, cellNode);
+  if (rowIndex < 0 || columnIndex < 0) {
+    return null;
+  }
+
+  return {
+    tableNode,
+    rowIndex,
+    columnIndex,
+    rowCount: getTableRowNodes(tableNode).length,
+    columnCount: getMarkdownTableColumnCount(tableNode),
+  };
+}
+
+function $applyMarkdownTableActionAt(
+  tableNode: TableNode,
+  action: WysiwygTableAction,
+  rowIndex: number,
+  columnIndex: number,
+): boolean {
+  $normalizeSimpleMarkdownTableShape(tableNode);
+  const rowNodes = getTableRowNodes(tableNode);
+  const rowCount = rowNodes.length;
+  const columnCount = getMarkdownTableColumnCount(tableNode);
+  const safeRowIndex = clampIndex(rowIndex, rowCount);
+  const safeColumnIndex = clampIndex(columnIndex, columnCount);
+
+  if (action === 'insert-row') {
+    const targetRow = rowNodes[safeRowIndex];
+    if (!$isTableRowNode(targetRow)) {
+      return false;
+    }
+
+    const insertedRow = $createEmptyMarkdownTableRow(columnCount);
+    targetRow.insertAfter(insertedRow);
+    $normalizeSimpleMarkdownTableShape(tableNode);
+    $selectMarkdownTableCell(tableNode, safeRowIndex + 1, safeColumnIndex);
+    return true;
+  }
+
+  if (action === 'insert-column') {
+    rowNodes.forEach((rowNode, currentRowIndex) => {
+      const cellNode = rowNode.getChildAtIndex(safeColumnIndex);
+      const nextCell = $createEmptyMarkdownTableCell(
+        currentRowIndex === 0 ? TableCellHeaderStates.COLUMN : TableCellHeaderStates.NO_STATUS,
+      );
+
+      if ($isTableCellNode(cellNode)) {
+        cellNode.insertAfter(nextCell);
+      } else {
+        rowNode.append(nextCell);
+      }
+    });
+    $normalizeSimpleMarkdownTableShape(tableNode);
+    $selectMarkdownTableCell(tableNode, safeRowIndex, safeColumnIndex + 1);
+    return true;
+  }
+
+  if (action === 'delete-row') {
+    if (rowCount <= 1) {
+      return false;
+    }
+
+    rowNodes[safeRowIndex]?.remove();
+    $normalizeSimpleMarkdownTableShape(tableNode);
+    $selectMarkdownTableCell(tableNode, Math.min(safeRowIndex, rowCount - 2), safeColumnIndex);
+    return true;
+  }
+
+  if (columnCount <= 1) {
+    return false;
+  }
+
+  rowNodes.forEach((rowNode) => {
+    const cellNode = rowNode.getChildAtIndex(safeColumnIndex);
+    if ($isTableCellNode(cellNode)) {
+      cellNode.remove();
+    }
+  });
+  $normalizeSimpleMarkdownTableShape(tableNode);
+  $selectMarkdownTableCell(tableNode, safeRowIndex, Math.min(safeColumnIndex, columnCount - 2));
+  return true;
+}
+
 function $createMarkdownTableNode(rows: string[][]): TableNode {
   const columnCount = Math.max(1, rows[0]?.length ?? 1);
   const tableNode = $createTableNode();
@@ -1605,6 +1847,82 @@ function $createMarkdownTableNode(rows: string[][]): TableNode {
   });
 
   return tableNode;
+}
+
+function $createEmptyMarkdownTableRow(columnCount: number): TableRowNode {
+  const rowNode = $createTableRowNode();
+  for (let index = 0; index < Math.max(1, columnCount); index += 1) {
+    rowNode.append($createEmptyMarkdownTableCell(TableCellHeaderStates.NO_STATUS));
+  }
+
+  return rowNode;
+}
+
+function $createEmptyMarkdownTableCell(headerState: number): TableCellNode {
+  const cellNode = $createTableCellNode(headerState);
+  cellNode.append($createParagraphNode());
+  return cellNode;
+}
+
+function $normalizeSimpleMarkdownTableShape(tableNode: TableNode): void {
+  const rowNodes = getTableRowNodes(tableNode);
+  const columnCount = Math.max(1, getMarkdownTableColumnCount(tableNode));
+
+  rowNodes.forEach((rowNode, rowIndex) => {
+    while (rowNode.getChildrenSize() < columnCount) {
+      rowNode.append($createEmptyMarkdownTableCell(
+        rowIndex === 0 ? TableCellHeaderStates.COLUMN : TableCellHeaderStates.NO_STATUS,
+      ));
+    }
+
+    rowNode.getChildren().forEach((cellNode, columnIndex) => {
+      if (!$isTableCellNode(cellNode)) {
+        return;
+      }
+
+      if (columnIndex >= columnCount) {
+        cellNode.remove();
+        return;
+      }
+
+      cellNode.setHeaderStyles(
+        rowIndex === 0 ? TableCellHeaderStates.COLUMN : TableCellHeaderStates.NO_STATUS,
+        TableCellHeaderStates.BOTH,
+      );
+    });
+  });
+}
+
+function getTableRowNodes(tableNode: TableNode): TableRowNode[] {
+  return tableNode.getChildren().filter($isTableRowNode);
+}
+
+function getMarkdownTableColumnCount(tableNode: TableNode): number {
+  return Math.max(0, ...getTableRowNodes(tableNode).map((rowNode) => rowNode.getChildrenSize()));
+}
+
+function getChildNodeIndex(parentNode: TableNode | TableRowNode, childNode: LexicalNode): number {
+  return parentNode.getChildren().findIndex((node) => node.is(childNode));
+}
+
+function $selectMarkdownTableCell(tableNode: TableNode, rowIndex: number, columnIndex: number): void {
+  const rowNode = getTableRowNodes(tableNode)[rowIndex];
+  if (!$isTableRowNode(rowNode)) {
+    return;
+  }
+
+  const cellNode = rowNode.getChildAtIndex(columnIndex);
+  if ($isTableCellNode(cellNode)) {
+    cellNode.selectStart();
+  }
+}
+
+function clampIndex(index: number, length: number): number {
+  if (length <= 0) {
+    return 0;
+  }
+
+  return Math.min(Math.max(index, 0), length - 1);
 }
 
 function isMarkdownTableRowLine(line: string): boolean {

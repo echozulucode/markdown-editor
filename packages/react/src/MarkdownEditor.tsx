@@ -2,6 +2,8 @@ import React from 'react';
 import type {
   ChangeMeta,
   EditorMode,
+  HostServices,
+  LinkSuggestion,
   MarkdownEditorHandle,
   MarkdownEditorProps,
   ModeChangeMeta,
@@ -69,7 +71,9 @@ export const MarkdownEditor = React.forwardRef<
   const markdown = value ?? internalMarkdown;
   const activeMode = mode ?? internalMode;
   const hasFrontmatter = /^---\r?\n/.test(markdown);
-  const showToolbar = allowedModes.length > 1 || (activeMode === 'hybrid' && hasFrontmatter);
+  const hasHostServiceControls =
+    !readOnly && activeMode !== 'preview' && (hostServices?.searchLinks !== undefined || hostServices?.uploadAsset !== undefined);
+  const showToolbar = allowedModes.length > 1 || (activeMode === 'hybrid' && hasFrontmatter) || hasHostServiceControls;
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   const cmRef = React.useRef<MarkdownEditorViewHandle | null>(null);
   const markdownRef = React.useRef(markdown);
@@ -117,6 +121,9 @@ export const MarkdownEditor = React.forwardRef<
     }),
     [hostServices, renderers],
   );
+  const emitDiagnostics = React.useCallback((diagnostics: Parameters<NonNullable<MarkdownEditorProps['onDiagnostics']>>[0]) => {
+    onDiagnosticsRef.current?.(diagnostics);
+  }, []);
 
   React.useEffect(() => {
     if (!isCodeMirrorMode || !hostRef.current) {
@@ -281,6 +288,20 @@ export const MarkdownEditor = React.forwardRef<
     });
   }
 
+  function insertHostMarkdown(insertedMarkdown: string) {
+    if (!insertedMarkdown || readOnly || activeMode === 'preview') {
+      return;
+    }
+
+    if (cmRef.current) {
+      cmRef.current.insertMarkdown(insertedMarkdown);
+      return;
+    }
+
+    const separator = markdownRef.current.length > 0 && !markdownRef.current.endsWith('\n') ? '\n' : '';
+    updateMarkdown(`${markdownRef.current}${separator}${insertedMarkdown}`, 'host');
+  }
+
   return (
     <section
       className={['me-editor', className].filter(Boolean).join(' ')}
@@ -314,6 +335,13 @@ export const MarkdownEditor = React.forwardRef<
             >
               {showProperties ? 'Hide properties' : 'Show properties'}
             </button>
+          ) : null}
+          {hasHostServiceControls ? (
+            <HostServiceToolbar
+              services={hostServices}
+              onInsertMarkdown={insertHostMarkdown}
+              onDiagnostics={emitDiagnostics}
+            />
           ) : null}
         </div>
       ) : null}
@@ -351,6 +379,155 @@ export const MarkdownEditor = React.forwardRef<
     </section>
   );
 });
+
+function HostServiceToolbar({
+  services,
+  onInsertMarkdown,
+  onDiagnostics,
+}: {
+  services?: HostServices;
+  onInsertMarkdown(markdown: string): void;
+  onDiagnostics(diagnostics: Parameters<NonNullable<MarkdownEditorProps['onDiagnostics']>>[0]): void;
+}) {
+  const [query, setQuery] = React.useState('');
+  const [suggestions, setSuggestions] = React.useState<LinkSuggestion[]>([]);
+  const [searching, setSearching] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const fileInputId = React.useId();
+
+  React.useEffect(() => {
+    if (!services?.searchLinks || query.trim().length === 0) {
+      setSuggestions([]);
+      setSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSearching(true);
+
+    services.searchLinks(query.trim(), controller.signal)
+      .then((nextSuggestions) => {
+        if (!controller.signal.aborted) {
+          setSuggestions(nextSuggestions);
+        }
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        onDiagnostics([{
+          code: 'host.searchLinks.failed',
+          message,
+          severity: 'error',
+          source: 'host-service',
+        }]);
+        setSuggestions([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setSearching(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [onDiagnostics, query, services]);
+
+  async function uploadFile(file: File) {
+    if (!services?.uploadAsset) {
+      return;
+    }
+
+    const controller = new AbortController();
+    setUploading(true);
+    try {
+      const asset = await services.uploadAsset(file, controller.signal);
+      const alt = (asset.alt ?? file.name.replace(/\.[^.]+$/, '')) || 'Uploaded image';
+      onInsertMarkdown(`\n\n![${escapeMarkdownLabel(alt)}](${asset.url})\n`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      onDiagnostics([{
+        code: 'host.uploadAsset.failed',
+        message,
+        severity: 'error',
+        source: 'host-service',
+      }]);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="me-host-tools" aria-label="Host services">
+      {services?.searchLinks ? (
+        <div className="me-link-search">
+          <label className="me-visually-hidden" htmlFor={`${fileInputId}-link-search`}>
+            Search pages
+          </label>
+          <input
+            id={`${fileInputId}-link-search`}
+            type="search"
+            value={query}
+            placeholder="Search pages"
+            aria-label="Search pages"
+            aria-controls={`${fileInputId}-link-suggestions`}
+            aria-expanded={suggestions.length > 0}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          {query.trim().length > 0 ? (
+            <div
+              id={`${fileInputId}-link-suggestions`}
+              className="me-link-suggestions"
+              role="listbox"
+              aria-label="Page suggestions"
+            >
+              {searching ? <div className="me-link-suggestion-status">Searching...</div> : null}
+              {!searching && suggestions.length === 0 ? (
+                <div className="me-link-suggestion-status">No matches</div>
+              ) : null}
+              {suggestions.map((suggestion) => (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  role="option"
+                  className="me-link-suggestion"
+                  onClick={() => {
+                    onInsertMarkdown(suggestion.insertText);
+                    setQuery('');
+                    setSuggestions([]);
+                  }}
+                >
+                  <span>{suggestion.label}</span>
+                  {suggestion.description ? <small>{suggestion.description}</small> : null}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {services?.uploadAsset ? (
+        <div className="me-upload-control">
+          <input
+            id={`${fileInputId}-asset-upload`}
+            type="file"
+            accept="image/*"
+            aria-label="Upload image"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = '';
+              if (file) {
+                void uploadFile(file);
+              }
+            }}
+          />
+          <label className="me-upload-button" htmlFor={`${fileInputId}-asset-upload`}>
+            {uploading ? 'Uploading...' : 'Upload image'}
+          </label>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function PreviewSurface({
   markdown,
@@ -448,4 +625,8 @@ function escapeHtml(value: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function escapeMarkdownLabel(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/]/g, '\\]');
 }

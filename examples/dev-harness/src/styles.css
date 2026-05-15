@@ -347,7 +347,8 @@ textarea:focus {
 .review-example,
 .prompt-example,
 .conflict-example,
-.runbook-example {
+.runbook-example,
+.host-services-example {
   display: grid;
   gap: 16px;
   min-width: 0;
@@ -546,6 +547,10 @@ textarea:focus {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 0.45fr);
 }
 
+.host-services-example {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.45fr);
+}
+
 .prompt-composer {
   display: grid;
   gap: 12px;
@@ -564,11 +569,13 @@ textarea:focus {
 }
 
 .prompt-composer .me-editor,
-.prompt-context .me-editor {
+.prompt-context .me-editor,
+.host-services-editor .me-editor {
   min-height: 500px;
 }
 
-.prompt-context {
+.prompt-context,
+.host-services-panel {
   display: grid;
   gap: 12px;
   align-content: start;
@@ -578,6 +585,11 @@ textarea:focus {
   border-radius: 8px;
 }
 
+.host-services-panel .me-editor {
+  min-height: 360px;
+}
+
+.host-services-panel ul,
 .prompt-context ul {
   display: grid;
   gap: 6px;
@@ -632,6 +644,7 @@ textarea:focus {
   .review-example,
   .runbook-example,
   .prompt-example,
+  .host-services-example,
   .conflict-example {
     grid-template-columns: 1fr;
   }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseMarkdown } from '@markdown-editor/core';
 import {
+  applyWysiwygTableActionForTests,
   inspectWysiwygMarkdownForTests,
   inspectWysiwygMarkdownTablesForTests,
   roundTripWysiwygMarkdown,
@@ -177,5 +178,63 @@ describe('roundTripWysiwygMarkdown', () => {
     expect(result).toContain('| Key | Value |');
     expect(result).toContain('| owner | docs |');
     expect(parseMarkdown(result).frontmatter.title).toBe('Table fixture');
+  });
+
+  it('applies WYSIWYG table row insertion while preserving simple Markdown table export', () => {
+    const markdown = [
+      '| Name | Owner |',
+      '| --- | --- |',
+      '| Runbook | Platform |',
+    ].join('\n');
+
+    const result = applyWysiwygTableActionForTests(markdown, 'insert-row', { rowIndex: 1 });
+
+    expect(result).toBe([
+      '| Name | Owner |',
+      '| --- | --- |',
+      '| Runbook | Platform |',
+      '|  |  |',
+    ].join('\n'));
+  });
+
+  it('applies WYSIWYG table column insertion while preserving simple Markdown table export', () => {
+    const markdown = [
+      '| Name | Owner |',
+      '| --- | --- |',
+      '| Runbook | Platform |',
+    ].join('\n');
+
+    const result = applyWysiwygTableActionForTests(markdown, 'insert-column', { columnIndex: 0 });
+
+    expect(result).toBe([
+      '| Name |  | Owner |',
+      '| --- | --- | --- |',
+      '| Runbook |  | Platform |',
+    ].join('\n'));
+  });
+
+  it('applies WYSIWYG table row and column deletion while keeping a valid table shape', () => {
+    const markdown = [
+      '| Name | Owner | Status |',
+      '| --- | --- | --- |',
+      '| Runbook | Platform | Draft |',
+      '| Release notes | Docs | Ready |',
+    ].join('\n');
+
+    const withoutBodyRow = applyWysiwygTableActionForTests(markdown, 'delete-row', { rowIndex: 1 });
+    const withoutOwnerColumn = applyWysiwygTableActionForTests(withoutBodyRow, 'delete-column', { columnIndex: 1 });
+
+    expect(withoutOwnerColumn).toBe([
+      '| Name | Status |',
+      '| --- | --- |',
+      '| Release notes | Ready |',
+    ].join('\n'));
+  });
+
+  it('keeps the last table row or column instead of exporting an invalid empty table', () => {
+    const markdown = ['| Only |', '| --- |'].join('\n');
+
+    expect(applyWysiwygTableActionForTests(markdown, 'delete-row')).toBe(markdown);
+    expect(applyWysiwygTableActionForTests(markdown, 'delete-column')).toBe(markdown);
   });
 });

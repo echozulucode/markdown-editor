@@ -1,9 +1,9 @@
 ---
 type: plan
 project: "markdown-editor"
-status: ready_for_review
+status: active
 version: 1
-updated: 2026-05-14
+updated: 2026-05-15
 phases:
   - id: 1
     name: "Reference Extraction & Product Contract"
@@ -20,7 +20,10 @@ phases:
   - id: 5
     name: "Hardening, Docs, and Release"
     status: completed
-current_phase: "ready for review"
+  - id: 6
+    name: "Post-MVP Properties and Host Polish"
+    status: planned
+current_phase: "Post-MVP properties refinement planning"
 ---
 
 # Plan: Standalone Markdown Editor Control
@@ -121,6 +124,18 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 - [x] Security review for Markdown HTML, links, image URLs, Mermaid, PlantUML, and plugin APIs.
 - [x] Publish package docs, host integration recipes, migration guide from Knowledge E3, and example-site source links.
 
+## Phase 6: Post-MVP Properties and Host Polish
+- [ ] Replace the current advanced properties row actions with an Obsidian-class compact interaction model: drag handles for pointer reordering, keyboard-accessible reorder support, and no persistent per-row move buttons in the primary UI.
+- [ ] Add a property-name/type popover opened from the property name area. The selected type should be represented by a compact icon, with the text label available through accessible names and tooltips rather than always-visible chrome.
+- [ ] Build type-specific property editors: text input, boolean checkbox, date picker, time picker, date-time editor when needed, tags/token input, and host-link/value suggestion fields when host services are available.
+- [ ] Implement tag editing inline in the row: type to add, press Enter to commit, Backspace/delete affordances for individual tags, and a subtle remove icon on each token. Avoid separate bulky management screens.
+- [ ] Preserve Markdown/YAML as canonical source while clearly documenting the structured editor's YAML preservation boundary: simple scalars/lists remain supported first; complex YAML should either fall back to source editing or be guarded by host schema rules.
+- [ ] Add host property schema support for allowed keys, preferred types, labels, icon hints, validation, default values, required properties, and order preferences.
+- [ ] Add responsive behavior for the properties panel so the same controls work in full-page editors, side panes, modals, and mobile examples without row crowding.
+- [ ] Extend examples to show the refined properties panel in hybrid-only, all-modes, published-preview, and compact/mobile contexts.
+- [ ] Keep Font Awesome as an example-site icon adapter, not a core package dependency. The reusable editor should continue to expose icon slots/adapters so hosts can use Font Awesome, Lucide, or their own design-system icons.
+- [ ] Add focused unit and browser tests for drag reordering, keyboard reordering, type switching, date/time editing, tag token add/remove, schema constraints, mobile layout, and YAML source updates.
+
 ## Key Risks
 - WYSIWYG mode can normalize Markdown in ways source-first users will reject.
 - Hybrid rendering can produce cursor, selection, and layout-jump defects if decorations are too coarse.
@@ -153,6 +168,8 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 | 2026-05-14 | Treat simple GFM pipe tables as the MVP WYSIWYG table shape. | The WYSIWYG adapter now imports/renders/exports editable tables, while advanced table operations and alignment preservation remain accepted normalizations or post-MVP scope. |
 | 2026-05-14 | Use the dev harness examples route as the Phase 4 review surface. | The route now contains the six required shells plus side-pane review, modal quick edit, technical runbook, mobile note, prompt composer, and conflict resolver examples using public APIs. |
 | 2026-05-14 | Treat Phase 5 gates as MVP smoke/audit gates, not a formal compliance certification. | Automated tests now cover unit, browser, responsive, accessibility, and performance smoke paths; deeper axe, screen-reader, and production security certification remain host/release-process responsibilities. |
+| 2026-05-15 | Make the post-MVP properties panel an Obsidian-class editor rather than a CRUD table. | The target UX is compact, inline, and source-backed: drag handles for ordering, type icons and popovers, customized date/time/tag/boolean editors, and no bulky property-management screens. |
+| 2026-05-15 | Keep Font Awesome visible in examples but isolated through the existing icon adapter boundary. | The examples should demonstrate the requested graphical toolbar with a real icon set while the core packages remain library-agnostic for consumers with different design systems. |
 
 ## Errors Encountered
 | Date | Error | Resolution |

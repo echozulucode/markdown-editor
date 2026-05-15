@@ -216,3 +216,21 @@ lessons:
       - "packages/wysiwyg-lexical"
       - "table editing"
       - "accepted normalizations"
+  - id: LESSON-025
+    date: 2026-05-15
+    area: properties
+    lesson: "Structured properties editing should clearly declare its YAML preservation boundary."
+    rationale: "Typed frontmatter editing is useful, but once users reorder/add/remove properties the UI must serialize a canonical simple YAML shape. Tests and docs should make it explicit when comments, nested values, or complex structures are outside the structured editor's preservation model."
+    applies_to:
+      - "packages/codemirror"
+      - "hybrid properties panel"
+      - "frontmatter UX"
+  - id: LESSON-026
+    date: 2026-05-15
+    area: host-services
+    lesson: "Host-service demos should prove the callback boundary with real editor insertion."
+    rationale: "A host-service type alone does not prove integration. The page suggestion and image upload example now exercises `searchLinks` and `uploadAsset` through the public React component and verifies that returned Markdown reaches the editor and preview."
+    applies_to:
+      - "packages/react"
+      - "examples/dev-harness"
+      - "host integration recipes"

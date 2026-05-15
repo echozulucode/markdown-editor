@@ -2,8 +2,8 @@
 type: release-readiness
 project: "markdown-editor"
 status: ready_for_review
-updated: 2026-05-14
-scope: "Phase 5 release documentation and audit artifacts"
+updated: 2026-05-15
+scope: "Phase 5 release documentation plus post-MVP audit tracking"
 ---
 
 # Release Readiness Notes
@@ -22,6 +22,7 @@ This document records the current MVP release posture. It is intentionally evide
 | Performance | Ready for MVP smoke | Playwright covers mode-switch and typing latency smoke with conservative bounds; deeper trace-based budgets are a post-MVP hardening track. |
 | Security | Ready for MVP review | Renderer escape/fallback boundaries exist, Mermaid runs with `securityLevel: 'strict'`, PlantUML is host-owned, and known production trust-boundary caveats are documented. |
 | WYSIWYG fidelity | Ready for MVP | WYSIWYG tests cover common prose, lists, images, Mermaid, PlantUML, code blocks, tables, frontmatter envelope preservation, and accepted table normalizations. |
+| Visual/layout audit | Post-MVP track started | `docs/post-mvp-qa.md` defines screenshot review criteria. `examples/dev-harness/e2e/post-mvp-qa.spec.ts` attaches desktop/mobile route screenshots and checks non-baseline layout invariants. |
 
 ## Accessibility Audit
 
@@ -43,6 +44,7 @@ Manual checks recommended before a production release:
 - Screen reader smoke pass for toolbar grouping, rendered error panels, frontmatter properties, and WYSIWYG block controls.
 - Contrast review for host-specific themes beyond the default light theme.
 - Focus restoration check for every host-specific modal or route transition.
+- Full checklist in `docs/post-mvp-qa.md`, including route navigation, dialog shell, read-only preview, renderer errors, reduced motion, and contrast.
 
 ## Performance Gates
 
@@ -64,6 +66,7 @@ Recommended post-MVP performance gates:
 - First Shiki render cost and lazy-load behavior.
 - Mermaid slow/invalid render timeout in browser-level Playwright coverage.
 - Example route smoke timing budgets per route.
+- Draft budget notes and measurement cautions are captured in `docs/post-mvp-qa.md`.
 
 ## Security Review
 
@@ -201,6 +204,8 @@ Migration mapping:
 | Conflict/diff resolver | `examples/dev-harness/src/main.tsx`, `example-conflict-resolver` |
 | Example smoke tests | `examples/dev-harness/e2e/examples.spec.ts` |
 | Mode and renderer smoke tests | `examples/dev-harness/e2e/modes-renderers.spec.ts` |
+| Post-MVP QA audit spec | `examples/dev-harness/e2e/post-mvp-qa.spec.ts` |
+| Post-MVP QA checklist | `docs/post-mvp-qa.md` |
 
 ## Known Limitations
 
@@ -208,7 +213,7 @@ Migration mapping:
 - WYSIWYG table export intentionally normalizes alignment markers to `---`, pads short rows, truncates extra cells, and preserves inline Markdown inside cells as text rather than rich inline formatting.
 - Accessibility has MVP smoke coverage but no axe or screen-reader certification artifact.
 - Performance gates are conservative MVP smoke checks, not trace-based production budgets.
-- Example gallery has desktop/mobile Chromium smoke coverage and explicit phone/tablet/desktop overflow checks, but no visual screenshot baselines.
+- Example gallery has desktop/mobile Chromium smoke coverage, explicit phone/tablet/desktop overflow checks, and post-MVP screenshot review artifacts, but no committed visual screenshot baselines.
 - Wiki-link autocomplete and upload flows are host-service contracts, not complete UI workflows.
 - Advanced Obsidian-style properties editing is deferred.
 - Package publishing docs are not final; current recipes are source-level integration notes.

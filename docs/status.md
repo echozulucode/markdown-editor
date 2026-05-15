@@ -1,15 +1,85 @@
 ---
 type: status
-updated: 2026-05-14
-current_phase: "Ready for Phase 4/5 review"
+updated: 2026-05-15
+current_phase: "Post-MVP properties refinement planning"
 blockers: []
 next_actions:
-  - "Review the examples gallery at /examples, especially the six required shells and six stretch shells"
-  - "Review release-readiness notes for MVP caveats and post-MVP scope"
-  - "Decide whether to commit the Phase 4/5 completion branch or request refinements"
+  - "Implement Phase 6 properties refinement: drag handles, type popover, type icons, inline tag tokens, and date/time picker behavior"
+  - "Add host property schema support for labels, allowed keys, preferred types, defaults, validation, required fields, and ordering"
+  - "Extend examples to show Font Awesome property/editor icons through the existing icon adapter boundary"
+  - "Add tests for property drag reordering, keyboard reordering, type switching, tag editing, date/time editing, mobile layout, and YAML updates"
+  - "Review WYSIWYG table operation controls in WYSIWYG mode"
+  - "Review the host-services example for wiki-link suggestions and image upload"
+  - "Review post-MVP QA notes and screenshot artifacts"
 ---
 
 # Status Log
+
+## Session: 2026-05-15 Properties Plan Revision
+**Phase:** Post-MVP properties refinement planning
+
+**Actions taken:**
+- Revised the main plan with Phase 6 for an Obsidian-class properties panel rather than treating the current implementation as the final advanced editor.
+- Captured the desired row model: drag handle, compact type icon, property name/type popover, type-specific editor, inline token tags, and minimal always-visible chrome.
+- Clarified that persistent up/down row buttons should be replaced by pointer drag reordering plus an accessible keyboard alternative.
+- Preserved the Font Awesome direction for examples while keeping the reusable editor packages icon-library agnostic through slots/adapters.
+- Expanded requirements around schema-driven property keys, preferred types, labels, defaults, validation, required fields, ordering, and complex YAML guardrails.
+
+**Verification:**
+- Documentation-only change; implementation tests were not run.
+
+**Outcome:** The next implementation pass should target the refined properties UX/API rather than broad post-MVP exploration.
+
+**Carry-forward notes:**
+- The current structured properties editor remains useful as a functional baseline but should be visually and behaviorally refined before calling the advanced properties work complete.
+- The screenshot/reference direction favors dense inline editing over bulky dialogs or management pages.
+
+## Session: 2026-05-15 Post-MVP Options
+**Phase:** Post-MVP options - properties, tables, host services, QA
+
+**Actions taken:**
+- Added an Obsidian-inspired hybrid properties panel with type affordances for text, date, time, tags, and boolean values.
+- Added properties UI actions for editing keys/values, adding properties, removing properties, and keyboard-accessible move up/down reordering while preserving Markdown/YAML as the saved source.
+- Added WYSIWYG table operation controls for simple GFM tables: insert row, insert column, delete row, and delete column, with guards against invalid empty tables.
+- Added a host-service toolbar path in `@markdown-editor/react` for `searchLinks` suggestions and `uploadAsset` image insertion.
+- Added a new `/examples` host-services shell showing page/wiki-link suggestions and host-backed image upload with rendered preview.
+- Added post-MVP QA documentation and Playwright coverage for screenshot artifacts, layout invariants, accessibility guards, and route budget smoke checks.
+- Exported `HostServices` and `LinkSuggestion` from `@markdown-editor/react` so hosts can type integration services from the React package.
+
+**Verification:**
+- `pnpm -r typecheck` passed.
+- `pnpm -r test` passed.
+- `pnpm -r build` passed.
+- `pnpm --filter @markdown-editor/dev-harness test:e2e` passed with 60 Playwright checks across desktop and mobile Chromium.
+
+**Outcome:** The first post-MVP options pass is implemented and ready for review.
+
+**Carry-forward notes:**
+- Advanced properties editing remains limited to top-level scalar, CSV, inline-list, and simple block-list values; nested YAML/comments are canonicalized by the structured editor.
+- WYSIWYG table operations target simple unmerged GFM tables and retain the existing accepted Markdown normalizations.
+- Host-service insertion is practical in Markdown/CodeMirror modes; selection-aware insertion for WYSIWYG is still future work.
+- Screenshot artifacts are review aids, not committed pixel baselines.
+
+## Session: 2026-05-15 Worker D Post-MVP QA Artifacts
+**Phase:** Post-MVP QA/audit/docs
+
+**Actions taken:**
+- Added `docs/post-mvp-qa.md` with visual screenshot/layout review criteria, a manual accessibility audit checklist, and draft performance budget notes.
+- Updated release-readiness notes with post-MVP visual/layout audit tracking, accessibility checklist references, performance budget references, and post-MVP QA source links.
+- Updated the test matrix with post-MVP visual screenshot, layout invariant, accessibility audit, and route budget smoke entries.
+- Added `examples/dev-harness/e2e/post-mvp-qa.spec.ts` to attach desktop/mobile screenshots for `/examples`, `/modes`, and `/renderers`, check representative example layout invariants, guard unlabeled buttons and ARIA states, and record route readiness against conservative draft budgets.
+- Added the new QA note to `docs/index.yaml`.
+
+**Verification:**
+- `pnpm --filter @markdown-editor/dev-harness test:e2e -- e2e/post-mvp-qa.spec.ts` passed with 14 Playwright checks across desktop and mobile Chromium.
+- `git diff --check` passed with line-ending normalization warnings only.
+
+**Outcome:** Post-MVP QA artifacts are started and ready for main-agent review. This pass does not declare final release completion.
+
+**Carry-forward notes:**
+- Screenshot artifacts are review aids, not committed visual baselines.
+- Accessibility remains an MVP smoke plus manual-audit track, not a certification claim.
+- Performance budgets are intentionally draft and should not be tightened until large fixtures and trace collection are stable.
 
 ## Session: 2026-05-14 Phase 4/5 Completion
 **Phase:** 4-5 - Examples, Hardening, Docs, and Release Readiness

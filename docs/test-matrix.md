@@ -2,8 +2,8 @@
 type: test-matrix
 project: "markdown-editor"
 status: ready_for_review
-updated: 2026-05-14
-scope: "MVP gates"
+updated: 2026-05-15
+scope: "MVP gates plus post-MVP QA tracks"
 owner: "QA/Examples lane"
 ---
 
@@ -27,6 +27,9 @@ This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into co
 | Required examples use public package APIs only | Phase 7+ | Static review, Playwright smoke | React UX, QA | Implemented: required and stretch shells are in `/examples` and exercised by Playwright; source review notes are in `docs/release-readiness.md`. |
 | Accessibility and responsive gates pass | Phase 5+ | Playwright, manual audit | React UX, QA | Implemented for MVP: keyboard/ARIA, reduced-motion, read-only chrome, and phone/tablet/desktop overflow checks are committed; deeper axe/screen-reader certification is post-MVP. |
 | MVP performance smoke stays within targets | Phase 2+ | Playwright perf smoke | Engine lanes, QA | Implemented for MVP: mode-switch and typing smoke checks are committed with conservative latency bounds; deeper trace-based perf budgets are post-MVP. |
+| Post-MVP visual/layout audit artifacts exist | Post-MVP | Playwright screenshots, manual review | QA/Examples | Started: `docs/post-mvp-qa.md` defines screenshot review criteria and `examples/dev-harness/e2e/post-mvp-qa.spec.ts` attaches route screenshots while checking non-baseline layout invariants. |
+| Post-MVP accessibility manual audit checklist exists | Post-MVP | Manual audit checklist, smoke automation | QA/Examples | Started: `docs/post-mvp-qa.md` records the manual screen-reader/keyboard/contrast checklist; the post-MVP spec adds unlabeled-button and ARIA-state guards. |
+| Post-MVP performance budget notes exist | Post-MVP | Budget notes, focused smoke timing | QA/Examples | Started: `docs/post-mvp-qa.md` records draft budget targets and cautions; the post-MVP spec records route readiness timing under conservative draft bounds. |
 
 ## Unit Checks
 
@@ -74,6 +77,10 @@ This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into co
 | Required examples | 390px, 1440px | Visit each required example shell | Each shell renders with public API and no overflow-breaking layout | 7 - initial coverage added |
 | Example mode options | Mobile Chromium, desktop Chromium | Assert all-modes controls, split markdown/preview surfaces, single-mode focused shells, read-only chrome, and compact editing | Configured options render and host state updates through public APIs | 7 - initial coverage added |
 | Example toolbar icons | Mobile Chromium, desktop Chromium | Visit WYSIWYG-only contributor shell and inspect toolbar SVGs | Host-supplied Font Awesome icons render inside graphical toolbar controls | 7 - initial coverage added |
+| Post-MVP screenshot artifacts | Mobile Chromium, desktop Chromium | Visit `/examples`, `/modes`, and `/renderers`; attach full-page screenshots | Review artifacts exist for manual visual/layout inspection and routes have no document-level horizontal overflow | Post-MVP - audit artifact coverage added |
+| Post-MVP example layout invariants | Mobile Chromium, desktop Chromium | Inspect representative example shells | Header and editor regions are non-collapsed and do not overlap in the current responsive projects | Post-MVP - audit guard added |
+| Post-MVP accessibility smoke guards | Mobile Chromium, desktop Chromium | Inspect example buttons and selected ARIA stateful controls | Visible buttons have accessible names; mode and WYSIWYG state controls expose expected ARIA state | Post-MVP - audit guard added |
+| Post-MVP route budget smoke | Mobile Chromium, desktop Chromium | Time route readiness for `/examples`, `/modes`, and `/renderers` | Routes become ready within conservative draft local smoke budgets | Post-MVP - budget guard added |
 | Mode matrix switching | Mobile Chromium, desktop Chromium | Switch the all-modes route among hybrid, markdown, preview, and WYSIWYG | Content remains visible and the correct mode-specific surface appears | 4/5 - initial coverage added |
 | Renderer route behavior | Mobile Chromium, desktop Chromium | Visit renderer fixture route | Shiki-highlighted code, Mermaid, PlantUML, tables, callouts, unsupported-language diagnostics, and invalid Mermaid fallback render | 3/4 - initial coverage added |
 | No-op save | 1440px | Load fixture, switch modes, save | Saved Markdown equals initial Markdown for no-op paths | 4+ |
@@ -89,6 +96,7 @@ This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into co
 | Contrast | Run automated contrast checks and manual spot check | Text, controls, selections, and error states meet WCAG AA targets | 5+ |
 | Error announcements | Renderer and validation errors | Inline error states are reachable and announced without stealing focus | 3/5 |
 | Small viewport operation | 390px keyboard navigation | Controls remain reachable; no horizontal page overflow from core chrome | 5/7 |
+| Post-MVP manual audit | `docs/post-mvp-qa.md` checklist | Screen-reader, keyboard-only, reduced-motion, dialog, error, read-only, and contrast passes have explicit notes before production release | Post-MVP |
 
 ## Performance Checks
 
@@ -102,6 +110,7 @@ This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into co
 | Shiki lazy load | Highlighter loads on first code block, not initial empty editor | Resource timing and UI loading state | 3 |
 | Mermaid timeout | Invalid/slow diagram exits through timeout path | Controlled slow renderer fixture | 3 |
 | Example gallery | Required routes load within MVP baseline | Route-level smoke timing on desktop/mobile | 7 |
+| Post-MVP route budgets | Draft route readiness target under 8 seconds | Focused Playwright smoke in `post-mvp-qa.spec.ts`, then future trace-based replacement | Post-MVP |
 
 ## Phase 0/1 Exit Checklist
 

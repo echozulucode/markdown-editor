@@ -520,6 +520,103 @@ describe('createMarkdownEditorView', () => {
     editor.destroy();
     parent.remove();
   });
+
+  it('reorders adds and removes frontmatter properties through the hybrid panel', () => {
+    const markdown = ['---', 'title: Hybrid notes', 'tags: editor, mvp', '---', '# Title'].join('\n');
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+    });
+
+    const bodyPosition = markdown.indexOf('# Title');
+    editor.setSelection({ anchor: bodyPosition, head: bodyPosition });
+
+    parent.querySelector<HTMLButtonElement>('.cm-me-property-move-down')?.click();
+    expect(editor.getMarkdown()).toBe(['---', 'tags: editor, mvp', 'title: Hybrid notes', '---', '# Title'].join('\n'));
+
+    parent.querySelector<HTMLButtonElement>('.cm-me-property-add')?.click();
+    expect(editor.getMarkdown()).toContain('property: ');
+
+    const keyInputs = parent.querySelectorAll<HTMLInputElement>('.cm-me-property-key-input');
+    const valueInputs = parent.querySelectorAll<HTMLInputElement>('.cm-me-property-input');
+    keyInputs[keyInputs.length - 1]!.value = 'status';
+    keyInputs[keyInputs.length - 1]!.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const updatedValueInputs = parent.querySelectorAll<HTMLInputElement>('.cm-me-property-input');
+    updatedValueInputs[updatedValueInputs.length - 1]!.value = 'Ready';
+    updatedValueInputs[updatedValueInputs.length - 1]!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.getMarkdown()).toContain('status: Ready');
+
+    parent.querySelector<HTMLButtonElement>('[aria-label="Remove title property"]')?.click();
+    expect(editor.getMarkdown()).toBe(['---', 'tags: editor, mvp', 'status: Ready', '---', '# Title'].join('\n'));
+    expect(parent.querySelectorAll('.cm-me-property-input')).toHaveLength(2);
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('edits typed frontmatter values and type affordances through the hybrid panel', () => {
+    const markdown = [
+      '---',
+      'published: true',
+      'due: 2026-05-15',
+      'alarm: 09:30',
+      'tags:',
+      '  - editor',
+      '  - mvp',
+      'status: Draft',
+      '---',
+      '# Title',
+    ].join('\n');
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+    });
+
+    const bodyPosition = markdown.indexOf('# Title');
+    editor.setSelection({ anchor: bodyPosition, head: bodyPosition });
+
+    expect(parent.querySelector('[data-property-type="boolean"] .cm-me-property-type-icon')?.textContent).toBe('B');
+    expect(parent.querySelector('[data-property-type="date"] .cm-me-property-type-icon')?.textContent).toBe('D');
+    expect(parent.querySelector('[data-property-type="time"] .cm-me-property-type-icon')?.textContent).toBe('H');
+    expect(parent.querySelector('[data-property-type="tags"] .cm-me-property-type-icon')?.textContent).toBe('#');
+
+    const publishedInput = parent.querySelector<HTMLInputElement>('[aria-label="published property value"]');
+    publishedInput!.checked = false;
+    publishedInput!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.getMarkdown()).toContain('published: false');
+
+    const dueInput = parent.querySelector<HTMLInputElement>('[aria-label="due property value"]');
+    dueInput!.value = '2026-06-01';
+    dueInput!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.getMarkdown()).toContain('due: 2026-06-01');
+
+    const alarmInput = parent.querySelector<HTMLInputElement>('[aria-label="alarm property value"]');
+    alarmInput!.value = '10:45';
+    alarmInput!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.getMarkdown()).toContain('alarm: 10:45');
+
+    const tagsInput = parent.querySelector<HTMLInputElement>('[aria-label="tags property value"]');
+    tagsInput!.value = 'release, post-mvp';
+    tagsInput!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.getMarkdown()).toContain('tags: release, post-mvp');
+
+    const statusType = parent.querySelector<HTMLSelectElement>('[aria-label="status property type"]');
+    statusType!.value = 'boolean';
+    statusType!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(editor.getMarkdown()).toContain('status: false');
+
+    editor.destroy();
+    parent.remove();
+  });
 });
 
 function flushPromises(): Promise<void> {

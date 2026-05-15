@@ -561,37 +561,245 @@ function addInlineLinkDecorations(builder: RangeSetBuilder<Decoration>, lineFrom
 interface FrontmatterEntry {
   key: string;
   value: string;
+  type: FrontmatterPropertyType;
 }
+
+type FrontmatterPropertyType = "text" | "date" | "time" | "tags" | "boolean";
+
+const frontmatterPropertyTypes: FrontmatterPropertyType[] = ["text", "date", "time", "tags", "boolean"];
+
+const frontmatterTypeLabels: Record<FrontmatterPropertyType, string> = {
+  text: "Text",
+  date: "Date",
+  time: "Time",
+  tags: "Tags",
+  boolean: "Boolean"
+};
+
+const frontmatterTypeIcons: Record<FrontmatterPropertyType, string> = {
+  text: "T",
+  date: "D",
+  time: "H",
+  tags: "#",
+  boolean: "B"
+};
 
 function parseFrontmatter(raw: string): FrontmatterEntry[] {
   const entries: FrontmatterEntry[] = [];
   const lines = raw.replace(/\r\n?/g, "\n").split("\n").slice(1, -1);
 
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const listStart = line.match(/^([A-Za-z0-9_-]+):\s*$/);
+    if (listStart) {
+      const items: string[] = [];
+      let listIndex = index + 1;
+      while (listIndex < lines.length) {
+        const item = lines[listIndex].match(/^\s{2,}-\s*(.*)$/);
+        if (!item) {
+          break;
+        }
+        items.push(normalizeFrontmatterScalar(item[1]));
+        listIndex += 1;
+      }
+
+      if (items.length > 0) {
+        const value = items.join(", ");
+        entries.push({ key: listStart[1], value, type: inferFrontmatterType(listStart[1], value, true) });
+        index = listIndex - 1;
+        continue;
+      }
+    }
+
     const match = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
     if (!match) {
       continue;
     }
 
-    entries.push({ key: match[1], value: match[2] || "" });
+    const value = normalizeFrontmatterValue(match[2] || "");
+    entries.push({ key: match[1], value, type: inferFrontmatterType(match[1], value, false) });
   }
 
   return entries;
 }
 
-function updateFrontmatterValue(raw: string, key: string, value: string): string {
-  const newline = raw.includes("\r\n") ? "\r\n" : "\n";
-  const lines = raw.replace(/\r\n?/g, "\n").split("\n");
-
-  for (let index = 1; index < lines.length - 1; index += 1) {
-    const match = lines[index].match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
-    if (match?.[1] === key) {
-      lines[index] = `${key}: ${value}`;
-      break;
-    }
+function updateFrontmatterEntry(raw: string, entryIndex: number, patch: Partial<FrontmatterEntry>): string {
+  const entries = parseFrontmatter(raw);
+  const current = entries[entryIndex];
+  if (!current) {
+    return raw;
   }
 
+  entries[entryIndex] = normalizeFrontmatterEntry({ ...current, ...patch });
+  return serializeFrontmatter(raw, entries);
+}
+
+function addFrontmatterEntry(raw: string): string {
+  const entries = parseFrontmatter(raw);
+  entries.push({
+    key: nextFrontmatterKey(entries),
+    value: "",
+    type: "text"
+  });
+  return serializeFrontmatter(raw, entries);
+}
+
+function removeFrontmatterEntry(raw: string, entryIndex: number): string {
+  const entries = parseFrontmatter(raw);
+  if (!entries[entryIndex]) {
+    return raw;
+  }
+
+  entries.splice(entryIndex, 1);
+  return serializeFrontmatter(raw, entries);
+}
+
+function moveFrontmatterEntry(raw: string, entryIndex: number, direction: "up" | "down"): string {
+  const entries = parseFrontmatter(raw);
+  const targetIndex = direction === "up" ? entryIndex - 1 : entryIndex + 1;
+
+  if (!entries[entryIndex] || targetIndex < 0 || targetIndex >= entries.length) {
+    return raw;
+  }
+
+  const [entry] = entries.splice(entryIndex, 1);
+  entries.splice(targetIndex, 0, entry);
+  return serializeFrontmatter(raw, entries);
+}
+
+function serializeFrontmatter(raw: string, entries: FrontmatterEntry[]): string {
+  const newline = raw.includes("\r\n") ? "\r\n" : "\n";
+  const lines = ["---"];
+
+  for (const entry of entries.map(normalizeFrontmatterEntry)) {
+    if (entry.type === "tags") {
+      const items = splitFrontmatterTags(entry.value);
+      lines.push(`${entry.key}: ${items.join(", ")}`);
+      continue;
+    }
+
+    lines.push(`${entry.key}: ${serializeFrontmatterValue(entry)}`);
+  }
+
+  lines.push("---");
   return lines.join(newline);
+}
+
+function normalizeFrontmatterEntry(entry: FrontmatterEntry): FrontmatterEntry {
+  const type = frontmatterPropertyTypes.includes(entry.type) ? entry.type : "text";
+  return {
+    key: sanitizeFrontmatterKey(entry.key),
+    value: coerceFrontmatterValue(entry.value, type),
+    type
+  };
+}
+
+function normalizeFrontmatterValue(value: string): string {
+  const trimmed = value.trim();
+  const inlineList = trimmed.match(/^\[(.*)]$/);
+  if (inlineList) {
+    return splitFrontmatterTags(inlineList[1]).join(", ");
+  }
+
+  return normalizeFrontmatterScalar(trimmed);
+}
+
+function normalizeFrontmatterScalar(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+
+  return trimmed;
+}
+
+function inferFrontmatterType(key: string, value: string, fromList: boolean): FrontmatterPropertyType {
+  const normalizedKey = key.toLowerCase();
+  const trimmed = value.trim();
+
+  if (/^(true|false)$/i.test(trimmed)) {
+    return "boolean";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return "date";
+  }
+
+  if (/^\d{2}:\d{2}(?::\d{2})?$/.test(trimmed)) {
+    return "time";
+  }
+
+  if (
+    fromList
+    || normalizedKey === "tag"
+    || normalizedKey === "tags"
+    || normalizedKey === "category"
+    || normalizedKey === "categories"
+    || trimmed.includes(",")
+  ) {
+    return "tags";
+  }
+
+  return "text";
+}
+
+function serializeFrontmatterValue(entry: FrontmatterEntry): string {
+  if (entry.type === "boolean") {
+    return /^true$/i.test(entry.value) ? "true" : "false";
+  }
+
+  return entry.value;
+}
+
+function coerceFrontmatterValue(value: string, type: FrontmatterPropertyType): string {
+  const trimmed = value.trim();
+  if (type === "boolean") {
+    return /^true$/i.test(trimmed) ? "true" : "false";
+  }
+
+  if (type === "tags") {
+    return splitFrontmatterTags(trimmed).join(", ");
+  }
+
+  if (type === "date") {
+    return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : "";
+  }
+
+  if (type === "time") {
+    const time = trimmed.match(/^(\d{2}:\d{2})(?::\d{2})?$/);
+    return time ? time[1] : "";
+  }
+
+  return value.replace(/\r?\n/g, " ");
+}
+
+function splitFrontmatterTags(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => normalizeFrontmatterScalar(item))
+    .filter((item) => item.length > 0);
+}
+
+function sanitizeFrontmatterKey(key: string): string {
+  const sanitized = key.trim().replace(/\s+/g, "_").replace(/[^A-Za-z0-9_-]/g, "");
+  return sanitized || "property";
+}
+
+function nextFrontmatterKey(entries: FrontmatterEntry[]): string {
+  const keys = new Set(entries.map((entry) => entry.key));
+  if (!keys.has("property")) {
+    return "property";
+  }
+
+  for (let index = 2; ; index += 1) {
+    const key = `property_${index}`;
+    if (!keys.has(key)) {
+      return key;
+    }
+  }
 }
 
 class TaskCheckboxWidget extends WidgetType {
@@ -674,60 +882,196 @@ class FrontmatterPropertiesWidget extends WidgetType {
     const wrapper = document.createElement("section");
     wrapper.className = "cm-me-properties";
     wrapper.setAttribute("aria-label", "Markdown properties");
+    const readOnly = view.state.readOnly;
 
     const table = document.createElement("table");
     table.className = "cm-me-properties-table";
+    const thead = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+    for (const label of ["Order", "Property", "Type", "Value", "Remove"]) {
+      const cell = document.createElement("th");
+      cell.scope = "col";
+      cell.textContent = label;
+      headerRow.append(cell);
+    }
+    thead.append(headerRow);
     const tbody = document.createElement("tbody");
     const entries = parseFrontmatter(this.raw);
 
-    for (const { key, value } of entries) {
+    entries.forEach((entry, index) => {
       const row = document.createElement("tr");
-      const keyCell = document.createElement("th");
+      const orderCell = document.createElement("td");
+      const keyCell = document.createElement("td");
+      const typeCell = document.createElement("td");
       const valueCell = document.createElement("td");
-      const input = document.createElement("input");
+      const removeCell = document.createElement("td");
+      const keyInput = document.createElement("input");
+      const typeIcon = document.createElement("span");
+      const typeSelect = document.createElement("select");
 
-      keyCell.textContent = key;
-      input.className = "cm-me-property-input";
-      input.value = value;
-      input.setAttribute("aria-label", `${key} property value`);
-      input.addEventListener("change", () => {
-        const nextRaw = updateFrontmatterValue(this.raw, key, input.value);
-        if (nextRaw === this.raw || view.state.readOnly) {
-          return;
-        }
+      row.dataset.propertyType = entry.type;
+      orderCell.className = "cm-me-property-order-cell";
+      keyCell.className = "cm-me-property-key-cell";
+      typeCell.className = "cm-me-property-type-cell";
+      valueCell.className = "cm-me-property-value-cell";
+      removeCell.className = "cm-me-property-remove-cell";
 
-        view.dispatch({
-          changes: { from: this.from, to: this.to, insert: nextRaw },
-          userEvent: "input"
-        });
+      const moveUpButton = this.createButton("Up", `Move ${entry.key} property up`, readOnly || index === 0, () => {
+        this.commitRaw(view, moveFrontmatterEntry(this.raw, index, "up"));
       });
-      input.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          input.blur();
+      moveUpButton.classList.add("cm-me-property-move-up");
+
+      const moveDownButton = this.createButton(
+        "Down",
+        `Move ${entry.key} property down`,
+        readOnly || index === entries.length - 1,
+        () => {
+          this.commitRaw(view, moveFrontmatterEntry(this.raw, index, "down"));
         }
+      );
+      moveDownButton.classList.add("cm-me-property-move-down");
+      orderCell.append(moveUpButton, moveDownButton);
+
+      keyInput.className = "cm-me-property-key-input";
+      keyInput.value = entry.key;
+      keyInput.disabled = readOnly;
+      keyInput.setAttribute("aria-label", `Property name for ${entry.key}`);
+      keyInput.addEventListener("change", () => {
+        this.commitRaw(view, updateFrontmatterEntry(this.raw, index, { key: keyInput.value }));
       });
-      valueCell.append(input);
-      row.append(keyCell, valueCell);
+      this.blurOnEnter(keyInput);
+      keyCell.append(keyInput);
+
+      typeIcon.className = "cm-me-property-type-icon";
+      typeIcon.textContent = frontmatterTypeIcons[entry.type];
+      typeIcon.setAttribute("aria-hidden", "true");
+      for (const type of frontmatterPropertyTypes) {
+        const option = document.createElement("option");
+        option.value = type;
+        option.textContent = frontmatterTypeLabels[type];
+        typeSelect.append(option);
+      }
+      typeSelect.className = "cm-me-property-type-select";
+      typeSelect.value = entry.type;
+      typeSelect.disabled = readOnly;
+      typeSelect.setAttribute("aria-label", `${entry.key} property type`);
+      typeSelect.addEventListener("change", () => {
+        const type = typeSelect.value as FrontmatterPropertyType;
+        this.commitRaw(view, updateFrontmatterEntry(this.raw, index, {
+          type,
+          value: coerceFrontmatterValue(entry.value, type)
+        }));
+      });
+      typeCell.append(typeIcon, typeSelect);
+
+      valueCell.append(this.createValueControl(view, entry, index, readOnly));
+
+      const removeButton = this.createButton("Remove", `Remove ${entry.key} property`, readOnly, () => {
+        this.commitRaw(view, removeFrontmatterEntry(this.raw, index));
+      });
+      removeButton.classList.add("cm-me-property-remove");
+      removeCell.append(removeButton);
+
+      row.append(orderCell, keyCell, typeCell, valueCell, removeCell);
       tbody.append(row);
-    }
+    });
 
     if (entries.length === 0) {
       const row = document.createElement("tr");
       const valueCell = document.createElement("td");
-      valueCell.colSpan = 2;
+      valueCell.colSpan = 5;
       valueCell.textContent = "No properties";
       row.append(valueCell);
       tbody.append(row);
     }
 
-    table.append(tbody);
-    wrapper.append(table);
+    const addButton = this.createButton("Add property", "Add property", readOnly, () => {
+      this.commitRaw(view, addFrontmatterEntry(this.raw));
+    });
+    addButton.classList.add("cm-me-property-add");
+
+    table.append(thead, tbody);
+    wrapper.append(table, addButton);
     return wrapper;
   }
 
   ignoreEvent(): boolean {
     return true;
+  }
+
+  private createValueControl(
+    view: EditorView,
+    entry: FrontmatterEntry,
+    entryIndex: number,
+    readOnly: boolean
+  ): HTMLElement {
+    if (entry.type === "boolean") {
+      const checkbox = document.createElement("input");
+      checkbox.className = "cm-me-property-input cm-me-property-boolean-input";
+      checkbox.type = "checkbox";
+      checkbox.checked = /^true$/i.test(entry.value);
+      checkbox.disabled = readOnly;
+      checkbox.setAttribute("aria-label", `${entry.key} property value`);
+      checkbox.addEventListener("change", () => {
+        this.commitRaw(view, updateFrontmatterEntry(this.raw, entryIndex, {
+          value: checkbox.checked ? "true" : "false"
+        }));
+      });
+      return checkbox;
+    }
+
+    const input = document.createElement("input");
+    input.className = "cm-me-property-input";
+    input.value = entry.value;
+    input.disabled = readOnly;
+    input.setAttribute("aria-label", `${entry.key} property value`);
+
+    if (entry.type === "date") {
+      input.type = "date";
+    } else if (entry.type === "time") {
+      input.type = "time";
+    } else {
+      input.type = "text";
+    }
+
+    input.addEventListener("change", () => {
+      this.commitRaw(view, updateFrontmatterEntry(this.raw, entryIndex, { value: input.value }));
+    });
+    this.blurOnEnter(input);
+
+    return input;
+  }
+
+  private createButton(label: string, ariaLabel: string, disabled: boolean, onClick: () => void): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.disabled = disabled;
+    button.setAttribute("aria-label", ariaLabel);
+    button.addEventListener("click", () => {
+      onClick();
+    });
+    return button;
+  }
+
+  private blurOnEnter(input: HTMLInputElement): void {
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        input.blur();
+      }
+    });
+  }
+
+  private commitRaw(view: EditorView, nextRaw: string): void {
+    if (nextRaw === this.raw || view.state.readOnly) {
+      return;
+    }
+
+    view.dispatch({
+      changes: { from: this.from, to: this.to, insert: nextRaw },
+      userEvent: "input"
+    });
   }
 }
 

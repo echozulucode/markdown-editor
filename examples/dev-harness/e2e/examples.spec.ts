@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { Buffer } from 'node:buffer';
 
 test.describe('examples gallery', () => {
   test.beforeEach(async ({ page }) => {
@@ -18,6 +19,7 @@ test.describe('examples gallery', () => {
     await expect(page.getByTestId('example-technical-runbook')).toContainText('Technical runbook editor');
     await expect(page.getByTestId('example-mobile-note')).toContainText('Mobile-first note editor');
     await expect(page.getByTestId('example-ai-prompt-composer')).toContainText('AI prompt composer');
+    await expect(page.getByTestId('example-host-services')).toContainText('Page mentions and image upload');
     await expect(page.getByTestId('example-conflict-resolver')).toContainText('Conflict/diff resolver');
   });
 
@@ -120,6 +122,32 @@ test.describe('examples gallery', () => {
     await expect(conflict.locator('.me-editor[aria-label="Conflict incoming Markdown"]')).toBeVisible();
     await expect(conflict.locator('.me-editor[aria-label="Conflict resolved Markdown editor"]')).toBeVisible();
     await expect(conflict.locator('.me-editor')).toHaveCount(3);
+  });
+
+  test('host-service example inserts wiki-link suggestions and uploaded images', async ({ page }) => {
+    const example = page.getByTestId('example-host-services');
+    const editor = example.getByLabel('Host-service Markdown editor').locator('.cm-content');
+
+    await example.scrollIntoViewIfNeeded();
+    await editor.click();
+    await page.keyboard.press('End');
+
+    await example.getByLabel('Search pages').fill('release');
+    await expect(example.getByRole('listbox', { name: 'Page suggestions' })).toBeVisible();
+    await example.getByRole('option', { name: /Release Runbook/ }).click();
+
+    await expect(editor).toContainText('[[Release Runbook]]');
+    await expect(example.getByLabel('Host service activity')).toContainText('searchLinks("release")');
+
+    await example.getByLabel('Upload image').setInputFiles({
+      name: 'diagram.svg',
+      mimeType: 'image/svg+xml',
+      buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 40"><rect width="80" height="40" fill="#2f6f9f"/></svg>'),
+    });
+
+    await expect(editor).toContainText('![diagram](');
+    await expect(example.getByLabel('Host service activity')).toContainText('uploadAsset("diagram.svg")');
+    await expect(example.getByLabel('Host-service rendered preview').locator('img[alt="diagram"]')).toBeVisible();
   });
 
   test('gallery editors keep usable dimensions across responsive projects', async ({ page }) => {

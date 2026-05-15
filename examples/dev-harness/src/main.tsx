@@ -32,6 +32,8 @@ type HarnessRoute = {
   description: string;
 };
 
+type MarkdownEditorHostServices = NonNullable<React.ComponentProps<typeof MarkdownEditor>["hostServices"]>;
+
 const routes: HarnessRoute[] = [
   {
     id: "markdown",
@@ -351,6 +353,41 @@ Use these source pages:
 Summarize user-visible changes, list known limitations, and preserve exact package names.
 `;
 
+const hostServicesMarkdown = `# Host-service authoring
+
+Use page suggestions to link internal documentation, then upload an image from the host asset service.
+
+- Mention a page:
+- Attach an image:
+`;
+
+const pageSuggestions = [
+  {
+    id: "release-runbook",
+    label: "Release Runbook",
+    insertText: "[[Release Runbook]]",
+    description: "Operations checklist and release validation steps"
+  },
+  {
+    id: "renderer-registry",
+    label: "Renderer Registry",
+    insertText: "[[Renderer Registry]]",
+    description: "Shared renderer extension points"
+  },
+  {
+    id: "mobile-session-policy",
+    label: "Mobile Session Policy",
+    insertText: "[[Mobile Session Policy]]",
+    description: "Authentication behavior for mobile clients"
+  },
+  {
+    id: "wysiwyg-adapter",
+    label: "WYSIWYG Adapter",
+    insertText: "[[WYSIWYG Adapter]]",
+    description: "Visual editor import and export boundary"
+  }
+];
+
 const baseConflictMarkdown = `# Release Checklist
 
 - [x] Renderer smoke tests
@@ -564,6 +601,7 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
   const [runbook, setRunbook] = React.useState(runbookMarkdown);
   const [mobileNote, setMobileNote] = React.useState(mobileNoteMarkdown);
   const [prompt, setPrompt] = React.useState(promptMarkdown);
+  const [hostServicesDoc, setHostServicesDoc] = React.useState(hostServicesMarkdown);
   const [resolvedConflict, setResolvedConflict] = React.useState(incomingConflictMarkdown);
 
   return (
@@ -836,6 +874,19 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
       </ExampleShell>
 
       <ExampleShell
+        id="host-services"
+        eyebrow="Host services"
+        title="Page mentions and image upload"
+        description="A practical integration demo using host searchLinks for wiki-link insertion and host uploadAsset for Markdown images."
+      >
+        <HostServicesExample
+          markdown={hostServicesDoc}
+          renderers={renderers}
+          onMarkdownChange={setHostServicesDoc}
+        />
+      </ExampleShell>
+
+      <ExampleShell
         id="conflict-resolver"
         eyebrow="Conflict"
         title="Conflict/diff resolver"
@@ -911,6 +962,101 @@ function ExampleShell({
       {children}
     </section>
   );
+}
+
+function HostServicesExample({
+  markdown,
+  renderers,
+  onMarkdownChange
+}: {
+  markdown: string;
+  renderers: RendererRegistry;
+  onMarkdownChange: (value: string) => void;
+}) {
+  const [events, setEvents] = React.useState<string[]>(["Host services ready"]);
+  const recordEvent = React.useCallback((event: string) => {
+    setEvents((current) => [event, ...current].slice(0, 5));
+  }, []);
+  const hostServices = React.useMemo<MarkdownEditorHostServices>(
+    () => ({
+      searchLinks: async (query, signal) => {
+        recordEvent(`searchLinks("${query}")`);
+        await waitForHostDemo(signal);
+        const normalizedQuery = query.toLowerCase();
+        return pageSuggestions.filter((suggestion) =>
+          `${suggestion.label} ${suggestion.description}`.toLowerCase().includes(normalizedQuery)
+        );
+      },
+      uploadAsset: async (file, signal) => {
+        recordEvent(`uploadAsset("${file.name}")`);
+        await waitForHostDemo(signal);
+        return {
+          url: await fileToDataUrl(file),
+          alt: file.name.replace(/\.[^.]+$/, "") || "Uploaded image"
+        };
+      }
+    }),
+    [recordEvent]
+  );
+
+  return (
+    <div className="host-services-example">
+      <section className="host-services-editor" aria-label="Host-service Markdown editor">
+        <MarkdownEditor
+          ariaLabel="Host-service Markdown editor"
+          value={markdown}
+          modes={["markdown", "preview"]}
+          initialMode="markdown"
+          renderers={renderers}
+          hostServices={hostServices}
+          onChange={onMarkdownChange}
+        />
+      </section>
+      <aside className="host-services-panel" aria-label="Host service activity">
+        <strong>Host service calls</strong>
+        <ul>
+          {events.map((event, index) => (
+            <li key={`${event}-${index}`}>{event}</li>
+          ))}
+        </ul>
+        <MarkdownEditor
+          ariaLabel="Host-service rendered preview"
+          value={markdown}
+          modes={["preview"]}
+          initialMode="preview"
+          readOnly
+          renderers={renderers}
+        />
+      </aside>
+    </div>
+  );
+}
+
+function waitForHostDemo(signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(new DOMException("The operation was aborted.", "AbortError"));
+  }
+
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(resolve, 40);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        window.clearTimeout(timeout);
+        reject(new DOMException("The operation was aborted.", "AbortError"));
+      },
+      { once: true }
+    );
+  });
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result)));
+    reader.addEventListener("error", () => reject(reader.error ?? new Error("Unable to read uploaded file.")));
+    reader.readAsDataURL(file);
+  });
 }
 
 function renderPlantUmlFixture(source: string): string {
