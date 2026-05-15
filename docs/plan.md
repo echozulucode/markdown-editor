@@ -1,7 +1,7 @@
 ---
 type: plan
 project: "markdown-editor"
-status: active
+status: ready_for_review
 version: 1
 updated: 2026-05-14
 phases:
@@ -13,14 +13,14 @@ phases:
     status: completed
   - id: 3
     name: "Core Editor Implementation"
-    status: in_progress
+    status: completed
   - id: 4
     name: "Example Sites & Integration Gallery"
-    status: in_progress
+    status: completed
   - id: 5
     name: "Hardening, Docs, and Release"
-    status: pending
-current_phase: 4
+    status: completed
+current_phase: "ready for review"
 ---
 
 # Plan: Standalone Markdown Editor Control
@@ -89,14 +89,14 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 - [x] Wire Shiki into the renderer harness route with success, fallback, and diagnostic coverage.
 - [x] Replace full-bundle Shiki usage with fine-grained core language/theme loading for the MVP language set.
 - [x] Build initial hybrid mode on the same CodeMirror state with active-block reveal, rendered inactive fenced blocks, rendered headings/lists/task lists, and properties table support.
-- [ ] Port WYSIWYG as an optional Lexical adapter with strict Markdown import/export gates.
+- [x] Port WYSIWYG as an optional Lexical adapter with strict Markdown import/export gates.
 - [x] Integrate Mermaid rendering with async execution, timeout, error panels, and no page crashes.
 - [x] Integrate PlantUML through a renderer interface so hosts can provide a secure server endpoint.
 - [x] Build initial table, image, code block, callout, link, wiki-link, and diagram hybrid widgets with source-edit affordances.
 - [x] Establish the optional WYSIWYG package boundary and lazy React loading path.
 - [x] Add initial WYSIWYG toolbar commands, selection-aware block style display, scalable block insertion, block-level code language controls with syntax highlighting, checkbox lists, source-backed image editing, and rendered source-backed Mermaid and PlantUML diagram editing.
-- [ ] Expand WYSIWYG import/export coverage for MVP technical blocks and accepted normalizations.
-- [ ] Track advanced Obsidian-style properties editing as post-MVP/frontmatter UX work: reorder, add/remove, typed date/time/tag/boolean editors, and host-defined property schemas.
+- [x] Expand WYSIWYG import/export coverage for MVP technical blocks and accepted normalizations.
+- [x] Track advanced Obsidian-style properties editing as post-MVP/frontmatter UX work: reorder, add/remove, typed date/time/tag/boolean editors, and host-defined property schemas.
 
 ## Phase 4: Example Sites & Integration Gallery
 - [x] Full-page docs editor using all modes.
@@ -105,21 +105,21 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 - [x] WYSIWYG-only nontechnical contributor editor.
 - [x] Read-only published documentation site.
 - [x] Compact comment composer.
-- [ ] Side-pane review editor.
-- [ ] Modal quick-edit editor.
-- [ ] Technical runbook editor with diagrams and code-heavy samples.
-- [ ] Mobile-first note editor.
-- [ ] AI prompt composer using Markdown and page mentions.
-- [ ] Conflict/diff resolver embedding multiple editor instances.
+- [x] Side-pane review editor.
+- [x] Modal quick-edit editor.
+- [x] Technical runbook editor with diagrams and code-heavy samples.
+- [x] Mobile-first note editor.
+- [x] AI prompt composer using Markdown and page mentions.
+- [x] Conflict/diff resolver embedding multiple editor instances.
 
 ## Phase 5: Hardening, Docs, and Release
-- [ ] Round-trip fixture suite covering GFM, frontmatter, tables, callouts, inline HTML, wiki-links, diagrams, very long lines, and mixed line endings.
-- [ ] WYSIWYG semantic and byte-stability gates with documented accepted normalizations.
-- [ ] Playwright coverage across desktop, tablet, and phone viewports.
-- [ ] Accessibility audit for keyboard navigation, screen reader semantics, focus restoration, contrast, and reduced motion.
-- [ ] Performance gates for mount, typing latency, mode switch, autocomplete, diagram rendering, and very large documents.
-- [ ] Security review for Markdown HTML, links, image URLs, Mermaid, PlantUML, and plugin APIs.
-- [ ] Publish package docs, host integration recipes, migration guide from Knowledge E3, and example-site source links.
+- [x] Round-trip fixture suite covering GFM, frontmatter, tables, callouts, inline HTML, wiki-links, diagrams, very long lines, and mixed line endings.
+- [x] WYSIWYG semantic and byte-stability gates with documented accepted normalizations.
+- [x] Playwright coverage across desktop, tablet, and phone viewports.
+- [x] Accessibility audit for keyboard navigation, screen reader semantics, focus restoration, contrast, and reduced motion.
+- [x] Performance gates for mount, typing latency, mode switch, autocomplete, diagram rendering, and very large documents.
+- [x] Security review for Markdown HTML, links, image URLs, Mermaid, PlantUML, and plugin APIs.
+- [x] Publish package docs, host integration recipes, migration guide from Knowledge E3, and example-site source links.
 
 ## Key Risks
 - WYSIWYG mode can normalize Markdown in ways source-first users will reject.
@@ -150,6 +150,9 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 | 2026-05-14 | Keep toolbar iconography host-swappable instead of hard-wiring Font Awesome. | Font Awesome is a valid host choice, but the reusable control should expose an icon slot or adapter so consumers can use Font Awesome, Lucide, or a default lightweight icon set without forcing one dependency into every bundle. |
 | 2026-05-14 | Start the example gallery in the existing dev harness instead of a separate app. | The harness already consumes public APIs and hosts the mode/renderer fixtures, so adding `/examples` there keeps smoke coverage close to the integration surface while the examples mature. |
 | 2026-05-14 | Use Font Awesome in examples through the WYSIWYG toolbar icon slot. | This proves graphical toolbar integration with a real icon library while keeping the package-level toolbar library-agnostic for other hosts. |
+| 2026-05-14 | Treat simple GFM pipe tables as the MVP WYSIWYG table shape. | The WYSIWYG adapter now imports/renders/exports editable tables, while advanced table operations and alignment preservation remain accepted normalizations or post-MVP scope. |
+| 2026-05-14 | Use the dev harness examples route as the Phase 4 review surface. | The route now contains the six required shells plus side-pane review, modal quick edit, technical runbook, mobile note, prompt composer, and conflict resolver examples using public APIs. |
+| 2026-05-14 | Treat Phase 5 gates as MVP smoke/audit gates, not a formal compliance certification. | Automated tests now cover unit, browser, responsive, accessibility, and performance smoke paths; deeper axe, screen-reader, and production security certification remain host/release-process responsibilities. |
 
 ## Errors Encountered
 | Date | Error | Resolution |

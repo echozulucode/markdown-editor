@@ -36,6 +36,93 @@ describe('Markdown codec fixture corpus', () => {
       expect(serializeMarkdown(parseMarkdown(raw))).toBe(raw);
     });
   }
+
+  it('covers the Phase 5 hardening fixture categories', () => {
+    const fixtureNames = fixtures.map((fixture) => fixture.name);
+
+    expect(fixtureNames).toEqual(expect.arrayContaining([
+      '03-frontmatter-arrays.md',
+      '09-tables-gfm.md',
+      '11-callouts.md',
+      '12-inline-html.md',
+      '15-wiki-links.md',
+      '24-very-long-lines.md',
+      '29-mixed-line-endings.md',
+      '34-diagrams.md',
+    ]));
+  });
+});
+
+describe('Phase 5 hardening round trips', () => {
+  const hardeningFixtures = [
+    {
+      name: 'GFM table alignment, task lists, and wiki-links',
+      raw: [
+        '---',
+        'title: Hardening Fixture',
+        'tags: [gfm, links]',
+        '---',
+        '',
+        '# Hardening',
+        '',
+        '- [x] Keep task state',
+        '- [ ] Preserve [[Wiki Link|label]] and [docs](https://example.test/a_(b))',
+        '',
+        '| Name | Status |',
+        '| :--- | ---: |',
+        '| codec | stable |',
+        '',
+      ].join('\n'),
+    },
+    {
+      name: 'callouts, inline HTML, and diagrams',
+      raw: [
+        '> [!warning] Renderer fallback',
+        '> Keep callout markers byte-stable.',
+        '',
+        '<details><summary>Raw HTML</summary>',
+        '',
+        'HTML body with <span data-kind="inline">inline tags</span>.',
+        '',
+        '</details>',
+        '',
+        '```mermaid',
+        'sequenceDiagram',
+        '  participant Host',
+        '  participant Editor',
+        '  Host->>Editor: Render diagram',
+        '```',
+        '',
+        '```plantuml',
+        '@startuml',
+        'Host -> Editor: Render via service',
+        '@enduml',
+        '```',
+        '',
+      ].join('\n'),
+    },
+    {
+      name: 'very long line and mixed line endings',
+      raw: [
+        '---\r\n',
+        'title: Mixed Endings\r\n',
+        '---\r\n',
+        '\n',
+        'A long line '.repeat(150),
+        '\r\n',
+        'LF line\n',
+        'CRLF line\r\n',
+        'Final line',
+      ].join(''),
+    },
+  ];
+
+  for (const { name, raw } of hardeningFixtures) {
+    it(`round-trips ${name}`, () => {
+      expect(roundTripMarkdown(raw)).toBe(raw);
+      expect(serializeMarkdown(parseMarkdown(raw))).toBe(raw);
+    });
+  }
 });
 
 describe('frontmatter handling', () => {

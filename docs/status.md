@@ -1,15 +1,42 @@
 ---
 type: status
 updated: 2026-05-14
-current_phase: "Phase 4 - Example Sites & Integration Gallery"
+current_phase: "Ready for Phase 4/5 review"
 blockers: []
 next_actions:
-  - "Expand WYSIWYG adapter coverage for tables and documented normalizations"
-  - "Expand Playwright coverage from gallery smoke checks into mode-switch and renderer-failure workflows"
-  - "Design post-MVP Obsidian-style properties editing with reorder, add/remove, and typed editors"
+  - "Review the examples gallery at /examples, especially the six required shells and six stretch shells"
+  - "Review release-readiness notes for MVP caveats and post-MVP scope"
+  - "Decide whether to commit the Phase 4/5 completion branch or request refinements"
 ---
 
 # Status Log
+
+## Session: 2026-05-14 Phase 4/5 Completion
+**Phase:** 4-5 - Examples, Hardening, Docs, and Release Readiness
+
+**Actions taken:**
+- Completed WYSIWYG MVP table support with editable Lexical table nodes, import/export transformers, insert-menu support, styling, semantic inspection helpers, and accepted-normalization tests.
+- Completed the Phase 4 example gallery by adding side-pane review, modal quick-edit, technical runbook, mobile-first note, AI prompt composer, and conflict/diff resolver examples alongside the six required MVP shells.
+- Expanded Playwright coverage for example shells, responsive dimensions, configured mode switching, renderer failures, controlled value propagation, read-only behavior, keyboard/ARIA toolbar semantics, reduced-motion behavior, and performance smoke.
+- Added core hardening fixtures and tests for GFM/frontmatter/tables/callouts/inline HTML/wiki-links/diagrams/long lines/mixed line endings.
+- Added CodeMirror resilience coverage and fixed synchronous hybrid renderer exceptions so failures render inline instead of escaping the editor.
+- Added release-readiness documentation covering accessibility, performance, security, host integration recipes, Knowledge E3 migration notes, example source links, known limitations, and review guidance.
+- Updated the main plan, MVP implementation plan, test matrix, lessons, and index to reflect Phase 4/5 completion.
+
+**Verification:**
+- `pnpm --filter @markdown-editor/dev-harness test:e2e -- e2e/modes-renderers.spec.ts` passed with 22 Playwright checks.
+- `pnpm -r typecheck` passed.
+- `pnpm -r test` passed.
+- `pnpm -r build` passed.
+- `pnpm --filter @markdown-editor/dev-harness test:e2e` passed with 44 Playwright checks across desktop and mobile Chromium.
+- `git diff --check` passed with line-ending normalization warnings only.
+
+**Outcome:** Phase 4 and Phase 5 implementation work is complete and ready for final full-suite verification and review handoff.
+
+**Carry-forward notes:**
+- Advanced Obsidian-style properties editing remains explicitly post-MVP.
+- WYSIWYG tables intentionally normalize alignment markers, row width, and rich inline formatting inside cells as documented accepted normalizations.
+- The accessibility/performance/security gates are MVP smoke and audit gates, not a formal compliance certification.
 
 ## Session: 2026-05-10
 **Phase:** 1-2 - Reference Extraction and Package Architecture
@@ -149,6 +176,8 @@ next_actions:
 - Installed Playwright's Chromium browser runtime locally so `pnpm --filter @markdown-editor/dev-harness test:e2e` can execute in this workspace.
 - Added a host-supplied WYSIWYG toolbar icon slot and wired the dev-harness examples to use Font Awesome icons for bold, italic, inline code, bulleted list, numbered list, and checkbox list controls.
 - Added Playwright coverage proving the WYSIWYG contributor example renders Font Awesome toolbar SVGs.
+- Added Playwright coverage for the `/modes` route covering all-mode switching, markdown+preview configuration limits, and read-only preview chrome.
+- Added an intentionally invalid Mermaid block to the renderer fixture and Playwright coverage for highlighted code, rendered Mermaid, host-rendered PlantUML, tables, callouts, unsupported-language diagnostics, and inline Mermaid failure fallback.
 
 **Verification:**
 - `pnpm --filter @markdown-editor/renderers typecheck` passed.
@@ -156,19 +185,19 @@ next_actions:
 - `pnpm --filter @markdown-editor/dev-harness typecheck` passed.
 - `pnpm --filter @markdown-editor/wysiwyg-lexical test` passed.
 - `pnpm --filter @markdown-editor/react typecheck` passed.
-- `pnpm --filter @markdown-editor/dev-harness test:e2e` passed with 14 Playwright checks across desktop and mobile Chromium.
+- `pnpm --filter @markdown-editor/dev-harness test:e2e` passed with 22 Playwright checks across desktop and mobile Chromium.
 - `pnpm -r typecheck` passed.
 - `pnpm -r test` passed.
 - `pnpm -r build` passed.
 - Dev harness at `http://127.0.0.1:5175/modes` returned HTTP 200.
 
-**Outcome:** The advanced properties direction is documented without expanding the current MVP implementation scope. PlantUML now has a production-shaped host-renderer integration path with local fixture coverage. Hybrid mode now covers the initial MVP block-widget set. WYSIWYG now has a real lazy-loaded Lexical package boundary, a selection-aware editing toolbar, scalable block insertion, block-level code language controls with syntax highlighting, imported and newly inserted checkbox lists, source-backed images, and rendered source-backed Mermaid and PlantUML diagrams, but still needs table coverage before it can be considered MVP-complete. The required MVP example shells now exist in the dev harness and have initial desktop/mobile e2e smoke coverage.
+**Outcome:** The advanced properties direction is documented without expanding the current MVP implementation scope. PlantUML now has a production-shaped host-renderer integration path with local fixture coverage. Hybrid mode now covers the initial MVP block-widget set. WYSIWYG now has a real lazy-loaded Lexical package boundary, a selection-aware editing toolbar, scalable block insertion, block-level code language controls with syntax highlighting, imported and newly inserted checkbox lists, source-backed images, and rendered source-backed Mermaid and PlantUML diagrams, but still needs table coverage before it can be considered MVP-complete. The required MVP example shells now exist in the dev harness and have desktop/mobile e2e coverage for examples, mode configurations, renderer success, and renderer failure fallback.
 
 **Carry-forward notes:**
 - Hybrid and diagram basics should now be treated as initial MVP-complete; remaining work is WYSIWYG hardening, examples, Playwright coverage, and release hardening.
 - Current WYSIWYG coverage is intentionally narrow: headings, prose, inline formatting, links, ordered/bulleted/checkbox lists, blockquotes, highlighted fenced code, source-backed images, rendered Mermaid and PlantUML diagrams, and frontmatter envelope preservation.
 - Future properties work should support reorder, add/remove, date/time/tag/boolean/link-aware editors, and host-defined property schemas.
 - Toolbar icon support should be designed as a host-swappable icon slot/adapter so hosts can choose Font Awesome, Lucide, or a lightweight default without forcing all consumers to carry the same icon package.
-- The examples route is currently a practical integration gallery, not final product-grade example-site polish. Next passes should add deeper workflow assertions, screenshots, and refined shell-specific UX.
+- The examples route is currently a practical integration gallery, not final product-grade example-site polish. Next passes should add screenshot/layout assertions and refined shell-specific UX.
 
 ---

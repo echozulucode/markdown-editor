@@ -6,13 +6,19 @@ test.describe('examples gallery', () => {
     await expect(page.getByTestId('examples-gallery')).toBeVisible();
   });
 
-  test('renders every required MVP host shell', async ({ page }) => {
+  test('renders every required MVP and Phase 4 host shell', async ({ page }) => {
     await expect(page.getByTestId('example-full-page-docs')).toContainText('Full-page technical docs editor');
     await expect(page.getByTestId('example-markdown-preview')).toContainText('Split source and preview workflow');
     await expect(page.getByTestId('example-hybrid-knowledge')).toContainText('Knowledge-base note editor');
     await expect(page.getByTestId('example-wysiwyg-contributor')).toContainText('Contributor article editor');
     await expect(page.getByTestId('example-published-docs')).toContainText('Published documentation page');
     await expect(page.getByTestId('example-comment-composer')).toContainText('Comment composer');
+    await expect(page.getByTestId('example-side-pane-review')).toContainText('Side-pane review editor');
+    await expect(page.getByTestId('example-modal-quick-edit')).toContainText('Modal quick-edit editor');
+    await expect(page.getByTestId('example-technical-runbook')).toContainText('Technical runbook editor');
+    await expect(page.getByTestId('example-mobile-note')).toContainText('Mobile-first note editor');
+    await expect(page.getByTestId('example-ai-prompt-composer')).toContainText('AI prompt composer');
+    await expect(page.getByTestId('example-conflict-resolver')).toContainText('Conflict/diff resolver');
   });
 
   test('all-modes example exposes each mode control and technical content', async ({ page }) => {
@@ -68,5 +74,68 @@ test.describe('examples gallery', () => {
 
     await expect(example).toContainText('Ship it.');
     await expect(example.getByText(/characters$/)).toBeVisible();
+  });
+
+  test('side-pane review example keeps document context and review editor visible', async ({ page }) => {
+    const example = page.getByTestId('example-side-pane-review');
+
+    await example.scrollIntoViewIfNeeded();
+
+    await expect(example.getByLabel('Document under review')).toBeVisible();
+    await expect(example.getByLabel('Review side pane')).toBeVisible();
+    await expect(example.locator('.me-editor[aria-label="Side-pane review editor"]')).toBeVisible();
+    await expect(example.getByRole('button', { name: 'Resolve' })).toBeVisible();
+    await expect(example.getByRole('button', { name: 'Request changes' })).toBeVisible();
+  });
+
+  test('modal quick-edit example renders as an accessible dialog editor', async ({ page }) => {
+    const example = page.getByTestId('example-modal-quick-edit');
+    const dialog = example.getByRole('dialog', { name: 'API Rate Limits' });
+
+    await example.scrollIntoViewIfNeeded();
+
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('.me-editor[aria-label="Modal quick-edit editor"]')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Close quick edit' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Apply changes' })).toBeVisible();
+  });
+
+  test('runbook, prompt, and conflict examples embed the expected editor instances', async ({ page }) => {
+    const runbook = page.getByTestId('example-technical-runbook');
+    const prompt = page.getByTestId('example-ai-prompt-composer');
+    const conflict = page.getByTestId('example-conflict-resolver');
+
+    await runbook.scrollIntoViewIfNeeded();
+    await expect(runbook.getByLabel('Runbook outline')).toBeVisible();
+    await expect(runbook.locator('.me-editor[aria-label="Technical runbook editor"]')).toBeVisible();
+    await expect(runbook).toContainText('Incident Runbook');
+
+    await prompt.scrollIntoViewIfNeeded();
+    await expect(prompt.getByLabel('Available page mentions')).toContainText('[[Release Runbook]]');
+    await expect(prompt.locator('.me-editor[aria-label="AI prompt composer with Markdown and page mentions"]')).toBeVisible();
+    await expect(prompt.locator('.me-editor[aria-label="AI prompt rendered preview"]')).toBeVisible();
+
+    await conflict.scrollIntoViewIfNeeded();
+    await expect(conflict.locator('.me-editor[aria-label="Conflict base Markdown"]')).toBeVisible();
+    await expect(conflict.locator('.me-editor[aria-label="Conflict incoming Markdown"]')).toBeVisible();
+    await expect(conflict.locator('.me-editor[aria-label="Conflict resolved Markdown editor"]')).toBeVisible();
+    await expect(conflict.locator('.me-editor')).toHaveCount(3);
+  });
+
+  test('gallery editors keep usable dimensions across responsive projects', async ({ page }) => {
+    const editors = page.locator('[data-testid^="example-"] .me-editor');
+    const count = await editors.count();
+
+    expect(count).toBeGreaterThanOrEqual(17);
+
+    for (let index = 0; index < count; index += 1) {
+      const editor = editors.nth(index);
+      await editor.scrollIntoViewIfNeeded();
+      const box = await editor.boundingBox();
+
+      expect(box, `editor ${index} should have a rendered box`).not.toBeNull();
+      expect(box!.width, `editor ${index} should not collapse horizontally`).toBeGreaterThanOrEqual(280);
+      expect(box!.height, `editor ${index} should remain accessible`).toBeGreaterThanOrEqual(160);
+    }
   });
 });

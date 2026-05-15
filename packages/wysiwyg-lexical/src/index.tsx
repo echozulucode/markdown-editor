@@ -30,6 +30,7 @@ import { ListPlugin } from '@lexical/react/LexicalListPlugin';
 import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
+import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $createCodeNode,
@@ -65,14 +66,27 @@ import {
   type MultilineElementTransformer,
 } from '@lexical/markdown';
 import { $setBlocksType } from '@lexical/selection';
+import {
+  $createTableCellNode,
+  $createTableNode,
+  $createTableRowNode,
+  $isTableCellNode,
+  $isTableNode,
+  $isTableRowNode,
+  TableCellHeaderStates,
+  TableCellNode,
+  TableNode,
+  TableRowNode,
+} from '@lexical/table';
 import type { ChangeMeta, MarkdownDiagnostic } from '@markdown-editor/core';
 
 const INSERT_MERMAID_COMMAND: LexicalCommand<string> = createCommand('INSERT_MERMAID_COMMAND');
 const INSERT_PLANTUML_COMMAND: LexicalCommand<string> = createCommand('INSERT_PLANTUML_COMMAND');
 const INSERT_IMAGE_COMMAND: LexicalCommand<WysiwygImagePayload> = createCommand('INSERT_IMAGE_COMMAND');
+const INSERT_TABLE_COMMAND: LexicalCommand<void> = createCommand('INSERT_TABLE_COMMAND');
 
 type WysiwygBlockType = 'paragraph' | 'h1' | 'h2' | 'h3' | 'quote' | 'code' | 'bullet' | 'number' | 'check';
-type InsertBlockType = 'code' | 'image' | 'mermaid' | 'plantuml';
+type InsertBlockType = 'code' | 'table' | 'image' | 'mermaid' | 'plantuml';
 type WysiwygDiagramKind = 'mermaid' | 'plantuml';
 
 interface WysiwygImagePayload {
@@ -95,6 +109,11 @@ const DEFAULT_IMAGE: WysiwygImagePayload = {
   src: 'https://placehold.co/960x540?text=Image',
   alt: 'Image',
 };
+const DEFAULT_TABLE_ROWS = [
+  ['Name', 'Owner', 'Status'],
+  ['Runbook', 'Platform', 'Draft'],
+  ['Release notes', 'Docs', 'Ready'],
+];
 const WysiwygRenderServicesContext = React.createContext<WysiwygRenderServices>({});
 
 const BLOCK_OPTIONS: Array<{ value: WysiwygBlockType; label: string }> = [
@@ -458,8 +477,54 @@ const IMAGE_TRANSFORMER: ElementTransformer = {
   },
 };
 
+const TABLE_TRANSFORMER: MultilineElementTransformer = {
+  type: 'multiline-element',
+  dependencies: [TableNode, TableRowNode, TableCellNode],
+  regExpStart: /^ {0,3}\|.*\|\s*$/,
+  handleImportAfterStartMatch({ lines, rootNode, startLineIndex }) {
+    const headerLine = lines[startLineIndex] ?? '';
+    const separatorLine = lines[startLineIndex + 1] ?? '';
+
+    if (!isMarkdownTableRowLine(headerLine) || !isMarkdownTableSeparatorLine(separatorLine)) {
+      return null;
+    }
+
+    const headerCells = parseMarkdownTableRow(headerLine);
+    const separatorCells = parseMarkdownTableRow(separatorLine);
+    if (headerCells.length === 0 || separatorCells.length !== headerCells.length) {
+      return null;
+    }
+
+    let endLineIndex = startLineIndex + 1;
+    const rows = [headerCells];
+    for (let lineIndex = startLineIndex + 2; lineIndex < lines.length; lineIndex += 1) {
+      const line = lines[lineIndex] ?? '';
+      if (!isMarkdownTableRowLine(line)) {
+        break;
+      }
+
+      rows.push(normalizeMarkdownTableRow(parseMarkdownTableRow(line), headerCells.length));
+      endLineIndex = lineIndex;
+    }
+
+    rootNode.append($createMarkdownTableNode(rows));
+    return [true, endLineIndex];
+  },
+  replace() {
+    return false;
+  },
+  export(node) {
+    if (!$isTableNode(node)) {
+      return null;
+    }
+
+    return formatMarkdownTableNode(node);
+  },
+};
+
 const WYSIWYG_TRANSFORMERS = [
   IMAGE_TRANSFORMER,
+  TABLE_TRANSFORMER,
   MERMAID_TRANSFORMER,
   PLANTUML_TRANSFORMER,
   CHECK_LIST,
@@ -474,6 +539,9 @@ const WYSIWYG_NODES = [
   AutoLinkNode,
   CodeNode,
   CodeHighlightNode,
+  TableNode,
+  TableRowNode,
+  TableCellNode,
   ImageNode,
   MermaidNode,
   PlantUmlNode,
@@ -567,6 +635,11 @@ export function WysiwygLexicalEditor({
           <ListPlugin />
           <CheckListPlugin />
           <LinkPlugin />
+          <TablePlugin
+            hasCellMerge={false}
+            hasCellBackgroundColor={false}
+            hasHorizontalScroll
+          />
           <WysiwygChangePlugin
             sourceMarkdown={markdown}
             lastEmittedMarkdown={lastEmittedMarkdown}
@@ -613,6 +686,11 @@ export interface WysiwygMarkdownListSummary {
   }>;
 }
 
+export interface WysiwygMarkdownTableSummary {
+  type: 'table';
+  rows: string[][];
+}
+
 /** @internal Test-only semantic inspection helper; not part of the stable package API. */
 export function inspectWysiwygMarkdownForTests(markdown: string): WysiwygMarkdownListSummary[] {
   const editor = createEditor({
@@ -652,6 +730,41 @@ export function inspectWysiwygMarkdownForTests(markdown: string): WysiwygMarkdow
   return lists;
 }
 
+/** @internal Test-only semantic inspection helper; not part of the stable package API. */
+export function inspectWysiwygMarkdownTablesForTests(markdown: string): WysiwygMarkdownTableSummary[] {
+  const editor = createEditor({
+    namespace: 'MarkdownEditorWysiwygHeadlessInspectTables',
+    nodes: WYSIWYG_NODES,
+    theme: lexicalTheme,
+    onError(error) {
+      throw error;
+    },
+  });
+
+  editor.update(
+    () => {
+      importMarkdownBody(markdown);
+    },
+    { discrete: true },
+  );
+
+  const tables: WysiwygMarkdownTableSummary[] = [];
+  editor.getEditorState().read(() => {
+    for (const node of $getRoot().getChildren()) {
+      if (!$isTableNode(node)) {
+        continue;
+      }
+
+      tables.push({
+        type: 'table',
+        rows: getTableNodeRows(node),
+      });
+    }
+  });
+
+  return tables;
+}
+
 function WysiwygCommandPlugin(): null {
   const [editor] = useLexicalComposerContext();
 
@@ -681,11 +794,22 @@ function WysiwygCommandPlugin(): null {
         },
         COMMAND_PRIORITY_LOW,
       );
+      const removeTableCommand = editor.registerCommand(
+        INSERT_TABLE_COMMAND,
+        () => {
+          const tableNode = $createMarkdownTableNode(DEFAULT_TABLE_ROWS);
+          $insertNodes([tableNode, $createParagraphNode()]);
+          tableNode.selectStart();
+          return true;
+        },
+        COMMAND_PRIORITY_LOW,
+      );
 
       return () => {
         removeMermaidCommand();
         removePlantUmlCommand();
         removeImageCommand();
+        removeTableCommand();
       };
     },
     [editor],
@@ -943,6 +1067,11 @@ function WysiwygToolbar({ icons = {} }: { icons?: WysiwygToolbarIcons }): React.
         return;
       }
 
+      if (block === 'table') {
+        editor.dispatchCommand(INSERT_TABLE_COMMAND, undefined);
+        return;
+      }
+
       if (block === 'image') {
         editor.dispatchCommand(INSERT_IMAGE_COMMAND, DEFAULT_IMAGE);
         return;
@@ -1048,6 +1177,7 @@ function WysiwygToolbar({ icons = {} }: { icons?: WysiwygToolbarIcons }): React.
             Insert
           </option>
           <option value="code">Code block</option>
+          <option value="table">Table</option>
           <option value="image">Image</option>
           <option value="mermaid">Mermaid diagram</option>
           <option value="plantuml">PlantUML diagram</option>
@@ -1453,6 +1583,149 @@ function replaceEnvelopeBody(envelope: MarkdownEnvelope, body: string): string {
   return `${envelope.rawFrontmatter}${body}${envelope.trailing}`;
 }
 
+function $createMarkdownTableNode(rows: string[][]): TableNode {
+  const columnCount = Math.max(1, rows[0]?.length ?? 1);
+  const tableNode = $createTableNode();
+
+  rows.forEach((row, rowIndex) => {
+    const rowNode = $createTableRowNode();
+    const normalizedRow = normalizeMarkdownTableRow(row, columnCount);
+
+    normalizedRow.forEach((cellText) => {
+      const cellNode = $createTableCellNode(
+        rowIndex === 0 ? TableCellHeaderStates.COLUMN : TableCellHeaderStates.NO_STATUS,
+      );
+      const paragraphNode = $createParagraphNode();
+      paragraphNode.append($createTextNode(cellText));
+      cellNode.append(paragraphNode);
+      rowNode.append(cellNode);
+    });
+
+    tableNode.append(rowNode);
+  });
+
+  return tableNode;
+}
+
+function isMarkdownTableRowLine(line: string): boolean {
+  return /^ {0,3}\|.*\|\s*$/.test(line);
+}
+
+function isMarkdownTableSeparatorLine(line: string): boolean {
+  if (!isMarkdownTableRowLine(line)) {
+    return false;
+  }
+
+  const cells = parseMarkdownTableRow(line);
+  return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell.replace(/\s/g, '')));
+}
+
+function parseMarkdownTableRow(line: string): string[] {
+  const trimmed = line.trim();
+  const inner = trimmed.startsWith('|') && trimmed.endsWith('|')
+    ? trimmed.slice(1, -1)
+    : trimmed;
+  const cells: string[] = [];
+  let current = '';
+  let escaped = false;
+
+  for (const character of inner) {
+    if (escaped) {
+      current += character === '|' ? character : `\\${character}`;
+      escaped = false;
+      continue;
+    }
+
+    if (character === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (character === '|') {
+      cells.push(normalizeMarkdownTableCell(current));
+      current = '';
+      continue;
+    }
+
+    current += character;
+  }
+
+  if (escaped) {
+    current += '\\';
+  }
+  cells.push(normalizeMarkdownTableCell(current));
+  return cells;
+}
+
+function normalizeMarkdownTableRow(row: string[], columnCount: number): string[] {
+  if (row.length === columnCount) {
+    return row;
+  }
+
+  if (row.length > columnCount) {
+    return row.slice(0, columnCount);
+  }
+
+  return [...row, ...Array.from({ length: columnCount - row.length }, () => '')];
+}
+
+function normalizeMarkdownTableCell(cell: string): string {
+  return cell.trim().replace(/\s+/g, ' ');
+}
+
+function formatMarkdownTableNode(tableNode: TableNode): string {
+  const rows = getTableNodeRows(tableNode);
+  if (rows.length === 0) {
+    return '';
+  }
+
+  const columnCount = Math.max(...rows.map((row) => row.length), 1);
+  const normalizedRows = rows.map((row) => normalizeMarkdownTableRow(row, columnCount));
+  const [headerRow = []] = normalizedRows;
+  const delimiterRow = Array.from({ length: columnCount }, () => '---');
+
+  return [
+    formatMarkdownTableRow(headerRow),
+    formatMarkdownTableRow(delimiterRow),
+    ...normalizedRows.slice(1).map(formatMarkdownTableRow),
+  ].join('\n');
+}
+
+function getTableNodeRows(tableNode: TableNode): string[][] {
+  return tableNode.getChildren().flatMap((rowNode) => {
+    if (!$isTableRowNode(rowNode)) {
+      return [];
+    }
+
+    return [
+      rowNode.getChildren().flatMap((cellNode) => {
+        if (!$isTableCellNode(cellNode)) {
+          return [];
+        }
+
+        return [formatMarkdownTableCellText(cellNode)];
+      }),
+    ];
+  });
+}
+
+function formatMarkdownTableRow(cells: string[]): string {
+  return `| ${cells.map(escapeMarkdownTableCell).join(' | ')} |`;
+}
+
+function formatMarkdownTableCellText(cellNode: TableCellNode): string {
+  return cellNode
+    .getChildren()
+    .map((child) => child.getTextContent())
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function escapeMarkdownTableCell(cell: string): string {
+  return cell.replace(/\r?\n/g, ' ').replace(/\|/g, '\\|').trim();
+}
+
 function formatImageMarkdown(image: WysiwygImagePayload): string {
   const alt = escapeMarkdownAttribute(image.alt ?? '');
   const src = escapeMarkdownAttribute(image.src);
@@ -1488,6 +1761,13 @@ const lexicalTheme = {
   },
   quote: 'me-wysiwyg-quote',
   code: 'me-wysiwyg-code',
+  table: 'me-wysiwyg-table',
+  tableCell: 'me-wysiwyg-table-cell',
+  tableCellHeader: 'me-wysiwyg-table-cell-header',
+  tableCellSelected: 'me-wysiwyg-table-cell-selected',
+  tableRow: 'me-wysiwyg-table-row',
+  tableScrollableWrapper: 'me-wysiwyg-table-scroll',
+  tableSelection: 'me-wysiwyg-table-selection',
   codeHighlight: {
     atrule: 'me-wysiwyg-token-atrule',
     attr: 'me-wysiwyg-token-attr-name',

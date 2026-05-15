@@ -189,3 +189,30 @@ lessons:
       - "packages/react"
       - "packages/wysiwyg-lexical"
       - "examples/dev-harness"
+  - id: LESSON-022
+    date: 2026-05-14
+    area: e2e
+    lesson: "Renderer e2e fixtures need both successful and intentionally broken blocks."
+    rationale: "A renderer page with only successful diagrams proves the happy path but can miss failure isolation regressions. Keeping an invalid Mermaid block in the harness lets Playwright assert that errors stay inline while neighboring blocks keep rendering."
+    applies_to:
+      - "examples/dev-harness"
+      - "renderer route"
+      - "future renderer failure tests"
+  - id: LESSON-023
+    date: 2026-05-14
+    area: release-gates
+    lesson: "Separate MVP smoke gates from production certification gates in release docs."
+    rationale: "Phase 5 can be complete for review with committed unit, browser, responsive, accessibility, performance, and security smoke evidence, while still documenting deeper axe, screen-reader, trace-based performance, and host-specific security certification as post-MVP or production-release responsibilities."
+    applies_to:
+      - "docs/release-readiness.md"
+      - "docs/test-matrix.md"
+      - "future release criteria"
+  - id: LESSON-024
+    date: 2026-05-14
+    area: wysiwyg
+    lesson: "Document WYSIWYG table normalizations as tests, not just prose."
+    rationale: "Markdown table alignment, short rows, and extra cells can normalize during visual editing. Encoding those expectations in the WYSIWYG round-trip tests prevents accidental source churn from becoming implicit or surprising."
+    applies_to:
+      - "packages/wysiwyg-lexical"
+      - "table editing"
+      - "accepted normalizations"

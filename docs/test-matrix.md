@@ -1,7 +1,7 @@
 ---
 type: test-matrix
 project: "markdown-editor"
-status: active
+status: ready_for_review
 updated: 2026-05-14
 scope: "MVP gates"
 owner: "QA/Examples lane"
@@ -9,24 +9,24 @@ owner: "QA/Examples lane"
 
 # Test Matrix
 
-This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into concrete checks. Phase 0/1 scope is to define the release gates and create enough harness surface for later lanes to plug in package implementations without depending on unstable internals.
+This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into concrete checks. Status values are evidence-based: implemented means there is committed automated coverage or a documented manual check in `docs/release-readiness.md`; partial means useful coverage exists but the full gate is not yet enforced.
 
 ## Gate Definitions
 
 | Gate | Required for MVP | Check Type | Owner | Status |
 | --- | --- | --- | --- | --- |
-| G0 contracts are stable enough for parallel work | Phase 0 | Review, typecheck once packages exist | Coordinator, QA | Draft |
-| Core Markdown bytes survive no-op parse/serialize | Phase 1 | Unit | Foundation, QA | Pending implementation |
-| Frontmatter and body replacement preserve source | Phase 1 | Unit | Foundation, QA | Pending implementation |
-| Mode adapters never initialize to empty/undefined Markdown | Phase 1+ | Contract, integration | Engine lanes, QA | Pending implementation |
-| Invalid input fails soft, not with document crash | Phase 1+ | Unit, integration | Foundation, Renderers, QA | Pending implementation |
-| Raw Markdown editing works on realistic fixtures | Phase 2 | Playwright, performance | CodeMirror, QA | Planned |
-| Renderers isolate async failures | Phase 3 | Unit, integration, Playwright | Renderers, QA | Planned |
-| Mode switching preserves exact Markdown where expected | Phase 4+ | Integration, Playwright | CodeMirror, React UX, QA | Planned |
-| Public React API supports required host shapes | Phase 5+ | Integration, Playwright | React UX, QA | Planned |
-| Required examples use public package APIs only | Phase 7+ | Static review, Playwright smoke | React UX, QA | Initial smoke coverage |
-| Accessibility and responsive gates pass | Phase 5+ | Playwright, axe, manual keyboard pass | React UX, QA | Planned |
-| MVP performance smoke stays within targets | Phase 2+ | Playwright perf marks | Engine lanes, QA | Planned |
+| G0 contracts are stable enough for parallel work | Phase 0 | Review, typecheck once packages exist | Coordinator, QA | Implemented: public types and package imports are covered by package typecheck tests. |
+| Core Markdown bytes survive no-op parse/serialize | Phase 1 | Unit | Foundation, QA | Implemented: `packages/core/test/codec.test.ts` round-trips the fixture corpus byte-identically. |
+| Frontmatter and body replacement preserve source | Phase 1 | Unit | Foundation, QA | Implemented: `packages/core/test/codec.test.ts` covers raw frontmatter preservation, body replacement, empty docs, and invalid YAML recovery. |
+| Mode adapters never initialize to empty/undefined Markdown | Phase 1+ | Contract, integration | Engine lanes, QA | Implemented for MVP: mode matrix and example Playwright coverage proves content survives configured mode routes and controlled updates. |
+| Invalid input fails soft, not with document crash | Phase 1+ | Unit, integration | Foundation, Renderers, QA | Implemented for MVP: invalid YAML, unknown code language, Mermaid failure, PlantUML failure, and synchronous hybrid renderer failure paths are covered. |
+| Raw Markdown editing works on realistic fixtures | Phase 2 | Playwright, performance | CodeMirror, QA | Implemented for MVP: jsdom editing coverage plus Playwright controlled value, read-only, and typing smoke coverage. |
+| Renderers isolate async failures | Phase 3 | Unit, integration, Playwright | Renderers, QA | Implemented for MVP renderer paths: renderer unit tests plus `/renderers` Playwright coverage. |
+| Mode switching preserves exact Markdown where expected | Phase 4+ | Integration, Playwright | CodeMirror, React UX, QA | Implemented for MVP: visible switching, controlled propagation, renderer source preservation, and package round-trip gates are covered. |
+| Public React API supports required host shapes | Phase 5+ | Integration, Playwright | React UX, QA | Implemented for MVP: public API type tests plus mode/example Playwright coverage for controlled, read-only, renderer, icon-slot, and imperative host shapes. |
+| Required examples use public package APIs only | Phase 7+ | Static review, Playwright smoke | React UX, QA | Implemented: required and stretch shells are in `/examples` and exercised by Playwright; source review notes are in `docs/release-readiness.md`. |
+| Accessibility and responsive gates pass | Phase 5+ | Playwright, manual audit | React UX, QA | Implemented for MVP: keyboard/ARIA, reduced-motion, read-only chrome, and phone/tablet/desktop overflow checks are committed; deeper axe/screen-reader certification is post-MVP. |
+| MVP performance smoke stays within targets | Phase 2+ | Playwright perf smoke | Engine lanes, QA | Implemented for MVP: mode-switch and typing smoke checks are committed with conservative latency bounds; deeper trace-based perf budgets are post-MVP. |
 
 ## Unit Checks
 
@@ -69,11 +69,13 @@ This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into co
 | External value update | 768px | Trigger sample document control | Editor updates once and preserves configured mode | 2/5 |
 | Hybrid reveal | 390px, 1440px | Click rendered inactive block | Active block shows raw source; leaving block restores render | 4 |
 | Preview read-only | 390px, 1440px | Try keyboard input in preview-only route | No source mutation; links/buttons remain reachable | 4/5 |
-| Renderer failures | 1440px | Load invalid Mermaid/PlantUML samples | Error panel appears inline; page/editor remains interactive | 3/4 |
+| Renderer failures | Mobile Chromium, desktop Chromium | Load invalid Mermaid samples | Error panel appears inline; page/editor remains interactive | 3/4 - initial coverage added |
 | Wiki-link completion | 1440px | Type `[[` and query | Host-backed options appear; unresolved link styling visible | 4 |
 | Required examples | 390px, 1440px | Visit each required example shell | Each shell renders with public API and no overflow-breaking layout | 7 - initial coverage added |
 | Example mode options | Mobile Chromium, desktop Chromium | Assert all-modes controls, split markdown/preview surfaces, single-mode focused shells, read-only chrome, and compact editing | Configured options render and host state updates through public APIs | 7 - initial coverage added |
 | Example toolbar icons | Mobile Chromium, desktop Chromium | Visit WYSIWYG-only contributor shell and inspect toolbar SVGs | Host-supplied Font Awesome icons render inside graphical toolbar controls | 7 - initial coverage added |
+| Mode matrix switching | Mobile Chromium, desktop Chromium | Switch the all-modes route among hybrid, markdown, preview, and WYSIWYG | Content remains visible and the correct mode-specific surface appears | 4/5 - initial coverage added |
+| Renderer route behavior | Mobile Chromium, desktop Chromium | Visit renderer fixture route | Shiki-highlighted code, Mermaid, PlantUML, tables, callouts, unsupported-language diagnostics, and invalid Mermaid fallback render | 3/4 - initial coverage added |
 | No-op save | 1440px | Load fixture, switch modes, save | Saved Markdown equals initial Markdown for no-op paths | 4+ |
 
 ## Accessibility Checks

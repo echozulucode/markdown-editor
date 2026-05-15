@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { parseMarkdown } from '@markdown-editor/core';
-import { inspectWysiwygMarkdownForTests, roundTripWysiwygMarkdown } from '../src';
+import {
+  inspectWysiwygMarkdownForTests,
+  inspectWysiwygMarkdownTablesForTests,
+  roundTripWysiwygMarkdown,
+} from '../src';
 
 describe('roundTripWysiwygMarkdown', () => {
   it('preserves leading frontmatter while round-tripping body markdown', () => {
@@ -95,5 +99,83 @@ describe('roundTripWysiwygMarkdown', () => {
     const result = roundTripWysiwygMarkdown(markdown);
 
     expect(result).toContain('![Architecture diagram](https://example.test/diagram.png "System overview")');
+  });
+
+  it('imports GFM tables as editable WYSIWYG table nodes', () => {
+    const markdown = [
+      '| Name | Owner | Status |',
+      '| --- | --- | --- |',
+      '| Runbook | Platform | Draft |',
+      '| Release notes | Docs | Ready |',
+    ].join('\n');
+
+    const [table] = inspectWysiwygMarkdownTablesForTests(markdown);
+
+    expect(table).toEqual({
+      type: 'table',
+      rows: [
+        ['Name', 'Owner', 'Status'],
+        ['Runbook', 'Platform', 'Draft'],
+        ['Release notes', 'Docs', 'Ready'],
+      ],
+    });
+  });
+
+  it('round-trips GFM tables through Markdown table syntax', () => {
+    const markdown = [
+      'Before',
+      '',
+      '| Name | Owner | Status |',
+      '| --- | --- | --- |',
+      '| Runbook | Platform | Draft |',
+      '',
+      'After',
+    ].join('\n');
+
+    const result = roundTripWysiwygMarkdown(markdown);
+
+    expect(result).toContain('| Name | Owner | Status |');
+    expect(result).toContain('| --- | --- | --- |');
+    expect(result).toContain('| Runbook | Platform | Draft |');
+    expect(result).toContain('Before');
+    expect(result).toContain('After');
+  });
+
+  it('documents accepted WYSIWYG table normalizations', () => {
+    const markdown = [
+      '| Feature | State | Notes |',
+      '| :--- | ---: | :---: |',
+      '| Tables | MVP | keeps escaped A \\| B |',
+      '| Missing note | padded |',
+      '| Extra | cells | are | ignored |',
+    ].join('\n');
+
+    const result = roundTripWysiwygMarkdown(markdown);
+
+    expect(result).toBe([
+      '| Feature | State | Notes |',
+      '| --- | --- | --- |',
+      '| Tables | MVP | keeps escaped A \\| B |',
+      '| Missing note | padded |  |',
+      '| Extra | cells | are |',
+    ].join('\n'));
+  });
+
+  it('preserves the frontmatter envelope when the body contains a table', () => {
+    const markdown = [
+      '---',
+      'title: Table fixture',
+      '---',
+      '| Key | Value |',
+      '| --- | --- |',
+      '| owner | docs |',
+    ].join('\n');
+
+    const result = roundTripWysiwygMarkdown(markdown);
+
+    expect(result).toContain('---\ntitle: Table fixture\n---\n');
+    expect(result).toContain('| Key | Value |');
+    expect(result).toContain('| owner | docs |');
+    expect(parseMarkdown(result).frontmatter.title).toBe('Table fixture');
   });
 });

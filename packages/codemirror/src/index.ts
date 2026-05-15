@@ -778,13 +778,15 @@ class RenderedMarkdownBlockWidget extends WidgetType {
       return wrapper;
     }
 
+    const renderMarkdown = this.renderMarkdown;
     const controller = new AbortController();
     this.controller = controller;
     const context: HybridRenderContext = {
       blockId: this.blockId,
       signal: controller.signal
     };
-    Promise.resolve(this.renderMarkdown(this.markdown, context))
+    Promise.resolve()
+      .then(() => renderMarkdown(this.markdown, context))
       .then((result: HybridRenderResult) => {
         if (!controller.signal.aborted) {
           wrapper.innerHTML = result.html;

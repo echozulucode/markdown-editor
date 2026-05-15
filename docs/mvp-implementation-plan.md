@@ -1,7 +1,7 @@
 ---
 type: implementation-plan
 project: "markdown-editor"
-status: active
+status: ready_for_review
 updated: 2026-05-14
 scope: "MVP"
 ---
@@ -26,10 +26,9 @@ Ship a standalone React/TypeScript Markdown editor control that proves the core 
 - Syntax highlighting has an opt-in fine-grained Shiki renderer factory, plaintext fallback tests, and a renderer harness route using public package APIs.
 - Mermaid has an async renderer with timeout/error fallback, and PlantUML has a host-renderer factory with timeout/error fallback.
 - Initial hybrid decorations are in place for headings, lists, task lists, inline links/wiki-links, frontmatter properties, rendered inactive fenced blocks, tables, images, and callouts.
-- Initial WYSIWYG Lexical package boundary is in place with lazy React loading and headless import/export coverage for common prose constructs.
-- WYSIWYG now has a selection-aware toolbar, scalable block insert menu, block-level code language controls with Prism highlighting, checkbox-list support, source-backed image editing, and rendered source-backed Mermaid and PlantUML diagram editing.
-- The dev harness now includes a `/examples` route with the six required MVP example shells and initial Playwright smoke coverage across desktop and mobile Chromium.
-- WYSIWYG tables, deeper workflow e2e coverage, example polish, and hardening remain open.
+- WYSIWYG now has a lazy-loaded Lexical adapter with selection-aware toolbar controls, scalable block insertion, block-level code language controls with Prism highlighting, checkbox-list support, source-backed image editing, editable simple GFM tables, and rendered source-backed Mermaid and PlantUML diagram editing.
+- The dev harness now includes a `/examples` route with the six required MVP example shells plus side-pane review, modal quick edit, technical runbook, mobile-first note, AI prompt composer, and conflict/diff resolver shells.
+- Phase 4 and Phase 5 MVP work is ready for review. Remaining work is post-MVP refinement: advanced properties editing, advanced table operations, production-specific security policy, and deeper accessibility/performance certification beyond the committed smoke gates.
 
 ### Included
 - Monorepo package setup with TypeScript, React, Vite, Vitest, Playwright, package builds, and examples app.

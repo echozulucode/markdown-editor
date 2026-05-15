@@ -137,6 +137,10 @@ graph TD
   Renderer --> Preview
 \`\`\`
 
+\`\`\`mermaid
+not a valid mermaid diagram
+\`\`\`
+
 \`\`\`plantuml
 @startuml
 Alice -> Bob: Preview renderer
@@ -245,6 +249,125 @@ The read-only example uses preview mode with renderer services and no editing to
 const commentMarkdown = `Quick note for [[Release Runbook]]:
 
 - [ ] Check mobile toolbar
+`;
+
+const reviewMarkdown = `# Authentication Notes
+
+The token refresh section needs one more pass before the release guide is final.
+
+> [!warning] Reviewer note
+> Clarify whether mobile clients retry after a 401 or wait for foreground sync.
+
+- [ ] Add retry matrix
+- [ ] Link to [[Mobile Session Policy]]
+- [x] Confirm copy with Security
+`;
+
+const quickEditMarkdown = `---
+title: API Rate Limits
+owner: Docs
+---
+
+# API Rate Limits
+
+Update the burst limit note before publishing.
+
+| Tier | Burst | Sustained |
+| --- | ---: | ---: |
+| Free | 60 | 30/min |
+| Team | 300 | 180/min |
+`;
+
+const runbookMarkdown = `---
+title: Incident Runbook
+service: markdown-renderer
+severity: sev2
+---
+
+# Incident Runbook
+
+## Triage
+
+1. Confirm the alert in [[Renderer Dashboard]].
+2. Check queue depth and failed render counts.
+3. Page the package owner if Mermaid or PlantUML failures exceed the threshold.
+
+> [!danger] Customer impact
+> Preview rendering can fail open to source fallback, but authoring must remain available.
+
+\`\`\`bash
+pnpm --filter @markdown-editor/renderers test -- --runInBand
+pnpm --filter @markdown-editor/dev-harness test:e2e
+\`\`\`
+
+\`\`\`ts
+export async function renderWithTimeout(markdown: string, signal: AbortSignal) {
+  return renderMarkdown(markdown, { signal, timeoutMs: 2500 });
+}
+\`\`\`
+
+\`\`\`mermaid
+sequenceDiagram
+  participant Alert
+  participant OnCall
+  participant Renderer
+  Alert->>OnCall: Page
+  OnCall->>Renderer: Disable failing adapter
+  Renderer-->>OnCall: Source fallback active
+\`\`\`
+
+\`\`\`plantuml
+@startuml
+Monitor -> OnCall: Renderer failure spike
+OnCall -> Service: Enable fallback
+Service --> Monitor: Healthy
+@enduml
+\`\`\`
+`;
+
+const mobileNoteMarkdown = `# Standup
+
+- [ ] Review gallery smoke tests
+- [x] Check phone layout
+- [ ] Capture [[Release Notes]] follow-up
+
+## Notes
+
+Keep the toolbar reachable and the editor wide enough for thumb typing.
+`;
+
+const promptMarkdown = `# Draft release note prompt
+
+You are helping write the [[Release Runbook]] announcement.
+
+Use these source pages:
+
+- [[Renderer Registry]]
+- [[WYSIWYG Adapter]]
+- [[Mobile Session Policy]]
+
+## Instructions
+
+Summarize user-visible changes, list known limitations, and preserve exact package names.
+`;
+
+const baseConflictMarkdown = `# Release Checklist
+
+- [x] Renderer smoke tests
+- [ ] Mobile gallery pass
+- [ ] Publish docs
+
+The release owner signs off after the conflict resolver picks the final checklist.
+`;
+
+const incomingConflictMarkdown = `# Release Checklist
+
+- [x] Renderer smoke tests
+- [x] Mobile gallery pass
+- [ ] Publish docs
+- [ ] Announce WYSIWYG limitations
+
+The release owner signs off after the conflict resolver picks the final checklist.
 `;
 
 const fontAwesomeToolbarIcons: WysiwygToolbarIcons = {
@@ -436,6 +559,12 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
   const [knowledge, setKnowledge] = React.useState(knowledgeMarkdown);
   const [article, setArticle] = React.useState(articleMarkdown);
   const [comment, setComment] = React.useState(commentMarkdown);
+  const [review, setReview] = React.useState(reviewMarkdown);
+  const [quickEdit, setQuickEdit] = React.useState(quickEditMarkdown);
+  const [runbook, setRunbook] = React.useState(runbookMarkdown);
+  const [mobileNote, setMobileNote] = React.useState(mobileNoteMarkdown);
+  const [prompt, setPrompt] = React.useState(promptMarkdown);
+  const [resolvedConflict, setResolvedConflict] = React.useState(incomingConflictMarkdown);
 
   return (
     <div className="examples-gallery" data-testid="examples-gallery">
@@ -550,6 +679,211 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
           </div>
         </div>
       </ExampleShell>
+
+      <ExampleShell
+        id="side-pane-review"
+        eyebrow="Review pane"
+        title="Side-pane review editor"
+        description="A review workflow with read-only context, comment threads, and a focused Markdown editor in a side pane."
+      >
+        <div className="review-example">
+          <article className="review-document" aria-label="Document under review">
+            <MarkdownEditor
+              ariaLabel="Reviewed document preview"
+              value={technicalDocsMarkdown}
+              modes={["preview"]}
+              initialMode="preview"
+              readOnly
+              renderers={renderers}
+            />
+          </article>
+          <aside className="review-pane" aria-label="Review side pane">
+            <div className="review-thread">
+              <strong>Security review</strong>
+              <span>Blocking until retry behavior is documented.</span>
+            </div>
+            <MarkdownEditor
+              ariaLabel="Side-pane review editor"
+              value={review}
+              modes={["markdown", "preview"]}
+              initialMode="markdown"
+              renderers={renderers}
+              onChange={setReview}
+            />
+            <div className="review-actions">
+              <button type="button">Resolve</button>
+              <button type="button">Request changes</button>
+            </div>
+          </aside>
+        </div>
+      </ExampleShell>
+
+      <ExampleShell
+        id="modal-quick-edit"
+        eyebrow="Modal"
+        title="Modal quick-edit editor"
+        description="A constrained dialog editor for fast metadata and paragraph edits without leaving the host page."
+      >
+        <div className="quick-edit-backdrop" aria-label="Quick edit modal backdrop">
+          <section className="quick-edit-modal" role="dialog" aria-modal="true" aria-labelledby="quick-edit-title">
+            <header>
+              <div>
+                <p className="eyebrow">Quick edit</p>
+                <h4 id="quick-edit-title">API Rate Limits</h4>
+              </div>
+              <button type="button" aria-label="Close quick edit">Close</button>
+            </header>
+            <MarkdownEditor
+              ariaLabel="Modal quick-edit editor"
+              value={quickEdit}
+              modes={["hybrid", "markdown", "preview"]}
+              initialMode="hybrid"
+              renderers={renderers}
+              onChange={setQuickEdit}
+            />
+            <footer>
+              <span>Autosaved draft</span>
+              <button type="button">Apply changes</button>
+            </footer>
+          </section>
+        </div>
+      </ExampleShell>
+
+      <ExampleShell
+        id="technical-runbook"
+        eyebrow="Runbook"
+        title="Technical runbook editor"
+        description="A code-heavy incident runbook with diagrams, callouts, properties, and host renderer services."
+      >
+        <div className="runbook-example">
+          <nav className="runbook-outline" aria-label="Runbook outline">
+            <a href="#triage">Triage</a>
+            <a href="#commands">Commands</a>
+            <a href="#diagrams">Diagrams</a>
+          </nav>
+          <MarkdownEditor
+            ariaLabel="Technical runbook editor"
+            value={runbook}
+            modes={["hybrid", "markdown", "preview"]}
+            initialMode="hybrid"
+            renderers={renderers}
+            onChange={setRunbook}
+          />
+        </div>
+      </ExampleShell>
+
+      <ExampleShell
+        id="mobile-note"
+        eyebrow="Mobile"
+        title="Mobile-first note editor"
+        description="A narrow host shell that keeps the editor usable for phone-sized note capture and task updates."
+      >
+        <div className="mobile-note-frame" aria-label="Mobile note preview frame">
+          <header>
+            <span>Today</span>
+            <button type="button">Save</button>
+          </header>
+          <MarkdownEditor
+            ariaLabel="Mobile-first note editor"
+            value={mobileNote}
+            modes={["hybrid", "markdown"]}
+            initialMode="hybrid"
+            renderers={renderers}
+            onChange={setMobileNote}
+          />
+        </div>
+      </ExampleShell>
+
+      <ExampleShell
+        id="ai-prompt-composer"
+        eyebrow="AI prompt"
+        title="AI prompt composer"
+        description="A Markdown prompt surface with page mentions, source context, and a generated-preview companion pane."
+      >
+        <div className="prompt-example">
+          <section className="prompt-composer" aria-label="Prompt composer">
+            <div className="mention-row" aria-label="Available page mentions">
+              <button type="button">[[Release Runbook]]</button>
+              <button type="button">[[Renderer Registry]]</button>
+              <button type="button">[[Mobile Session Policy]]</button>
+            </div>
+            <MarkdownEditor
+              ariaLabel="AI prompt composer with Markdown and page mentions"
+              value={prompt}
+              modes={["markdown", "preview"]}
+              initialMode="markdown"
+              renderers={renderers}
+              onChange={setPrompt}
+            />
+          </section>
+          <aside className="prompt-context" aria-label="Prompt context">
+            <strong>Context pages</strong>
+            <ul>
+              <li>Release Runbook</li>
+              <li>Renderer Registry</li>
+              <li>Mobile Session Policy</li>
+            </ul>
+            <MarkdownEditor
+              ariaLabel="AI prompt rendered preview"
+              value={prompt}
+              modes={["preview"]}
+              initialMode="preview"
+              readOnly
+              renderers={renderers}
+            />
+          </aside>
+        </div>
+      </ExampleShell>
+
+      <ExampleShell
+        id="conflict-resolver"
+        eyebrow="Conflict"
+        title="Conflict/diff resolver"
+        description="A merge workflow embedding base, incoming, and resolved Markdown editor instances."
+      >
+        <div className="conflict-example">
+          <section className="conflict-column" aria-label="Base version">
+            <header>
+              <strong>Base</strong>
+              <span>Read-only</span>
+            </header>
+            <MarkdownEditor
+              ariaLabel="Conflict base Markdown"
+              value={baseConflictMarkdown}
+              modes={["markdown"]}
+              initialMode="markdown"
+              readOnly
+            />
+          </section>
+          <section className="conflict-column" aria-label="Incoming version">
+            <header>
+              <strong>Incoming</strong>
+              <span>Read-only</span>
+            </header>
+            <MarkdownEditor
+              ariaLabel="Conflict incoming Markdown"
+              value={incomingConflictMarkdown}
+              modes={["markdown"]}
+              initialMode="markdown"
+              readOnly
+            />
+          </section>
+          <section className="conflict-column conflict-resolution" aria-label="Resolved version">
+            <header>
+              <strong>Resolved</strong>
+              <button type="button" onClick={() => setResolvedConflict(incomingConflictMarkdown)}>Use incoming</button>
+            </header>
+            <MarkdownEditor
+              ariaLabel="Conflict resolved Markdown editor"
+              value={resolvedConflict}
+              modes={["markdown", "preview"]}
+              initialMode="markdown"
+              renderers={renderers}
+              onChange={setResolvedConflict}
+            />
+          </section>
+        </div>
+      </ExampleShell>
     </div>
   );
 }
@@ -631,7 +965,7 @@ function ModeCard({
   onMarkdownChange: (value: string) => void;
 }) {
   return (
-    <article className="mode-card">
+    <article className="mode-card" data-testid={`mode-card-${slugifyTestId(title)}`}>
       <strong>{title}</strong>
       <MarkdownEditor
         ariaLabel={`${title} editor`}
@@ -645,6 +979,10 @@ function ModeCard({
       />
     </article>
   );
+}
+
+function slugifyTestId(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 function CheckList({ items }: { items: string[] }) {

@@ -68,6 +68,45 @@ describe('createMarkdownEditorView', () => {
     parent.remove();
   });
 
+  it('preserves selection through external value updates and read-only toggles', () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown: 'alpha beta',
+      mode: 'markdown',
+    });
+
+    editor.setSelection({ anchor: 6, head: 10 });
+    editor.setReadOnly(true);
+    expect(editor.getSelection()).toEqual({ anchor: 6, head: 10 });
+
+    const beforeInput = new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'insertText',
+      data: '!',
+    });
+    const allowed = parent.querySelector('.cm-content')?.dispatchEvent(beforeInput);
+
+    expect(allowed).toBe(false);
+    expect(beforeInput.defaultPrevented).toBe(true);
+    expect(editor.getMarkdown()).toBe('alpha beta');
+    expect(editor.getSelection()).toEqual({ anchor: 6, head: 10 });
+
+    editor.setMarkdown('short');
+    expect(editor.getMarkdown()).toBe('short');
+    expect(editor.getSelection()).toEqual({ anchor: 5, head: 5 });
+
+    editor.setReadOnly(false);
+    editor.insertMarkdown('!');
+    expect(editor.getMarkdown()).toBe('short!');
+
+    editor.destroy();
+    parent.remove();
+  });
+
   it('throws after the editor has been destroyed', () => {
     const parent = document.createElement('section');
     const editor = createMarkdownEditorView({
@@ -148,6 +187,39 @@ describe('createMarkdownEditorView', () => {
     await flushPromises();
 
     expect(parent.querySelector('.rendered-fixture')).toBeNull();
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('contains rejected hybrid renderer failures inline without blocking source reveal', async () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const markdown = ['Before', '```mermaid', 'not valid', '```', 'After'].join('\n');
+
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+      hybridRenderMarkdown() {
+        throw new Error('renderer failed');
+      },
+    });
+
+    editor.setSelection({ anchor: markdown.indexOf('After'), head: markdown.indexOf('After') });
+    await flushPromises();
+
+    expect(parent.querySelector('.cm-me-rendered-block-error')?.textContent).toBe('renderer failed');
+    expect(parent.textContent).toContain('After');
+
+    parent.querySelector<HTMLElement>('.cm-me-rendered-block')?.dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true }),
+    );
+    await flushPromises();
+
+    expect(parent.querySelector('.cm-me-rendered-block-error')).toBeNull();
+    expect(parent.textContent).toContain('```mermaid');
+    expect(editor.getSelection().anchor).toBe(markdown.indexOf('```mermaid'));
 
     editor.destroy();
     parent.remove();

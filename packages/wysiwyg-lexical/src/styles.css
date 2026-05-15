@@ -199,6 +199,60 @@
   font: inherit;
 }
 
+.me-wysiwyg-table-scroll {
+  max-width: 100%;
+  margin: 14px 0;
+  overflow-x: auto;
+}
+
+.me-wysiwyg-table {
+  width: 100%;
+  min-width: 420px;
+  border-collapse: collapse;
+  border: 1px solid var(--me-border, #d9dee5);
+  background: var(--me-surface, #ffffff);
+  font-size: 0.95rem;
+}
+
+.me-wysiwyg-table-row {
+  border-bottom: 1px solid var(--me-border, #d9dee5);
+}
+
+.me-wysiwyg-table-row:last-child {
+  border-bottom: 0;
+}
+
+.me-wysiwyg-table-cell {
+  min-width: 120px;
+  border-right: 1px solid var(--me-border, #d9dee5);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.me-wysiwyg-table-cell:last-child {
+  border-right: 0;
+}
+
+.me-wysiwyg-table-cell-header {
+  background: #f8fafc;
+  color: var(--me-text, #18202a);
+  font-weight: 650;
+}
+
+.me-wysiwyg-table-cell-selected {
+  outline: 2px solid color-mix(in srgb, var(--me-accent, #2563eb), transparent 15%);
+  outline-offset: -2px;
+}
+
+.me-wysiwyg-table-selection {
+  user-select: none;
+}
+
+.me-wysiwyg-table-cell .me-wysiwyg-paragraph {
+  margin: 0;
+}
+
 .me-wysiwyg-token-comment,
 .me-wysiwyg-token-prolog,
 .me-wysiwyg-token-doctype,

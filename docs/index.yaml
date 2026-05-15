@@ -3,7 +3,7 @@ created: 2026-05-10
 docs:
   - file: docs/plan.md
     type: plan
-    status: active
+    status: ready_for_review
   - file: docs/status.md
     type: status
     status: active
@@ -12,7 +12,7 @@ docs:
     status: active
   - file: docs/mvp-implementation-plan.md
     type: implementation-plan
-    status: active
+    status: ready_for_review
   - file: docs/requirements.md
     type: requirements
     status: active
@@ -21,7 +21,10 @@ docs:
     status: draft
   - file: docs/test-matrix.md
     type: test-matrix
-    status: draft
+    status: ready_for_review
+  - file: docs/release-readiness.md
+    type: release-readiness
+    status: ready_for_review
   - file: docs/lessons.yaml
     type: lessons
     status: active
