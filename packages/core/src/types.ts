@@ -132,6 +132,20 @@ export interface LinkSuggestion {
   description?: string;
 }
 
+export type FrontmatterPropertyType = 'text' | 'date' | 'time' | 'datetime' | 'tags' | 'boolean' | 'link';
+
+export interface FrontmatterPropertySchema {
+  key: string;
+  type: FrontmatterPropertyType;
+  label?: string;
+  icon?: string;
+  required?: boolean;
+  defaultValue?: string | boolean | string[];
+  allowedValues?: string[];
+  description?: string;
+  order?: number;
+}
+
 export interface EditorFeatureFlags {
   toolbar: boolean;
   modeSwitcher: boolean;
@@ -187,6 +201,7 @@ export interface MarkdownEditorProps {
   rendererRegistry?: RendererRegistry;
   renderers?: RendererRegistry;
   hostServices?: HostServices;
+  propertySchema?: FrontmatterPropertySchema[];
   features?: Partial<EditorFeatureFlags>;
   theme?: 'light' | 'dark' | 'system' | Partial<EditorThemeTokens>;
   className?: string;

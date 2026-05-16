@@ -51,3 +51,12 @@ Revised target after 2026-05-15 review:
 - Refine tags into an inline token editor with subtle per-token removal and Enter-to-add behavior.
 - Improve date/time editors beyond plain fields by supporting native pickers and schema-driven date/time/date-time variants.
 - Use the example gallery to validate Font Awesome iconography without adding Font Awesome to the core editor packages.
+
+Implementation status after Phase 6 pass:
+- The hybrid properties panel now renders as compact rows with drag handles, type icons, property-name/type popovers, typed value controls, inline tag tokens, and subtle row remove controls.
+- Drag handles support pointer drag/drop plus `Alt+ArrowUp` and `Alt+ArrowDown` keyboard reordering.
+- Tags can be added inline with Enter, removed per token, and trimmed with Backspace from an empty tag input.
+- Date, time, and date-time properties use native input types with a compact picker affordance when supported by the platform.
+- `propertySchema` is exposed through the React and CodeMirror APIs for labels, preferred types, icon hints, defaults, and order-aware add-property behavior.
+- Examples use the schema in hybrid/all-mode/mobile contexts while keeping Font Awesome isolated to the example toolbar icon adapter.
+- Remaining gaps: schema validation, required-property enforcement, host-service suggestions inside value fields, complex YAML preservation/fallback, and drag visual polish beyond browser-native drag/drop.

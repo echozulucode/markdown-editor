@@ -941,9 +941,12 @@ function WysiwygCodeLanguagePlugin(): React.ReactElement | null {
       });
     });
   }, [editor]);
+  const readCodeLanguageState = React.useCallback(() => {
+    editor.getEditorState().read(updateCodeLanguageState);
+  }, [editor, updateCodeLanguageState]);
 
   React.useEffect(() => {
-    editor.getEditorState().read(updateCodeLanguageState);
+    readCodeLanguageState();
 
     const removeUpdateListener = editor.registerUpdateListener(({ editorState }) => {
       editorState.read(updateCodeLanguageState);
@@ -951,7 +954,7 @@ function WysiwygCodeLanguagePlugin(): React.ReactElement | null {
     const removeSelectionListener = editor.registerCommand(
       SELECTION_CHANGE_COMMAND,
       () => {
-        updateCodeLanguageState();
+        readCodeLanguageState();
         return false;
       },
       COMMAND_PRIORITY_LOW,
@@ -959,16 +962,16 @@ function WysiwygCodeLanguagePlugin(): React.ReactElement | null {
 
     const rootElement = editor.getRootElement();
     const container = rootElement?.closest<HTMLElement>('.me-wysiwyg');
-    container?.addEventListener('scroll', updateCodeLanguageState);
-    window.addEventListener('resize', updateCodeLanguageState);
+    container?.addEventListener('scroll', readCodeLanguageState);
+    window.addEventListener('resize', readCodeLanguageState);
 
     return () => {
       removeUpdateListener();
       removeSelectionListener();
-      container?.removeEventListener('scroll', updateCodeLanguageState);
-      window.removeEventListener('resize', updateCodeLanguageState);
+      container?.removeEventListener('scroll', readCodeLanguageState);
+      window.removeEventListener('resize', readCodeLanguageState);
     };
-  }, [editor, updateCodeLanguageState]);
+  }, [editor, readCodeLanguageState, updateCodeLanguageState]);
 
   if (activeCode === null) {
     return null;
@@ -1330,6 +1333,7 @@ function MermaidBlock({
   const [draft, setDraft] = React.useState(source);
   const [html, setHtml] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
+  const renderServices = React.useContext(WysiwygRenderServicesContext);
 
   React.useEffect(() => {
     setDraft(source);
@@ -1356,14 +1360,22 @@ function MermaidBlock({
       })
       .catch((cause: unknown) => {
         if (!disposed) {
-          setError(cause instanceof Error ? cause.message : String(cause));
+          const message = formatMermaidRenderError(cause);
+          setError(message);
+          renderServices.reportDiagnostics?.([{
+            code: 'wysiwyg.mermaid.render.failed',
+            message,
+            severity: 'error',
+            source: 'renderer',
+            details: cause,
+          }]);
         }
       });
 
     return () => {
       disposed = true;
     };
-  }, [isEditing, nodeKey, source]);
+  }, [isEditing, nodeKey, renderServices, source]);
 
   function saveSource() {
     editor.update(() => {
@@ -1923,6 +1935,15 @@ function clampIndex(index: number, length: number): number {
   }
 
   return Math.min(Math.max(index, 0), length - 1);
+}
+
+function formatMermaidRenderError(cause: unknown): string {
+  const rawMessage = cause instanceof Error ? cause.message : String(cause);
+  const firstLine = rawMessage
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0 && !/^mermaid version/i.test(line));
+  return `Mermaid diagram could not render${firstLine ? `: ${firstLine}` : '.'}`;
 }
 
 function isMarkdownTableRowLine(line: string): boolean {

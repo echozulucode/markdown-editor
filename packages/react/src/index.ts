@@ -5,6 +5,7 @@ export type {
   ChangeMeta,
   EditorDiagnostic,
   EditorMode,
+  FrontmatterPropertySchema,
   HostServices,
   LinkSuggestion,
   MarkdownEditorHandle,

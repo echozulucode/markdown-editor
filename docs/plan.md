@@ -1,7 +1,7 @@
 ---
 type: plan
 project: "markdown-editor"
-status: active
+status: ready_for_review
 version: 1
 updated: 2026-05-15
 phases:
@@ -22,8 +22,8 @@ phases:
     status: completed
   - id: 6
     name: "Post-MVP Properties and Host Polish"
-    status: planned
-current_phase: "Post-MVP properties refinement planning"
+    status: ready_for_review
+current_phase: "Post-MVP properties refinement implemented"
 ---
 
 # Plan: Standalone Markdown Editor Control
@@ -125,16 +125,16 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 - [x] Publish package docs, host integration recipes, migration guide from Knowledge E3, and example-site source links.
 
 ## Phase 6: Post-MVP Properties and Host Polish
-- [ ] Replace the current advanced properties row actions with an Obsidian-class compact interaction model: drag handles for pointer reordering, keyboard-accessible reorder support, and no persistent per-row move buttons in the primary UI.
-- [ ] Add a property-name/type popover opened from the property name area. The selected type should be represented by a compact icon, with the text label available through accessible names and tooltips rather than always-visible chrome.
-- [ ] Build type-specific property editors: text input, boolean checkbox, date picker, time picker, date-time editor when needed, tags/token input, and host-link/value suggestion fields when host services are available.
-- [ ] Implement tag editing inline in the row: type to add, press Enter to commit, Backspace/delete affordances for individual tags, and a subtle remove icon on each token. Avoid separate bulky management screens.
+- [x] Replace the current advanced properties row actions with an Obsidian-class compact interaction model: drag handles for pointer reordering, keyboard-accessible reorder support, and no persistent per-row move buttons in the primary UI.
+- [x] Add a property-name/type popover opened from the property name area. The selected type should be represented by a compact icon, with the text label available through accessible names and tooltips rather than always-visible chrome.
+- [x] Build type-specific property editors: text input, boolean checkbox, date picker, time picker, date-time editor when needed, tags/token input, and link/url fields. Host-service value suggestions remain future work.
+- [x] Implement tag editing inline in the row: type to add, press Enter to commit, Backspace/delete affordances for individual tags, and a subtle remove icon on each token. Avoid separate bulky management screens.
 - [ ] Preserve Markdown/YAML as canonical source while clearly documenting the structured editor's YAML preservation boundary: simple scalars/lists remain supported first; complex YAML should either fall back to source editing or be guarded by host schema rules.
-- [ ] Add host property schema support for allowed keys, preferred types, labels, icon hints, validation, default values, required properties, and order preferences.
-- [ ] Add responsive behavior for the properties panel so the same controls work in full-page editors, side panes, modals, and mobile examples without row crowding.
-- [ ] Extend examples to show the refined properties panel in hybrid-only, all-modes, published-preview, and compact/mobile contexts.
-- [ ] Keep Font Awesome as an example-site icon adapter, not a core package dependency. The reusable editor should continue to expose icon slots/adapters so hosts can use Font Awesome, Lucide, or their own design-system icons.
-- [ ] Add focused unit and browser tests for drag reordering, keyboard reordering, type switching, date/time editing, tag token add/remove, schema constraints, mobile layout, and YAML source updates.
+- [x] Add initial host property schema support for preferred keys, types, labels, icon hints, default values, and order preferences. Validation and required-field enforcement remain future work.
+- [x] Add responsive behavior for the properties panel so the same controls work in full-page editors, side panes, modals, and mobile examples without row crowding.
+- [x] Extend examples to show the refined properties panel in hybrid-only, all-modes, and compact/mobile contexts.
+- [x] Keep Font Awesome as an example-site icon adapter, not a core package dependency. The reusable editor should continue to expose icon slots/adapters so hosts can use Font Awesome, Lucide, or their own design-system icons.
+- [x] Add focused unit and browser tests for drag reordering, keyboard reordering, type switching, date/time editing, tag token add/remove, initial schema behavior, mobile layout, and YAML source updates.
 
 ## Key Risks
 - WYSIWYG mode can normalize Markdown in ways source-first users will reject.

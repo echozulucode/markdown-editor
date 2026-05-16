@@ -57,6 +57,7 @@ export const MarkdownEditor = React.forwardRef<
     onDiagnostics,
     renderers,
     hostServices,
+    propertySchema,
     wysiwygToolbarIcons,
   },
   forwardedRef,
@@ -153,6 +154,7 @@ export const MarkdownEditor = React.forwardRef<
         });
       },
       hybridFrontmatterMode: showProperties ? 'table' : 'hidden',
+      frontmatterSchema: propertySchema,
       hybridRenderMarkdown,
     });
 
@@ -163,7 +165,7 @@ export const MarkdownEditor = React.forwardRef<
         cmRef.current = null;
       }
     };
-  }, [ariaLabel, activeMode, hybridRenderMarkdown, isCodeMirrorMode, readOnly, showProperties]);
+  }, [ariaLabel, activeMode, hybridRenderMarkdown, isCodeMirrorMode, propertySchema, readOnly, showProperties]);
 
   React.useEffect(() => {
     const handle = cmRef.current;

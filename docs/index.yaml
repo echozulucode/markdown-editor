@@ -3,7 +3,7 @@ created: 2026-05-10
 docs:
   - file: docs/plan.md
     type: plan
-    status: active
+    status: ready_for_review
   - file: docs/status.md
     type: status
     status: active

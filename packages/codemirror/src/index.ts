@@ -22,6 +22,8 @@ import {
 
 import type {
   ChangeMeta,
+  FrontmatterPropertySchema,
+  FrontmatterPropertyType,
   HybridMarkdownRenderer,
   HybridRenderContext,
   HybridRenderResult,
@@ -246,7 +248,12 @@ function buildHybridDecorations(state: EditorState, options: MarkdownEditorViewO
         frontmatter.to,
         Decoration.replace({
           block: true,
-          widget: new FrontmatterPropertiesWidget(frontmatter.raw, frontmatter.from, frontmatter.to)
+          widget: new FrontmatterPropertiesWidget(
+            frontmatter.raw,
+            frontmatter.from,
+            frontmatter.to,
+            options.frontmatterSchema
+          )
         })
       );
     } else {
@@ -561,27 +568,42 @@ function addInlineLinkDecorations(builder: RangeSetBuilder<Decoration>, lineFrom
 interface FrontmatterEntry {
   key: string;
   value: string;
-  type: FrontmatterPropertyType;
+  type: SupportedFrontmatterPropertyType;
 }
 
-type FrontmatterPropertyType = "text" | "date" | "time" | "tags" | "boolean";
+type SupportedFrontmatterPropertyType = Extract<
+  FrontmatterPropertyType,
+  "text" | "date" | "time" | "datetime" | "tags" | "boolean" | "link"
+>;
 
-const frontmatterPropertyTypes: FrontmatterPropertyType[] = ["text", "date", "time", "tags", "boolean"];
+const frontmatterPropertyTypes: SupportedFrontmatterPropertyType[] = [
+  "text",
+  "date",
+  "time",
+  "datetime",
+  "tags",
+  "boolean",
+  "link"
+];
 
-const frontmatterTypeLabels: Record<FrontmatterPropertyType, string> = {
+const frontmatterTypeLabels: Record<SupportedFrontmatterPropertyType, string> = {
   text: "Text",
   date: "Date",
   time: "Time",
+  datetime: "Date and time",
   tags: "Tags",
-  boolean: "Boolean"
+  boolean: "Boolean",
+  link: "Link"
 };
 
-const frontmatterTypeIcons: Record<FrontmatterPropertyType, string> = {
+const frontmatterTypeIcons: Record<SupportedFrontmatterPropertyType, string> = {
   text: "T",
   date: "D",
   time: "H",
+  datetime: "DT",
   tags: "#",
-  boolean: "B"
+  boolean: "B",
+  link: "@"
 };
 
 function parseFrontmatter(raw: string): FrontmatterEntry[] {
@@ -634,14 +656,35 @@ function updateFrontmatterEntry(raw: string, entryIndex: number, patch: Partial<
   return serializeFrontmatter(raw, entries);
 }
 
-function addFrontmatterEntry(raw: string): string {
+function addFrontmatterEntry(raw: string, schema?: readonly FrontmatterPropertySchema[]): string {
   const entries = parseFrontmatter(raw);
+  const existingKeys = new Set(entries.map((entry) => entry.key.toLowerCase()));
+  const schemaEntry = schema
+    ?.slice()
+    .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+    .find((entry) => !existingKeys.has(entry.key.toLowerCase()));
+  const type = supportedSchemaType(schemaEntry?.type);
   entries.push({
-    key: nextFrontmatterKey(entries),
-    value: "",
-    type: "text"
+    key: schemaEntry?.key ?? nextFrontmatterKey(entries),
+    value: normalizeDefaultFrontmatterValue(schemaEntry?.defaultValue, type),
+    type
   });
   return serializeFrontmatter(raw, entries);
+}
+
+function normalizeDefaultFrontmatterValue(
+  value: FrontmatterPropertySchema["defaultValue"] | undefined,
+  type: SupportedFrontmatterPropertyType
+): string {
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+
+  return coerceFrontmatterValue(value ?? defaultValueForType(type), type);
 }
 
 function removeFrontmatterEntry(raw: string, entryIndex: number): string {
@@ -658,6 +701,16 @@ function moveFrontmatterEntry(raw: string, entryIndex: number, direction: "up" |
   const entries = parseFrontmatter(raw);
   const targetIndex = direction === "up" ? entryIndex - 1 : entryIndex + 1;
 
+  return moveFrontmatterEntryTo(raw, entryIndex, targetIndex, entries);
+}
+
+function moveFrontmatterEntryTo(
+  raw: string,
+  entryIndex: number,
+  targetIndex: number,
+  parsedEntries = parseFrontmatter(raw)
+): string {
+  const entries = parsedEntries.slice();
   if (!entries[entryIndex] || targetIndex < 0 || targetIndex >= entries.length) {
     return raw;
   }
@@ -716,7 +769,7 @@ function normalizeFrontmatterScalar(value: string): string {
   return trimmed;
 }
 
-function inferFrontmatterType(key: string, value: string, fromList: boolean): FrontmatterPropertyType {
+function inferFrontmatterType(key: string, value: string, fromList: boolean): SupportedFrontmatterPropertyType {
   const normalizedKey = key.toLowerCase();
   const trimmed = value.trim();
 
@@ -730,6 +783,14 @@ function inferFrontmatterType(key: string, value: string, fromList: boolean): Fr
 
   if (/^\d{2}:\d{2}(?::\d{2})?$/.test(trimmed)) {
     return "time";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(trimmed)) {
+    return "datetime";
+  }
+
+  if (/^https?:\/\//i.test(trimmed) || normalizedKey === "link" || normalizedKey === "url") {
+    return "link";
   }
 
   if (
@@ -754,7 +815,7 @@ function serializeFrontmatterValue(entry: FrontmatterEntry): string {
   return entry.value;
 }
 
-function coerceFrontmatterValue(value: string, type: FrontmatterPropertyType): string {
+function coerceFrontmatterValue(value: string, type: SupportedFrontmatterPropertyType): string {
   const trimmed = value.trim();
   if (type === "boolean") {
     return /^true$/i.test(trimmed) ? "true" : "false";
@@ -771,6 +832,11 @@ function coerceFrontmatterValue(value: string, type: FrontmatterPropertyType): s
   if (type === "time") {
     const time = trimmed.match(/^(\d{2}:\d{2})(?::\d{2})?$/);
     return time ? time[1] : "";
+  }
+
+  if (type === "datetime") {
+    const datetime = trimmed.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::\d{2})?$/);
+    return datetime ? `${datetime[1]}T${datetime[2]}` : "";
   }
 
   return value.replace(/\r?\n/g, " ");
@@ -800,6 +866,47 @@ function nextFrontmatterKey(entries: FrontmatterEntry[]): string {
       return key;
     }
   }
+}
+
+function getFrontmatterSchemaEntry(
+  schema: readonly FrontmatterPropertySchema[] | undefined,
+  key: string
+): FrontmatterPropertySchema | undefined {
+  return schema?.find((entry) => entry.key.toLowerCase() === key.toLowerCase());
+}
+
+function supportedSchemaType(type: FrontmatterPropertyType | undefined): SupportedFrontmatterPropertyType {
+  return type !== undefined && frontmatterPropertyTypes.includes(type as SupportedFrontmatterPropertyType)
+    ? type as SupportedFrontmatterPropertyType
+    : "text";
+}
+
+function entryTypeWithSchema(
+  entry: FrontmatterEntry,
+  schema: readonly FrontmatterPropertySchema[] | undefined
+): SupportedFrontmatterPropertyType {
+  const schemaEntry = getFrontmatterSchemaEntry(schema, entry.key);
+  return schemaEntry ? supportedSchemaType(schemaEntry.type) : entry.type;
+}
+
+function typeIconForEntry(
+  type: SupportedFrontmatterPropertyType,
+  schemaEntry: FrontmatterPropertySchema | undefined
+): string {
+  return schemaEntry?.icon?.trim() || frontmatterTypeIcons[type];
+}
+
+function labelForEntry(entry: FrontmatterEntry, schema: readonly FrontmatterPropertySchema[] | undefined): string {
+  const schemaEntry = getFrontmatterSchemaEntry(schema, entry.key);
+  return schemaEntry?.label ?? entry.key;
+}
+
+function defaultValueForType(type: SupportedFrontmatterPropertyType): string {
+  if (type === "boolean") {
+    return "false";
+  }
+
+  return "";
 }
 
 class TaskCheckboxWidget extends WidgetType {
@@ -873,7 +980,8 @@ class FrontmatterPropertiesWidget extends WidgetType {
   constructor(
     private readonly raw: string,
     private readonly from: number,
-    private readonly to: number
+    private readonly to: number,
+    private readonly schema?: readonly FrontmatterPropertySchema[]
   ) {
     super();
   }
@@ -883,120 +991,212 @@ class FrontmatterPropertiesWidget extends WidgetType {
     wrapper.className = "cm-me-properties";
     wrapper.setAttribute("aria-label", "Markdown properties");
     const readOnly = view.state.readOnly;
-
-    const table = document.createElement("table");
-    table.className = "cm-me-properties-table";
-    const thead = document.createElement("thead");
-    const headerRow = document.createElement("tr");
-    for (const label of ["Order", "Property", "Type", "Value", "Remove"]) {
-      const cell = document.createElement("th");
-      cell.scope = "col";
-      cell.textContent = label;
-      headerRow.append(cell);
-    }
-    thead.append(headerRow);
-    const tbody = document.createElement("tbody");
     const entries = parseFrontmatter(this.raw);
 
+    const heading = document.createElement("div");
+    heading.className = "cm-me-properties-heading";
+    heading.textContent = "Properties";
+
+    const list = document.createElement("div");
+    list.className = "cm-me-properties-table";
+    list.setAttribute("role", "list");
     entries.forEach((entry, index) => {
-      const row = document.createElement("tr");
-      const orderCell = document.createElement("td");
-      const keyCell = document.createElement("td");
-      const typeCell = document.createElement("td");
-      const valueCell = document.createElement("td");
-      const removeCell = document.createElement("td");
-      const keyInput = document.createElement("input");
-      const typeIcon = document.createElement("span");
-      const typeSelect = document.createElement("select");
+      const type = entryTypeWithSchema(entry, this.schema);
+      const schemaEntry = getFrontmatterSchemaEntry(this.schema, entry.key);
+      const normalizedEntry = type === entry.type ? entry : { ...entry, type };
+      const row = document.createElement("div");
+      const handleCell = document.createElement("div");
+      const nameCell = document.createElement("div");
+      const valueCell = document.createElement("div");
+      const actionCell = document.createElement("div");
 
-      row.dataset.propertyType = entry.type;
-      orderCell.className = "cm-me-property-order-cell";
-      keyCell.className = "cm-me-property-key-cell";
-      typeCell.className = "cm-me-property-type-cell";
-      valueCell.className = "cm-me-property-value-cell";
-      removeCell.className = "cm-me-property-remove-cell";
-
-      const moveUpButton = this.createButton("Up", `Move ${entry.key} property up`, readOnly || index === 0, () => {
-        this.commitRaw(view, moveFrontmatterEntry(this.raw, index, "up"));
-      });
-      moveUpButton.classList.add("cm-me-property-move-up");
-
-      const moveDownButton = this.createButton(
-        "Down",
-        `Move ${entry.key} property down`,
-        readOnly || index === entries.length - 1,
-        () => {
-          this.commitRaw(view, moveFrontmatterEntry(this.raw, index, "down"));
+      row.className = "cm-me-property-row";
+      row.dataset.propertyType = type;
+      row.dataset.propertyKey = entry.key;
+      row.setAttribute("role", "listitem");
+      row.addEventListener("dragover", (event) => {
+        if (!readOnly) {
+          event.preventDefault();
         }
-      );
-      moveDownButton.classList.add("cm-me-property-move-down");
-      orderCell.append(moveUpButton, moveDownButton);
-
-      keyInput.className = "cm-me-property-key-input";
-      keyInput.value = entry.key;
-      keyInput.disabled = readOnly;
-      keyInput.setAttribute("aria-label", `Property name for ${entry.key}`);
-      keyInput.addEventListener("change", () => {
-        this.commitRaw(view, updateFrontmatterEntry(this.raw, index, { key: keyInput.value }));
       });
-      this.blurOnEnter(keyInput);
-      keyCell.append(keyInput);
-
-      typeIcon.className = "cm-me-property-type-icon";
-      typeIcon.textContent = frontmatterTypeIcons[entry.type];
-      typeIcon.setAttribute("aria-hidden", "true");
-      for (const type of frontmatterPropertyTypes) {
-        const option = document.createElement("option");
-        option.value = type;
-        option.textContent = frontmatterTypeLabels[type];
-        typeSelect.append(option);
-      }
-      typeSelect.className = "cm-me-property-type-select";
-      typeSelect.value = entry.type;
-      typeSelect.disabled = readOnly;
-      typeSelect.setAttribute("aria-label", `${entry.key} property type`);
-      typeSelect.addEventListener("change", () => {
-        const type = typeSelect.value as FrontmatterPropertyType;
-        this.commitRaw(view, updateFrontmatterEntry(this.raw, index, {
-          type,
-          value: coerceFrontmatterValue(entry.value, type)
-        }));
+      row.addEventListener("drop", (event) => {
+        if (readOnly) {
+          return;
+        }
+        event.preventDefault();
+        const sourceIndex = Number(event.dataTransfer?.getData("text/plain"));
+        if (Number.isInteger(sourceIndex)) {
+          this.commitRaw(view, moveFrontmatterEntryTo(this.raw, sourceIndex, index, entries));
+        }
       });
-      typeCell.append(typeIcon, typeSelect);
 
-      valueCell.append(this.createValueControl(view, entry, index, readOnly));
+      handleCell.className = "cm-me-property-order-cell";
+      nameCell.className = "cm-me-property-key-cell";
+      valueCell.className = "cm-me-property-value-cell";
+      actionCell.className = "cm-me-property-remove-cell";
 
-      const removeButton = this.createButton("Remove", `Remove ${entry.key} property`, readOnly, () => {
+      const dragHandle = this.createButton("", `Drag ${entry.key} property`, readOnly, () => undefined);
+      dragHandle.className = "cm-me-property-drag-handle";
+      dragHandle.draggable = !readOnly;
+      dragHandle.title = `Drag ${entry.key} property`;
+      dragHandle.addEventListener("dragstart", (event) => {
+        if (readOnly || !event.dataTransfer) {
+          event.preventDefault();
+          return;
+        }
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", String(index));
+      });
+      dragHandle.addEventListener("keydown", (event) => {
+        if (readOnly || !event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) {
+          return;
+        }
+        event.preventDefault();
+        this.commitRaw(
+          view,
+          moveFrontmatterEntry(this.raw, index, event.key === "ArrowUp" ? "up" : "down")
+        );
+      });
+      handleCell.append(dragHandle);
+
+      nameCell.append(this.createNameMenu(view, normalizedEntry, index, readOnly, schemaEntry));
+      valueCell.append(this.createValueControl(view, normalizedEntry, index, readOnly));
+
+      const removeButton = this.createButton("x", `Remove ${entry.key} property`, readOnly, () => {
         this.commitRaw(view, removeFrontmatterEntry(this.raw, index));
       });
       removeButton.classList.add("cm-me-property-remove");
-      removeCell.append(removeButton);
+      actionCell.append(removeButton);
 
-      row.append(orderCell, keyCell, typeCell, valueCell, removeCell);
-      tbody.append(row);
+      row.append(handleCell, nameCell, valueCell, actionCell);
+      list.append(row);
     });
 
     if (entries.length === 0) {
-      const row = document.createElement("tr");
-      const valueCell = document.createElement("td");
-      valueCell.colSpan = 5;
-      valueCell.textContent = "No properties";
-      row.append(valueCell);
-      tbody.append(row);
+      const empty = document.createElement("div");
+      empty.className = "cm-me-property-empty";
+      empty.textContent = "No properties";
+      list.append(empty);
     }
 
-    const addButton = this.createButton("Add property", "Add property", readOnly, () => {
-      this.commitRaw(view, addFrontmatterEntry(this.raw));
+    const addButton = this.createButton("+ Add property", "Add property", readOnly, () => {
+      this.commitRaw(view, addFrontmatterEntry(this.raw, this.schema));
     });
     addButton.classList.add("cm-me-property-add");
 
-    table.append(thead, tbody);
-    wrapper.append(table, addButton);
+    wrapper.append(heading, list, addButton);
     return wrapper;
   }
 
   ignoreEvent(): boolean {
     return true;
+  }
+
+  private createNameMenu(
+    view: EditorView,
+    entry: FrontmatterEntry,
+    entryIndex: number,
+    readOnly: boolean,
+    schemaEntry: FrontmatterPropertySchema | undefined
+  ): HTMLElement {
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    const icon = document.createElement("span");
+    const label = document.createElement("span");
+    const menu = document.createElement("div");
+    const keyLabel = document.createElement("label");
+    const keyInput = document.createElement("input");
+    const typeMenu = document.createElement("div");
+    const suggestions = this.schema?.filter((schema) => schema.key.toLowerCase() !== entry.key.toLowerCase()) ?? [];
+
+    details.className = "cm-me-property-menu-details";
+    details.addEventListener("toggle", () => {
+      if (details.open) {
+        setTimeout(() => keyInput.focus(), 0);
+      }
+    });
+
+    summary.className = "cm-me-property-summary";
+    summary.setAttribute("aria-label", `${entry.key} property settings`);
+    summary.title = `${frontmatterTypeLabels[entry.type]} property`;
+
+    icon.className = "cm-me-property-type-icon";
+    icon.textContent = typeIconForEntry(entry.type, schemaEntry);
+    icon.setAttribute("aria-hidden", "true");
+
+    label.className = "cm-me-property-name";
+    label.textContent = labelForEntry(entry, this.schema);
+    summary.append(icon, label);
+
+    menu.className = "cm-me-property-menu";
+    keyLabel.className = "cm-me-property-menu-label";
+    keyLabel.textContent = "Name";
+    keyInput.className = "cm-me-property-key-input";
+    keyInput.value = entry.key;
+    keyInput.disabled = readOnly;
+    keyInput.setAttribute("aria-label", `Property name for ${entry.key}`);
+    keyInput.addEventListener("change", () => {
+      const schemaMatch = getFrontmatterSchemaEntry(this.schema, keyInput.value);
+      const nextType = schemaMatch ? supportedSchemaType(schemaMatch.type) : entry.type;
+      this.commitRaw(view, updateFrontmatterEntry(this.raw, entryIndex, {
+        key: keyInput.value,
+        type: nextType,
+        value: schemaMatch?.defaultValue === undefined
+          ? coerceFrontmatterValue(entry.value, nextType)
+          : normalizeDefaultFrontmatterValue(schemaMatch.defaultValue, nextType)
+      }));
+    });
+    this.blurOnEnter(keyInput);
+    keyLabel.append(keyInput);
+    menu.append(keyLabel);
+
+    if (suggestions.length > 0) {
+      const suggestionList = document.createElement("div");
+      suggestionList.className = "cm-me-property-suggestions";
+      for (const suggestion of suggestions) {
+        const suggestionButton = this.createButton(
+          suggestion.label ?? suggestion.key,
+          `Use ${suggestion.label ?? suggestion.key} property`,
+          readOnly,
+          () => {
+            const type = supportedSchemaType(suggestion.type);
+            this.commitRaw(view, updateFrontmatterEntry(this.raw, entryIndex, {
+              key: suggestion.key,
+              type,
+              value: normalizeDefaultFrontmatterValue(suggestion.defaultValue, type)
+            }));
+          }
+        );
+        suggestionButton.classList.add("cm-me-property-suggestion");
+        suggestionList.append(suggestionButton);
+      }
+      menu.append(suggestionList);
+    }
+
+    typeMenu.className = "cm-me-property-type-menu";
+    typeMenu.setAttribute("role", "menu");
+    for (const type of frontmatterPropertyTypes) {
+      const typeButton = this.createButton(
+        `${frontmatterTypeIcons[type]} ${frontmatterTypeLabels[type]}`,
+        `Set ${entry.key} property type to ${frontmatterTypeLabels[type]}`,
+        readOnly,
+        () => {
+          this.commitRaw(view, updateFrontmatterEntry(this.raw, entryIndex, {
+            type,
+            value: coerceFrontmatterValue(entry.value, type)
+          }));
+        }
+      );
+      typeButton.classList.add("cm-me-property-type-option");
+      typeButton.dataset.active = type === entry.type ? "true" : "false";
+      typeButton.setAttribute("aria-pressed", type === entry.type ? "true" : "false");
+      typeButton.setAttribute("role", "menuitemradio");
+      typeButton.setAttribute("aria-checked", type === entry.type ? "true" : "false");
+      typeMenu.append(typeButton);
+    }
+    menu.append(typeMenu);
+    details.append(summary, menu);
+    return details;
   }
 
   private createValueControl(
@@ -1020,7 +1220,13 @@ class FrontmatterPropertiesWidget extends WidgetType {
       return checkbox;
     }
 
+    if (entry.type === "tags") {
+      return this.createTagsControl(view, entry, entryIndex, readOnly);
+    }
+
+    const wrapper = document.createElement("div");
     const input = document.createElement("input");
+    wrapper.className = "cm-me-property-input-wrap";
     input.className = "cm-me-property-input";
     input.value = entry.value;
     input.disabled = readOnly;
@@ -1030,6 +1236,10 @@ class FrontmatterPropertiesWidget extends WidgetType {
       input.type = "date";
     } else if (entry.type === "time") {
       input.type = "time";
+    } else if (entry.type === "datetime") {
+      input.type = "datetime-local";
+    } else if (entry.type === "link") {
+      input.type = "url";
     } else {
       input.type = "text";
     }
@@ -1038,8 +1248,83 @@ class FrontmatterPropertiesWidget extends WidgetType {
       this.commitRaw(view, updateFrontmatterEntry(this.raw, entryIndex, { value: input.value }));
     });
     this.blurOnEnter(input);
+    wrapper.append(input);
 
-    return input;
+    if (entry.type === "date" || entry.type === "time" || entry.type === "datetime") {
+      const pickerButton = this.createButton("Pick", `Open ${entry.key} picker`, readOnly, () => {
+        const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
+        if (typeof pickerInput.showPicker === "function") {
+          pickerInput.showPicker();
+        } else {
+          pickerInput.focus();
+        }
+      });
+      pickerButton.classList.add("cm-me-property-picker");
+      wrapper.append(pickerButton);
+    }
+
+    return wrapper;
+  }
+
+  private createTagsControl(
+    view: EditorView,
+    entry: FrontmatterEntry,
+    entryIndex: number,
+    readOnly: boolean
+  ): HTMLElement {
+    const tags = splitFrontmatterTags(entry.value);
+    const wrapper = document.createElement("div");
+    const input = document.createElement("input");
+    wrapper.className = "cm-me-property-tags";
+    wrapper.setAttribute("aria-label", `${entry.key} property value`);
+
+    const commitTags = (nextTags: string[]) => {
+      this.commitRaw(view, updateFrontmatterEntry(this.raw, entryIndex, {
+        value: nextTags.join(", ")
+      }));
+    };
+
+    for (const tag of tags) {
+      const token = document.createElement("span");
+      const label = document.createElement("span");
+      const remove = this.createButton("x", `Remove ${tag} tag`, readOnly, () => {
+        commitTags(tags.filter((item) => item !== tag));
+      });
+      token.className = "cm-me-property-tag";
+      label.textContent = tag;
+      remove.className = "cm-me-property-tag-remove";
+      token.append(label, remove);
+      wrapper.append(token);
+    }
+
+    input.className = "cm-me-property-tag-input";
+    input.disabled = readOnly;
+    input.type = "text";
+    input.placeholder = "Add tag";
+    input.setAttribute("aria-label", `${entry.key} tag entry`);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const nextTag = input.value.trim();
+        if (nextTag.length > 0) {
+          commitTags([...tags, nextTag]);
+        }
+        return;
+      }
+
+      if (event.key === "Backspace" && input.value.length === 0 && tags.length > 0) {
+        event.preventDefault();
+        commitTags(tags.slice(0, -1));
+      }
+    });
+    input.addEventListener("blur", () => {
+      const nextTag = input.value.trim();
+      if (nextTag.length > 0) {
+        commitTags([...tags, nextTag]);
+      }
+    });
+    wrapper.append(input);
+    return wrapper;
   }
 
   private createButton(label: string, ariaLabel: string, disabled: boolean, onClick: () => void): HTMLButtonElement {

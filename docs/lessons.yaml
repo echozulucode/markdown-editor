@@ -1,6 +1,6 @@
 type: lessons
 project: "markdown-editor"
-updated: 2026-05-14
+updated: 2026-05-15
 lessons:
   - id: LESSON-001
     date: 2026-05-11
@@ -234,3 +234,22 @@ lessons:
       - "packages/react"
       - "examples/dev-harness"
       - "host integration recipes"
+  - id: LESSON-027
+    date: 2026-05-15
+    area: properties
+    lesson: "Property schemas should guide compact editing before they enforce content policy."
+    rationale: "The first useful schema boundary is labels, types, icons, defaults, and order because those directly improve the editing surface. Validation, required fields, and complex YAML fallback need separate UX so the editor does not silently block or damage source."
+    applies_to:
+      - "packages/core"
+      - "packages/codemirror"
+      - "packages/react"
+      - "hybrid properties panel"
+  - id: LESSON-028
+    date: 2026-05-15
+    area: wysiwyg
+    lesson: "Lexical state helpers must not be reused directly from DOM event handlers."
+    rationale: "The code-language popover reused a selection helper from scroll and resize listeners, which called `$getSelection()` outside an editor read/update scope. DOM-triggered observers should re-enter `editor.getEditorState().read(...)` before touching Lexical state."
+    applies_to:
+      - "packages/wysiwyg-lexical"
+      - "selection-aware popovers"
+      - "future Lexical plugins"

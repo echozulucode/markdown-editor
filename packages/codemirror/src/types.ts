@@ -1,5 +1,10 @@
 import type { Extension } from "@codemirror/state";
-import type { ChangeMeta, EditorMode } from "@markdown-editor/core";
+import type {
+  ChangeMeta,
+  EditorMode,
+  FrontmatterPropertySchema,
+  FrontmatterPropertyType
+} from "@markdown-editor/core";
 
 export type CodeMirrorEditorMode = Extract<EditorMode, "markdown" | "hybrid" | "preview">;
 
@@ -40,6 +45,7 @@ export interface MarkdownEditorViewOptions {
   attributes?: Record<string, string>;
   extensions?: Extension[];
   hybridFrontmatterMode?: HybridFrontmatterMode;
+  frontmatterSchema?: FrontmatterPropertySchema[];
   hybridRenderMarkdown?: HybridMarkdownRenderer;
   onChange?: (markdown: string, meta: ChangeMeta) => void;
 }
@@ -59,4 +65,4 @@ export interface MarkdownEditorViewHandle {
   setReadOnly(readOnly: boolean): void;
 }
 
-export type { ChangeMeta, EditorMode };
+export type { ChangeMeta, EditorMode, FrontmatterPropertySchema, FrontmatterPropertyType };

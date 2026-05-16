@@ -535,7 +535,9 @@ describe('createMarkdownEditorView', () => {
     const bodyPosition = markdown.indexOf('# Title');
     editor.setSelection({ anchor: bodyPosition, head: bodyPosition });
 
-    parent.querySelector<HTMLButtonElement>('.cm-me-property-move-down')?.click();
+    parent.querySelector<HTMLButtonElement>('.cm-me-property-drag-handle')?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true }),
+    );
     expect(editor.getMarkdown()).toBe(['---', 'tags: editor, mvp', 'title: Hybrid notes', '---', '# Title'].join('\n'));
 
     parent.querySelector<HTMLButtonElement>('.cm-me-property-add')?.click();
@@ -553,7 +555,7 @@ describe('createMarkdownEditorView', () => {
 
     parent.querySelector<HTMLButtonElement>('[aria-label="Remove title property"]')?.click();
     expect(editor.getMarkdown()).toBe(['---', 'tags: editor, mvp', 'status: Ready', '---', '# Title'].join('\n'));
-    expect(parent.querySelectorAll('.cm-me-property-input')).toHaveLength(2);
+    expect(parent.querySelectorAll('.cm-me-property-row')).toHaveLength(2);
 
     editor.destroy();
     parent.remove();
@@ -604,15 +606,47 @@ describe('createMarkdownEditorView', () => {
     alarmInput!.dispatchEvent(new Event('change', { bubbles: true }));
     expect(editor.getMarkdown()).toContain('alarm: 10:45');
 
-    const tagsInput = parent.querySelector<HTMLInputElement>('[aria-label="tags property value"]');
-    tagsInput!.value = 'release, post-mvp';
-    tagsInput!.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(editor.getMarkdown()).toContain('tags: release, post-mvp');
+    const tagsInput = parent.querySelector<HTMLInputElement>('[aria-label="tags tag entry"]');
+    tagsInput!.value = 'release';
+    tagsInput!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(editor.getMarkdown()).toContain('tags: editor, mvp, release');
 
-    const statusType = parent.querySelector<HTMLSelectElement>('[aria-label="status property type"]');
-    statusType!.value = 'boolean';
-    statusType!.dispatchEvent(new Event('change', { bubbles: true }));
+    parent.querySelector<HTMLButtonElement>('[aria-label="Remove editor tag"]')?.click();
+    expect(editor.getMarkdown()).toContain('tags: mvp, release');
+
+    const statusDetails = parent.querySelector<HTMLElement>('[aria-label="status property settings"]');
+    statusDetails!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const statusType = parent.querySelector<HTMLButtonElement>('[aria-label="Set status property type to Boolean"]');
+    statusType!.click();
     expect(editor.getMarkdown()).toContain('status: false');
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('uses host property schema for labels type suggestions and default values', () => {
+    const markdown = ['---', 'title: Hybrid notes', '---', '# Title'].join('\n');
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+      frontmatterSchema: [
+        { key: 'title', label: 'Document title', type: 'text', icon: 'T', order: 1 },
+        { key: 'published', label: 'Published', type: 'boolean', icon: 'B', defaultValue: true, order: 2 },
+      ],
+    });
+
+    const bodyPosition = markdown.indexOf('# Title');
+    editor.setSelection({ anchor: bodyPosition, head: bodyPosition });
+
+    expect(parent.querySelector('[data-property-key="title"] .cm-me-property-name')?.textContent).toBe('Document title');
+
+    parent.querySelector<HTMLButtonElement>('.cm-me-property-add')?.click();
+    expect(editor.getMarkdown()).toContain('published: true');
+    expect(parent.querySelector('[data-property-key="published"] .cm-me-property-type-icon')?.textContent).toBe('B');
 
     editor.destroy();
     parent.remove();

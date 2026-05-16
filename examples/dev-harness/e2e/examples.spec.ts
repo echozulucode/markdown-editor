@@ -58,6 +58,62 @@ test.describe('examples gallery', () => {
     await expect(toolbar.locator('svg.svg-inline--fa')).toHaveCount(6);
   });
 
+  test('wysiwyg code language popover survives scroll and resize without Lexical state errors', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+
+    const example = page.getByTestId('example-full-page-docs');
+    await example.scrollIntoViewIfNeeded();
+    await example.getByRole('button', { name: 'WYSIWYG' }).click();
+    await expect(example.getByRole('toolbar', { name: 'WYSIWYG formatting controls' })).toBeVisible();
+
+    await example.locator('.me-wysiwyg-code').first().click();
+    await expect(example.getByLabel('Code block language')).toBeVisible();
+
+    await page.setViewportSize({ width: 1180, height: 780 });
+    await example.locator('.me-wysiwyg').evaluate((element) => {
+      element.scrollTop = 48;
+      element.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    await page.waitForTimeout(100);
+
+    expect(pageErrors.filter((message) => message.includes('Unable to find an active editor state'))).toEqual([]);
+  });
+
+  test('hybrid examples expose compact schema-backed property editing', async ({ page }) => {
+    const example = page.getByTestId('example-full-page-docs');
+
+    await example.scrollIntoViewIfNeeded();
+    await expect(example.locator('.cm-me-properties-heading')).toContainText('Properties');
+    await expect(example.locator('.cm-me-property-row[data-property-key="tags"] .cm-me-property-tag')).toContainText([
+      'release',
+      'runbook',
+    ]);
+
+    await example.locator('.cm-me-property-row[data-property-key="tags"] .cm-me-property-tag-input').fill('qa');
+    await page.keyboard.press('Enter');
+    await expect(example.locator('.cm-me-property-row[data-property-key="tags"] .cm-me-property-tag')).toContainText([
+      'release',
+      'runbook',
+      'qa',
+    ]);
+
+    await example.getByRole('button', { name: 'Add property' }).click();
+    await expect(example.locator('.cm-me-property-row[data-property-key="review_time"]')).toBeVisible();
+
+    await example.locator('.cm-me-property-row[data-property-key="title"] .cm-me-property-drag-handle').dispatchEvent(
+      'keydown',
+      { key: 'ArrowDown', altKey: true, bubbles: true },
+    );
+    await expect(example.locator('.cm-me-property-row').first()).toHaveAttribute('data-property-key', 'owner');
+
+    await example.locator('[aria-label="published property settings"]').click();
+    await expect(example.getByRole('menuitemradio', { name: 'Set published property type to Boolean' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+  });
+
   test('read-only published docs render properties and code without editing chrome', async ({ page }) => {
     const example = page.getByTestId('example-published-docs');
 

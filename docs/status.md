@@ -1,19 +1,68 @@
 ---
 type: status
 updated: 2026-05-15
-current_phase: "Post-MVP properties refinement planning"
+current_phase: "Post-MVP runtime fix ready for review"
 blockers: []
 next_actions:
-  - "Implement Phase 6 properties refinement: drag handles, type popover, type icons, inline tag tokens, and date/time picker behavior"
-  - "Add host property schema support for labels, allowed keys, preferred types, defaults, validation, required fields, and ordering"
-  - "Extend examples to show Font Awesome property/editor icons through the existing icon adapter boundary"
-  - "Add tests for property drag reordering, keyboard reordering, type switching, tag editing, date/time editing, mobile layout, and YAML updates"
+  - "Review refined hybrid properties UX in /modes and /examples"
+  - "Decide whether schema validation, required-property enforcement, and host-service value suggestions belong in the next pass"
+  - "Review complex YAML handling and decide whether unsupported structures should fall back to source editing"
   - "Review WYSIWYG table operation controls in WYSIWYG mode"
   - "Review the host-services example for wiki-link suggestions and image upload"
   - "Review post-MVP QA notes and screenshot artifacts"
 ---
 
 # Status Log
+
+## Session: 2026-05-15 WYSIWYG Runtime Error Fix
+**Phase:** Post-MVP stabilization
+
+**Actions taken:**
+- Fixed a Lexical runtime error in the WYSIWYG code-language popover by ensuring selection reads triggered by resize, scroll, and selection-change paths run inside an editor state read scope.
+- Added Playwright regression coverage that switches an example to WYSIWYG, activates the code-language popover, resizes/scrolls the editor, and asserts the active-editor-state runtime error does not occur.
+- Changed WYSIWYG Mermaid render failures to show a concise editor-owned message and report diagnostics instead of exposing raw Mermaid version/error text directly in the block.
+
+**Verification:**
+- `pnpm -r typecheck` passed.
+- `pnpm -r test` passed.
+- `pnpm -r build` passed.
+- `pnpm --filter @markdown-editor/dev-harness test:e2e` passed with 64 Playwright checks across desktop and mobile Chromium.
+
+**Outcome:** The reported WYSIWYG runtime error is fixed and covered by browser regression tests.
+
+**Carry-forward notes:**
+- Mermaid syntax errors are still expected for invalid diagram source, but they now render as isolated diagram errors rather than uncaught runtime failures.
+- The renderer route still intentionally contains an invalid Mermaid fixture for failure-isolation coverage.
+
+## Session: 2026-05-15 Phase 6 Properties Refinement
+**Phase:** Post-MVP properties refinement implementation
+
+**Actions taken:**
+- Replaced the hybrid properties table with compact rows: drag handle, type icon, property name/type popover, typed value editor, and subtle remove affordance.
+- Added pointer drag/drop reordering and `Alt+ArrowUp` / `Alt+ArrowDown` keyboard reordering on the drag handle, removing the visible move up/down buttons.
+- Added property type options through the name/type popover, including text, date, time, date-time, tags, boolean, and link/url.
+- Added inline tag tokens with Enter-to-add, Backspace-from-empty-to-remove-last, and subtle per-token remove buttons.
+- Added native date/time/date-time input types with compact picker buttons when the platform supports `showPicker`.
+- Added `propertySchema` API support through core, React, and CodeMirror for labels, preferred types, icon hints, default values, and order-aware add-property behavior.
+- Wired the examples gallery and `/modes` hybrid/all-mode examples to use the schema while keeping Font Awesome isolated to the example WYSIWYG toolbar icon adapter.
+- Added unit and Playwright coverage for schema-backed property labels/defaults, keyboard reordering, type switching, tag editing, and mobile/desktop example behavior.
+
+**Verification:**
+- `pnpm --filter @markdown-editor/core build` passed.
+- `pnpm --filter @markdown-editor/core typecheck` passed.
+- `pnpm --filter @markdown-editor/codemirror test` passed with 18 checks.
+- `pnpm --filter @markdown-editor/react typecheck` passed.
+- `pnpm --filter @markdown-editor/react build` passed.
+- `pnpm --filter @markdown-editor/dev-harness typecheck` passed.
+- `pnpm --filter @markdown-editor/dev-harness build` passed.
+- `pnpm --filter @markdown-editor/dev-harness test:e2e -- e2e/examples.spec.ts -g "schema-backed property"` passed on desktop and mobile Chromium.
+
+**Outcome:** Phase 6 properties refinement is implemented and ready for review.
+
+**Carry-forward notes:**
+- The schema API currently guides labels, types, icons, defaults, and add order; it does not yet enforce validation or required fields.
+- Complex YAML preservation remains the main source-fidelity gap for the structured properties editor.
+- Host-service suggestions inside link/tag/property values remain future work.
 
 ## Session: 2026-05-15 Properties Plan Revision
 **Phase:** Post-MVP properties refinement planning

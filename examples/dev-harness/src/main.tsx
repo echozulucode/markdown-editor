@@ -13,6 +13,7 @@ import {
   MarkdownEditor,
   type EditorDiagnostic,
   type EditorMode,
+  type FrontmatterPropertySchema,
   type WysiwygToolbarIcons
 } from "@markdown-editor/react";
 import {
@@ -156,6 +157,8 @@ Bob --> Alice: Diagnostics
 const technicalDocsMarkdown = `---
 title: Release Runbook
 owner: Platform
+date: 2026-05-15
+tags: release, runbook
 published: true
 ---
 
@@ -196,6 +199,7 @@ Platform --> Docs: Approved
 const knowledgeMarkdown = `---
 title: Knowledge Note
 area: Editor UX
+tags: hybrid, properties
 ---
 
 # Knowledge Note
@@ -416,6 +420,16 @@ const fontAwesomeToolbarIcons: WysiwygToolbarIcons = {
   checkboxList: <FontAwesomeIcon icon={faCheckSquare} fixedWidth />
 };
 
+const editorialPropertySchema: FrontmatterPropertySchema[] = [
+  { key: "title", label: "Title", type: "text", icon: "T", order: 1, required: true },
+  { key: "owner", label: "Owner", type: "text", icon: "T", order: 2 },
+  { key: "date", label: "Date", type: "date", icon: "D", order: 3 },
+  { key: "review_time", label: "Review time", type: "time", icon: "H", order: 4 },
+  { key: "tags", label: "Tags", type: "tags", icon: "#", order: 5, defaultValue: ["editor"] },
+  { key: "published", label: "Published", type: "boolean", icon: "B", order: 6, defaultValue: false },
+  { key: "canonical_url", label: "Canonical URL", type: "link", icon: "@", order: 7 }
+];
+
 function getCurrentPath() {
   return window.location.pathname === "/" ? "/markdown" : window.location.pathname;
 }
@@ -562,10 +576,10 @@ function RoutePanel({
       <section className="panel">
         <h3>Mode Configurations</h3>
         <div className="mode-stack">
-          <ModeCard title="hybrid only" modes={["hybrid"]} markdown={markdown} renderers={rendererRegistry} onMarkdownChange={onMarkdownChange} />
+          <ModeCard title="hybrid only" modes={["hybrid"]} markdown={markdown} renderers={rendererRegistry} propertySchema={editorialPropertySchema} onMarkdownChange={onMarkdownChange} />
           <ModeCard title="markdown + preview" modes={["markdown", "preview"]} markdown={markdown} renderers={rendererRegistry} onMarkdownChange={onMarkdownChange} />
           <ModeCard title="wysiwyg only" modes={["wysiwyg"]} markdown={markdown} renderers={rendererRegistry} toolbarIcons={fontAwesomeToolbarIcons} onMarkdownChange={onMarkdownChange} />
-          <ModeCard title="all modes" modes={["hybrid", "markdown", "preview", "wysiwyg"]} markdown={markdown} renderers={rendererRegistry} toolbarIcons={fontAwesomeToolbarIcons} onMarkdownChange={onMarkdownChange} />
+          <ModeCard title="all modes" modes={["hybrid", "markdown", "preview", "wysiwyg"]} markdown={markdown} renderers={rendererRegistry} propertySchema={editorialPropertySchema} toolbarIcons={fontAwesomeToolbarIcons} onMarkdownChange={onMarkdownChange} />
           <ModeCard title="read-only preview" modes={["preview"]} markdown={markdown} renderers={rendererRegistry} readOnly onMarkdownChange={onMarkdownChange} />
         </div>
       </section>
@@ -618,6 +632,7 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
           modes={["hybrid", "markdown", "preview", "wysiwyg"]}
           initialMode="hybrid"
           renderers={renderers}
+          propertySchema={editorialPropertySchema}
           wysiwygToolbarIcons={fontAwesomeToolbarIcons}
           onChange={setTechnicalDocs}
         />
@@ -660,6 +675,7 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
           modes={["hybrid"]}
           initialMode="hybrid"
           renderers={renderers}
+          propertySchema={editorialPropertySchema}
           onChange={setKnowledge}
         />
       </ExampleShell>
@@ -777,6 +793,7 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
               modes={["hybrid", "markdown", "preview"]}
               initialMode="hybrid"
               renderers={renderers}
+              propertySchema={editorialPropertySchema}
               onChange={setQuickEdit}
             />
             <footer>
@@ -805,6 +822,7 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
             modes={["hybrid", "markdown", "preview"]}
             initialMode="hybrid"
             renderers={renderers}
+            propertySchema={editorialPropertySchema}
             onChange={setRunbook}
           />
         </div>
@@ -827,6 +845,7 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
             modes={["hybrid", "markdown"]}
             initialMode="hybrid"
             renderers={renderers}
+            propertySchema={editorialPropertySchema}
             onChange={setMobileNote}
           />
         </div>
@@ -1100,6 +1119,7 @@ function ModeCard({
   renderers,
   readOnly = false,
   toolbarIcons,
+  propertySchema,
   onMarkdownChange
 }: {
   title: string;
@@ -1108,6 +1128,7 @@ function ModeCard({
   renderers: RendererRegistry;
   readOnly?: boolean;
   toolbarIcons?: WysiwygToolbarIcons;
+  propertySchema?: FrontmatterPropertySchema[];
   onMarkdownChange: (value: string) => void;
 }) {
   return (
@@ -1120,6 +1141,7 @@ function ModeCard({
         initialMode={modes[0]}
         readOnly={readOnly}
         renderers={renderers}
+        propertySchema={propertySchema}
         wysiwygToolbarIcons={toolbarIcons}
         onChange={onMarkdownChange}
       />
