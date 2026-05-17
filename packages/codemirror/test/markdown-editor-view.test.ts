@@ -489,6 +489,31 @@ describe('createMarkdownEditorView', () => {
     hiddenParent.remove();
   });
 
+  it('prevents backspace at the first body position from deleting hidden frontmatter', async () => {
+    const markdown = ['---', 'title: Hybrid notes', 'status: draft', '---', '# Title'].join('\n');
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+    });
+
+    const bodyPosition = markdown.indexOf('# Title');
+    editor.setSelection({ anchor: bodyPosition, head: bodyPosition });
+    parent.querySelector('.cm-content')?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }),
+    );
+    await flushPromises();
+
+    expect(editor.getMarkdown()).toBe(markdown);
+    expect(parent.querySelector('.cm-me-properties-table')).toBeInstanceOf(HTMLElement);
+
+    editor.destroy();
+    parent.remove();
+  });
+
   it('edits frontmatter values through the hybrid properties table', () => {
     const markdown = ['---', 'title: Hybrid notes', 'tags: editor, mvp', '---', '# Title'].join('\n');
     const parent = document.createElement('section');
@@ -586,9 +611,9 @@ describe('createMarkdownEditorView', () => {
     const bodyPosition = markdown.indexOf('# Title');
     editor.setSelection({ anchor: bodyPosition, head: bodyPosition });
 
-    expect(parent.querySelector('[data-property-type="boolean"] .cm-me-property-type-icon')?.textContent).toBe('B');
-    expect(parent.querySelector('[data-property-type="date"] .cm-me-property-type-icon')?.textContent).toBe('D');
-    expect(parent.querySelector('[data-property-type="time"] .cm-me-property-type-icon')?.textContent).toBe('H');
+    expect(parent.querySelector('[data-property-type="boolean"] .cm-me-property-type-icon')?.textContent).toBe('✓');
+    expect(parent.querySelector('[data-property-type="date"] .cm-me-property-type-icon')?.textContent).toBe('◷');
+    expect(parent.querySelector('[data-property-type="time"] .cm-me-property-type-icon')?.textContent).toBe('◴');
     expect(parent.querySelector('[data-property-type="tags"] .cm-me-property-type-icon')?.textContent).toBe('#');
 
     const publishedInput = parent.querySelector<HTMLInputElement>('[aria-label="published property value"]');
@@ -646,7 +671,7 @@ describe('createMarkdownEditorView', () => {
 
     parent.querySelector<HTMLButtonElement>('.cm-me-property-add')?.click();
     expect(editor.getMarkdown()).toContain('published: true');
-    expect(parent.querySelector('[data-property-key="published"] .cm-me-property-type-icon')?.textContent).toBe('B');
+    expect(parent.querySelector('[data-property-key="published"] .cm-me-property-type-icon')?.textContent).toBe('✓');
 
     editor.destroy();
     parent.remove();

@@ -228,6 +228,14 @@ function hybridMarkdownExtension(options: MarkdownEditorViewOptions): Extension 
       {
         key: "ArrowUp",
         run: (view) => moveSelectionByLogicalLine(view, "up", options)
+      },
+      {
+        key: "Backspace",
+        run: (view) => preventHiddenFrontmatterDelete(view, "backward", options)
+      },
+      {
+        key: "Delete",
+        run: (view) => preventHiddenFrontmatterDelete(view, "forward", options)
       }
     ])),
     field,
@@ -354,6 +362,38 @@ function buildHybridDecorations(state: EditorState, options: MarkdownEditorViewO
   }
 
   return builder.finish();
+}
+
+function preventHiddenFrontmatterDelete(
+  view: EditorView,
+  direction: "backward" | "forward",
+  options: MarkdownEditorViewOptions
+): boolean {
+  if (options.hybridFrontmatterMode === "source") {
+    return false;
+  }
+
+  const frontmatter = findFrontmatterRange(view.state);
+  if (!frontmatter) {
+    return false;
+  }
+
+  const selection = view.state.selection.main;
+  if (!selection.empty) {
+    // In table/hidden hybrid mode the YAML block is represented by a widget, not
+    // editable text. If a selection reaches into that protected range, swallow
+    // destructive keys so Backspace/Delete cannot remove the YAML envelope.
+    return selection.from < frontmatter.to;
+  }
+
+  if (direction === "backward") {
+    // Cursor can sit at the first visible body position immediately after the
+    // replaced frontmatter block. Backspace there would delete the hidden YAML
+    // terminator/newline, making the item lose required properties.
+    return selection.head <= frontmatter.to + 1;
+  }
+
+  return selection.head < frontmatter.to;
 }
 
 function moveSelectionByLogicalLine(
@@ -597,12 +637,12 @@ const frontmatterTypeLabels: Record<SupportedFrontmatterPropertyType, string> = 
 };
 
 const frontmatterTypeIcons: Record<SupportedFrontmatterPropertyType, string> = {
-  text: "T",
-  date: "D",
-  time: "H",
-  datetime: "DT",
+  text: "▭",
+  date: "◷",
+  time: "◴",
+  datetime: "◷",
   tags: "#",
-  boolean: "B",
+  boolean: "✓",
   link: "@"
 };
 
@@ -891,9 +931,13 @@ function entryTypeWithSchema(
 
 function typeIconForEntry(
   type: SupportedFrontmatterPropertyType,
-  schemaEntry: FrontmatterPropertySchema | undefined
+  _schemaEntry: FrontmatterPropertySchema | undefined
 ): string {
-  return schemaEntry?.icon?.trim() || frontmatterTypeIcons[type];
+  // The schema `icon` field is intentionally ignored here: hosts often use
+  // symbolic IDs such as "title" or "status", and rendering those strings as
+  // visible text makes rows read as "title Title". Keep the reusable widget
+  // graphical and type-oriented instead.
+  return frontmatterTypeIcons[type];
 }
 
 function labelForEntry(entry: FrontmatterEntry, schema: readonly FrontmatterPropertySchema[] | undefined): string {

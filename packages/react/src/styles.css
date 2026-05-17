@@ -38,6 +38,35 @@
   cursor: pointer;
   font: inherit;
   padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.me-mode-button[data-icon-only="true"] {
+  width: 34px;
+  padding: 0;
+}
+
+.me-mode-button-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+}
+
+.me-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .me-mode-button[data-active="true"] {

@@ -32,6 +32,8 @@ const LazyWysiwygLexicalEditor = React.lazy(async () => {
 export interface MarkdownEditorComponentProps
   extends Omit<MarkdownEditorProps, 'extensions' | 'rendererRegistry' | 'renderers'> {
   renderers?: RendererRegistry;
+  /** Host-supplied icons for the top-level mode switcher. Keep icon packs out of the reusable package. */
+  modeIcons?: Partial<Record<EditorMode, React.ReactNode>>;
   wysiwygToolbarIcons?: WysiwygToolbarIcons;
   className?: string;
 }
@@ -58,6 +60,7 @@ export const MarkdownEditor = React.forwardRef<
     renderers,
     hostServices,
     propertySchema,
+    modeIcons,
     wysiwygToolbarIcons,
   },
   forwardedRef,
@@ -314,18 +317,26 @@ export const MarkdownEditor = React.forwardRef<
       {showToolbar ? (
         <div className="me-toolbar" role="toolbar" aria-label="Editor controls">
           {allowedModes.length > 1
-            ? allowedModes.map((allowedMode) => (
-                <button
-                  key={allowedMode}
-                  type="button"
-                  className="me-mode-button"
-                  data-active={allowedMode === activeMode ? 'true' : 'false'}
-                  aria-pressed={allowedMode === activeMode}
-                  onClick={() => selectMode(allowedMode)}
-                >
-                  {modeLabel(allowedMode)}
-                </button>
-              ))
+            ? allowedModes.map((allowedMode) => {
+                const label = modeLabel(allowedMode);
+                const icon = modeIcons?.[allowedMode];
+                return (
+                  <button
+                    key={allowedMode}
+                    type="button"
+                    className="me-mode-button"
+                    data-active={allowedMode === activeMode ? 'true' : 'false'}
+                    data-icon-only={icon ? 'true' : 'false'}
+                    aria-label={label}
+                    title={label}
+                    aria-pressed={allowedMode === activeMode}
+                    onClick={() => selectMode(allowedMode)}
+                  >
+                    {icon ? <span className="me-mode-button-icon" aria-hidden="true">{icon}</span> : null}
+                    <span className={icon ? 'me-sr-only' : undefined}>{label}</span>
+                  </button>
+                );
+              })
             : null}
           {activeMode === 'hybrid' && hasFrontmatter ? (
             <button
