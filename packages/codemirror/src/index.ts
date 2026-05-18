@@ -2,6 +2,7 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { searchKeymap } from "@codemirror/search";
 import {
+  Annotation,
   Compartment,
   EditorSelection,
   EditorState,
@@ -50,6 +51,7 @@ export type {
 const readOnlyCompartment = new Compartment();
 const editableCompartment = new Compartment();
 const modeCompartment = new Compartment();
+const allowFrontmatterEdit = Annotation.define<boolean>();
 
 export function createMarkdownEditorView(
   options: MarkdownEditorViewOptions
@@ -112,7 +114,8 @@ export function createMarkdownEditorView(
             from: 0,
             to: view.state.doc.length,
             insert: markdownText
-          }
+          },
+          annotations: allowFrontmatterEdit.of(true)
         });
       } finally {
         suppressChange = false;
@@ -172,6 +175,19 @@ function createExtensions(
       for (const transaction of update.transactions) {
         onTransaction(transaction);
       }
+    }),
+    EditorState.transactionFilter.of((transaction) => {
+      if (
+        mode === "hybrid"
+        && options.hybridFrontmatterMode !== "source"
+        && transaction.docChanged
+        && transaction.annotation(allowFrontmatterEdit) !== true
+        && transactionTouchesHiddenFrontmatter(transaction)
+      ) {
+        return [];
+      }
+
+      return transaction;
     }),
     readOnlyCompartment.of(EditorState.readOnly.of(options.readOnly === true)),
     editableCompartment.of(EditorView.editable.of(options.readOnly !== true)),
@@ -399,6 +415,25 @@ function isDestructiveBeforeInput(event: InputEvent): boolean {
     || event.inputType === "deleteSoftLineForward"
     || event.inputType === "deleteByCut"
     || event.inputType === "deleteByDrag";
+}
+
+function transactionTouchesHiddenFrontmatter(transaction: Transaction): boolean {
+  const frontmatter = findFrontmatterRange(transaction.startState);
+  if (!frontmatter) {
+    return false;
+  }
+
+  const protectedFrom = frontmatter.from;
+  const protectedTo = Math.min(transaction.startState.doc.length, frontmatter.to + 1);
+  let touchesProtectedRange = false;
+
+  transaction.changes.iterChanges((fromA, toA) => {
+    if (fromA < protectedTo && toA > protectedFrom) {
+      touchesProtectedRange = true;
+    }
+  });
+
+  return touchesProtectedRange;
 }
 
 function preventHiddenFrontmatterDelete(
@@ -1437,7 +1472,8 @@ class FrontmatterPropertiesWidget extends WidgetType {
 
     view.dispatch({
       changes: { from: this.from, to: this.to, insert: nextRaw },
-      userEvent: "input"
+      userEvent: "input",
+      annotations: allowFrontmatterEdit.of(true)
     });
   }
 }

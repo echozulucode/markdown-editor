@@ -1,3 +1,4 @@
+import { EditorView } from '@codemirror/view';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createMarkdownEditorView } from '../src/index.js';
 
@@ -493,11 +494,15 @@ describe('createMarkdownEditorView', () => {
     const markdown = ['---', 'title: Hybrid notes', 'status: draft', '---', '# Title'].join('\n');
     const parent = document.createElement('section');
     document.body.appendChild(parent);
+    let capturedView: EditorView | null = null;
 
     const editor = createMarkdownEditorView({
       parent,
       markdown,
       mode: 'hybrid',
+      extensions: [EditorView.updateListener.of((update) => {
+        capturedView = update.view;
+      })],
     });
 
     const bodyPosition = markdown.indexOf('# Title');
@@ -519,6 +524,17 @@ describe('createMarkdownEditorView', () => {
     expect(allowed).toBe(false);
     expect(beforeInput.defaultPrevented).toBe(true);
     expect(editor.getMarkdown()).toBe(markdown);
+
+    // Regression for the actual CodeMirror mutation path: even if a command or
+    // browser edit attempts to remove the hidden closing-delimiter newline, the
+    // protected frontmatter transaction is filtered before it can corrupt YAML.
+    expect(capturedView).toBeInstanceOf(EditorView);
+    capturedView!.dispatch({
+      changes: { from: bodyPosition - 1, to: bodyPosition, insert: '' },
+      userEvent: 'delete.backward',
+    });
+    expect(editor.getMarkdown()).toBe(markdown);
+
     expect(parent.querySelector('.cm-me-properties-table')).toBeInstanceOf(HTMLElement);
 
     editor.destroy();
