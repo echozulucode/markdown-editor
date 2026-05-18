@@ -183,6 +183,14 @@ function createExtensions(
           return true;
         }
 
+        if (mode === "hybrid" && isDestructiveBeforeInput(event)) {
+          const direction = event.inputType.includes("Forward") ? "forward" : "backward";
+          if (preventHiddenFrontmatterDelete(view, direction, options)) {
+            event.preventDefault();
+            return true;
+          }
+        }
+
         return false;
       }
     })
@@ -362,6 +370,35 @@ function buildHybridDecorations(state: EditorState, options: MarkdownEditorViewO
   }
 
   return builder.finish();
+}
+
+const TRASH_ICON_PATH = "M160 400c0 26.5 21.5 48 48 48h160c26.5 0 48-21.5 48-48V160H160v240zm64-192h32v176h-32V208zm96 0h32v176h-32V208zM352 96l-16-32h-96l-16 32h-80v32h288V96h-80z";
+
+function setIconSvg(button: HTMLButtonElement, path: string): void {
+  button.innerHTML = "";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 576 512");
+  svg.setAttribute("focusable", "false");
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add("cm-me-inline-icon");
+  const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  shape.setAttribute("fill", "currentColor");
+  shape.setAttribute("d", path);
+  svg.append(shape);
+  button.append(svg);
+}
+
+function isDestructiveBeforeInput(event: InputEvent): boolean {
+  return event.inputType === "deleteContentBackward"
+    || event.inputType === "deleteContentForward"
+    || event.inputType === "deleteWordBackward"
+    || event.inputType === "deleteWordForward"
+    || event.inputType === "deleteHardLineBackward"
+    || event.inputType === "deleteHardLineForward"
+    || event.inputType === "deleteSoftLineBackward"
+    || event.inputType === "deleteSoftLineForward"
+    || event.inputType === "deleteByCut"
+    || event.inputType === "deleteByDrag";
 }
 
 function preventHiddenFrontmatterDelete(
@@ -1106,10 +1143,11 @@ class FrontmatterPropertiesWidget extends WidgetType {
       nameCell.append(this.createNameMenu(view, normalizedEntry, index, readOnly, schemaEntry));
       valueCell.append(this.createValueControl(view, normalizedEntry, index, readOnly));
 
-      const removeButton = this.createButton("x", `Remove ${entry.key} property`, readOnly, () => {
+      const removeButton = this.createButton("", `Remove ${entry.key} property`, readOnly, () => {
         this.commitRaw(view, removeFrontmatterEntry(this.raw, index));
       });
       removeButton.classList.add("cm-me-property-remove");
+      setIconSvg(removeButton, TRASH_ICON_PATH);
       actionCell.append(removeButton);
 
       row.append(handleCell, nameCell, valueCell, actionCell);

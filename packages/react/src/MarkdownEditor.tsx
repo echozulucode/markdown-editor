@@ -343,10 +343,16 @@ export const MarkdownEditor = React.forwardRef<
               type="button"
               className="me-mode-button me-properties-toggle"
               data-active={showProperties ? 'true' : 'false'}
+              data-icon-only="true"
+              aria-label={showProperties ? 'Hide properties' : 'Show properties'}
+              title={showProperties ? 'Hide properties' : 'Show properties'}
               aria-pressed={showProperties}
               onClick={() => setShowProperties((current) => !current)}
             >
-              {showProperties ? 'Hide properties' : 'Show properties'}
+              <span className="me-mode-button-icon" aria-hidden="true">
+                {showProperties ? <IconSvg path={EYE_SLASH_ICON_PATH} /> : <IconSvg path={EYE_ICON_PATH} />}
+              </span>
+              <span className="me-sr-only">{showProperties ? 'Hide properties' : 'Show properties'}</span>
             </button>
           ) : null}
           {hasHostServiceControls ? (
@@ -392,6 +398,17 @@ export const MarkdownEditor = React.forwardRef<
     </section>
   );
 });
+
+function IconSvg({ path }: { path: string }) {
+  return (
+    <svg className="me-inline-icon" viewBox="0 0 576 512" focusable="false" aria-hidden="true">
+      <path fill="currentColor" d={path} />
+    </svg>
+  );
+}
+
+const EYE_ICON_PATH = 'M288 80c-65.2 0-118.8 29.6-159.9 67.7C89.6 183.5 63 226 49.4 256c13.6 30 40.2 72.5 78.7 108.3C169.2 402.4 222.8 432 288 432s118.8-29.6 159.9-67.7c38.5-35.8 65.1-78.3 78.7-108.3c-13.6-30-40.2-72.5-78.7-108.3C406.8 109.6 353.2 80 288 80zm0 304a128 128 0 1 1 0-256 128 128 0 1 1 0 256zm0-208a80 80 0 1 0 0 160 80 80 0 1 0 0-160z';
+const EYE_SLASH_ICON_PATH = 'M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l528 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L432 350.5c37.1-33.2 63.7-73.2 77.6-94.5C474.2 201.8 397.3 96 288 96c-31.3 0-60.6 8.7-87.2 22.8L38.8 5.1zM288 416c31.3 0 60.6-8.7 87.2-22.8L302.7 329.4c-4.7 1.7-9.6 2.6-14.7 2.6a44 44 0 0 1-44-44c0-5.1 .9-10 2.6-14.7L159.9 197C119.8 227.3 91.7 268.8 76.4 288C111.8 342.2 178.7 416 288 416z';
 
 function HostServiceToolbar({
   services,

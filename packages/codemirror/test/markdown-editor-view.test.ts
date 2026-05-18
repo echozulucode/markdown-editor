@@ -489,7 +489,7 @@ describe('createMarkdownEditorView', () => {
     hiddenParent.remove();
   });
 
-  it('prevents backspace at the first body position from deleting hidden frontmatter', async () => {
+  it('prevents destructive keyboard and beforeinput events at the first body position from deleting hidden frontmatter', async () => {
     const markdown = ['---', 'title: Hybrid notes', 'status: draft', '---', '# Title'].join('\n');
     const parent = document.createElement('section');
     document.body.appendChild(parent);
@@ -501,12 +501,23 @@ describe('createMarkdownEditorView', () => {
     });
 
     const bodyPosition = markdown.indexOf('# Title');
+    const content = parent.querySelector('.cm-content');
     editor.setSelection({ anchor: bodyPosition, head: bodyPosition });
-    parent.querySelector('.cm-content')?.dispatchEvent(
+    content?.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true }),
     );
     await flushPromises();
 
+    const beforeInput = new InputEvent('beforeinput', {
+      bubbles: true,
+      cancelable: true,
+      inputType: 'deleteContentBackward',
+    });
+    const allowed = content?.dispatchEvent(beforeInput);
+    await flushPromises();
+
+    expect(allowed).toBe(false);
+    expect(beforeInput.defaultPrevented).toBe(true);
     expect(editor.getMarkdown()).toBe(markdown);
     expect(parent.querySelector('.cm-me-properties-table')).toBeInstanceOf(HTMLElement);
 
@@ -578,7 +589,10 @@ describe('createMarkdownEditorView', () => {
     updatedValueInputs[updatedValueInputs.length - 1]!.dispatchEvent(new Event('change', { bubbles: true }));
     expect(editor.getMarkdown()).toContain('status: Ready');
 
-    parent.querySelector<HTMLButtonElement>('[aria-label="Remove title property"]')?.click();
+    const removeButton = parent.querySelector<HTMLButtonElement>('[aria-label="Remove title property"]');
+    expect(removeButton?.querySelector('svg')).toBeInstanceOf(SVGElement);
+    expect(removeButton?.textContent).toBe('');
+    removeButton?.click();
     expect(editor.getMarkdown()).toBe(['---', 'tags: editor, mvp', 'status: Ready', '---', '# Title'].join('\n'));
     expect(parent.querySelectorAll('.cm-me-property-row')).toHaveLength(2);
 

@@ -597,6 +597,14 @@
   outline-offset: 1px;
 }
 
+.me-codemirror .cm-me-property-type-icon,
+.me-codemirror .cm-me-inline-icon,
+.me-inline-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+}
+
 .me-codemirror .cm-me-property-type-icon {
   display: inline-grid;
   width: 20px;
@@ -765,6 +773,14 @@
   min-width: 26px;
   padding: 0;
   opacity: 0;
+  color: var(--me-muted);
+}
+
+.me-codemirror .cm-me-property-remove:hover,
+.me-codemirror .cm-me-property-remove:focus-visible {
+  color: #dc2626;
+  border-color: color-mix(in srgb, #dc2626, transparent 70%);
+  background: color-mix(in srgb, #dc2626, transparent 92%);
 }
 
 .me-codemirror .cm-me-property-row:hover .cm-me-property-remove,
