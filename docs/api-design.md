@@ -2,7 +2,7 @@
 type: api-design
 project: "markdown-editor"
 status: draft
-updated: 2026-05-11
+updated: 2026-05-18
 ---
 
 # API Design
@@ -117,7 +117,8 @@ export interface HostServices {
   searchLinks?(query: string, signal?: AbortSignal): Promise<LinkSuggestion[]>;
   resolveLink?(href: string, signal?: AbortSignal): Promise<{ exists: boolean; title?: string }>;
   navigateLink?(href: string): void;
-  renderPlantUml?(source: string, signal?: AbortSignal): Promise<RenderResult>;
+  resolveWikiLink?(target: string): string | Promise<string | undefined> | undefined;
+  renderPlantUml?(source: string, options?: Record<string, unknown> | AbortSignal): Promise<RenderResult>;
   uploadAsset?(file: File, signal?: AbortSignal): Promise<{ url: string; alt?: string }>;
   reportDiagnostics?(diagnostics: EditorDiagnostic[]): void;
 }
@@ -129,13 +130,16 @@ All host services are optional. Missing services produce disabled affordances or
 
 ```ts
 export interface MarkdownEditorProps {
-  value: string;
+  value?: string;
+  defaultValue?: string;
   onChange?: (markdown: string, meta: ChangeMeta) => void;
   modes?: EditorMode[];
   mode?: EditorMode;
+  defaultMode?: EditorMode;
   initialMode?: EditorMode;
   onModeChange?: (mode: EditorMode, meta: ModeChangeMeta) => void;
   readOnly?: boolean;
+  propertySchema?: FrontmatterPropertySchema[];
   features?: Partial<EditorFeatureFlags>;
   renderers?: RendererRegistry;
   hostServices?: HostServices;
@@ -157,6 +161,17 @@ export interface MarkdownEditorHandle {
   setSelection(selection: TextSelection): void;
   insertMarkdown(markdown: string): void;
   clearHistory(): void;
+  getSnapshot(): DocumentSnapshot;
+  replaceMarkdown(markdown: string, meta?: ChangeMeta): void;
+}
+
+export interface MarkdownEditorComponentProps
+  extends Omit<MarkdownEditorProps, 'extensions' | 'rendererRegistry' | 'renderers'> {
+  renderers?: RendererRegistry;
+  /** Host-supplied icons for the top-level mode switcher. Keep icon packs out of the reusable package. */
+  modeIcons?: Partial<Record<EditorMode, React.ReactNode>>;
+  /** Host-supplied icons for the optional WYSIWYG toolbar. */
+  wysiwygToolbarIcons?: WysiwygToolbarIcons;
 }
 ```
 
@@ -165,6 +180,8 @@ Default behavior:
 - `modes` defaults to `['hybrid', 'markdown', 'preview']` until WYSIWYG is installed.
 - `initialMode` defaults to `hybrid` when allowed, otherwise the first allowed mode.
 - `readOnly` forces `preview` when available, otherwise disables editing in the current mode.
+- WYSIWYG is enabled by including `wysiwyg` in `modes`; hosts should not import or configure Lexical internals directly.
+- In editable WYSIWYG mode, Markdown typing shortcuts (`# ` headings, `- ` bullets, `1. ` numbered lists, `- [ ] ` tasks, `> ` quotes, and supported fenced/code shortcuts) are handled inside `@markdown-editor/wysiwyg-lexical` and exported as structural Markdown. The shortcut plugin is disabled when `readOnly` is true.
 
 ## Feature Flags
 

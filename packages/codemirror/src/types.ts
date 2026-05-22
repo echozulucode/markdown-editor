@@ -19,7 +19,7 @@ export interface ChangeRangeMeta {
   inserted: string;
 }
 
-export type HybridFrontmatterMode = "table" | "hidden" | "source";
+export type HybridFrontmatterMode = "table" | "collapsed" | "hidden" | "source";
 
 export interface HybridRenderContext {
   blockId: string;

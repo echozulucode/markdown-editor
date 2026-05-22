@@ -284,7 +284,8 @@ function buildHybridDecorations(state: EditorState, options: MarkdownEditorViewO
             frontmatter.raw,
             frontmatter.from,
             frontmatter.to,
-            options.frontmatterSchema
+            options.frontmatterSchema,
+            options.hybridFrontmatterMode === "collapsed"
           )
         })
       );
@@ -1097,7 +1098,8 @@ class FrontmatterPropertiesWidget extends WidgetType {
     private readonly raw: string,
     private readonly from: number,
     private readonly to: number,
-    private readonly schema?: readonly FrontmatterPropertySchema[]
+    private readonly schema?: readonly FrontmatterPropertySchema[],
+    private readonly collapsed = false
   ) {
     super();
   }
@@ -1109,9 +1111,20 @@ class FrontmatterPropertiesWidget extends WidgetType {
     const readOnly = view.state.readOnly;
     const entries = parseFrontmatter(this.raw);
 
-    const heading = document.createElement("div");
+    const details = document.createElement("details");
+    details.className = "cm-me-properties-details";
+    details.open = !this.collapsed;
+
+    const heading = document.createElement("summary");
     heading.className = "cm-me-properties-heading";
-    heading.textContent = "Properties";
+    heading.setAttribute("aria-label", this.collapsed ? "Show Markdown properties" : "Hide Markdown properties");
+
+    const headingText = document.createElement("span");
+    headingText.className = "cm-me-properties-heading-text";
+    headingText.textContent = "Properties";
+
+    const chips = this.createSummaryChips(entries);
+    heading.append(headingText, chips);
 
     const list = document.createElement("div");
     list.className = "cm-me-properties-table";
@@ -1176,7 +1189,7 @@ class FrontmatterPropertiesWidget extends WidgetType {
       handleCell.append(dragHandle);
 
       nameCell.append(this.createNameMenu(view, normalizedEntry, index, readOnly, schemaEntry));
-      valueCell.append(this.createValueControl(view, normalizedEntry, index, readOnly));
+      valueCell.append(this.createValueControl(view, normalizedEntry, index, readOnly, schemaEntry));
 
       const removeButton = this.createButton("", `Remove ${entry.key} property`, readOnly, () => {
         this.commitRaw(view, removeFrontmatterEntry(this.raw, index));
@@ -1201,12 +1214,38 @@ class FrontmatterPropertiesWidget extends WidgetType {
     });
     addButton.classList.add("cm-me-property-add");
 
-    wrapper.append(heading, list, addButton);
+    details.append(heading, list, addButton);
+    wrapper.append(details);
     return wrapper;
   }
 
   ignoreEvent(): boolean {
     return true;
+  }
+
+  private createSummaryChips(entries: FrontmatterEntry[]): HTMLElement {
+    const chips = document.createElement("span");
+    chips.className = "cm-me-properties-chips";
+
+    const visibleEntries = entries.filter((entry) => entry.key.toLowerCase() !== "title").slice(0, 4);
+    for (const entry of visibleEntries) {
+      const chip = document.createElement("span");
+      chip.className = "cm-me-property-chip";
+      chip.dataset.propertyKey = entry.key;
+      const label = labelForEntry(entry, this.schema);
+      const value = entry.value.trim();
+      chip.textContent = value ? `${label}: ${value}` : label;
+      chips.append(chip);
+    }
+
+    if (entries.length > visibleEntries.length) {
+      const more = document.createElement("span");
+      more.className = "cm-me-property-chip cm-me-property-chip--muted";
+      more.textContent = `+${entries.length - visibleEntries.length} more`;
+      chips.append(more);
+    }
+
+    return chips;
   }
 
   private createNameMenu(
@@ -1320,7 +1359,8 @@ class FrontmatterPropertiesWidget extends WidgetType {
     view: EditorView,
     entry: FrontmatterEntry,
     entryIndex: number,
-    readOnly: boolean
+    readOnly: boolean,
+    schemaEntry?: FrontmatterPropertySchema
   ): HTMLElement {
     if (entry.type === "boolean") {
       const checkbox = document.createElement("input");
@@ -1338,7 +1378,7 @@ class FrontmatterPropertiesWidget extends WidgetType {
     }
 
     if (entry.type === "tags") {
-      return this.createTagsControl(view, entry, entryIndex, readOnly);
+      return this.createTagsControl(view, entry, entryIndex, readOnly, schemaEntry);
     }
 
     const wrapper = document.createElement("div");
@@ -1367,6 +1407,12 @@ class FrontmatterPropertiesWidget extends WidgetType {
     this.blurOnEnter(input);
     wrapper.append(input);
 
+    if (schemaEntry?.allowedValues && schemaEntry.allowedValues.length > 0) {
+      const listId = `cm-me-${entry.key}-values-${entryIndex}`;
+      input.setAttribute("list", listId);
+      wrapper.append(this.createAllowedValuesDatalist(listId, schemaEntry.allowedValues));
+    }
+
     if (entry.type === "date" || entry.type === "time" || entry.type === "datetime") {
       const pickerButton = this.createButton("Pick", `Open ${entry.key} picker`, readOnly, () => {
         const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
@@ -1387,7 +1433,8 @@ class FrontmatterPropertiesWidget extends WidgetType {
     view: EditorView,
     entry: FrontmatterEntry,
     entryIndex: number,
-    readOnly: boolean
+    readOnly: boolean,
+    schemaEntry?: FrontmatterPropertySchema
   ): HTMLElement {
     const tags = splitFrontmatterTags(entry.value);
     const wrapper = document.createElement("div");
@@ -1419,6 +1466,12 @@ class FrontmatterPropertiesWidget extends WidgetType {
     input.type = "text";
     input.placeholder = "Add tag";
     input.setAttribute("aria-label", `${entry.key} tag entry`);
+    if (schemaEntry?.allowedValues && schemaEntry.allowedValues.length > 0) {
+      const listId = `cm-me-${entry.key}-tag-values-${entryIndex}`;
+      input.setAttribute("list", listId);
+      input.setAttribute("aria-description", `Choose an existing ${entry.key} value or type a new one.`);
+      wrapper.append(this.createAllowedValuesDatalist(listId, schemaEntry.allowedValues, tags));
+    }
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
         event.preventDefault();
@@ -1442,6 +1495,26 @@ class FrontmatterPropertiesWidget extends WidgetType {
     });
     wrapper.append(input);
     return wrapper;
+  }
+
+  private createAllowedValuesDatalist(
+    id: string,
+    allowedValues: readonly string[],
+    excludedValues: readonly string[] = []
+  ): HTMLDataListElement {
+    const datalist = document.createElement("datalist");
+    const excluded = new Set(excludedValues.map((value) => value.toLowerCase()));
+    datalist.id = id;
+    for (const value of allowedValues) {
+      const normalized = value.trim();
+      if (normalized.length === 0 || excluded.has(normalized.toLowerCase())) {
+        continue;
+      }
+      const option = document.createElement("option");
+      option.value = normalized;
+      datalist.append(option);
+    }
+    return datalist;
   }
 
   private createButton(label: string, ariaLabel: string, disabled: boolean, onClick: () => void): HTMLButtonElement {

@@ -8,6 +8,7 @@ const props: MarkdownEditorComponentProps = {
   value: '# Draft\n',
   modes: ['hybrid', 'markdown', 'preview', 'wysiwyg'],
   initialMode: 'hybrid',
+  frontmatterDisplay: 'collapsed',
   onChange(markdown, meta) {
     markdown.toUpperCase();
     meta.timestamp.toFixed();

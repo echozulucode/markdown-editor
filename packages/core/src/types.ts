@@ -202,6 +202,7 @@ export interface MarkdownEditorProps {
   renderers?: RendererRegistry;
   hostServices?: HostServices;
   propertySchema?: FrontmatterPropertySchema[];
+  frontmatterDisplay?: 'expanded' | 'collapsed' | 'hidden';
   features?: Partial<EditorFeatureFlags>;
   theme?: 'light' | 'dark' | 'system' | Partial<EditorThemeTokens>;
   className?: string;

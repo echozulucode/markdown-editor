@@ -452,8 +452,8 @@ describe('createMarkdownEditorView', () => {
     parent.remove();
   });
 
-  it('renders inactive frontmatter as properties and can hide it', () => {
-    const markdown = ['---', 'title: Hybrid notes', 'tags: editor, mvp', '---', '# Title'].join('\n');
+  it('renders inactive frontmatter as properties and can collapse or hide it', () => {
+    const markdown = ['---', 'title: Hybrid notes', 'topic: Research', 'tags: editor, mvp', '---', '# Title'].join('\n');
     const parent = document.createElement('section');
     document.body.appendChild(parent);
 
@@ -467,10 +467,35 @@ describe('createMarkdownEditorView', () => {
     editor.setSelection({ anchor: bodyPosition, head: bodyPosition });
 
     expect(parent.querySelector('.cm-me-properties-table')).toBeInstanceOf(HTMLElement);
+    expect(parent.querySelector<HTMLDetailsElement>('.cm-me-properties-details')?.open).toBe(true);
     expect(parent.querySelector<HTMLInputElement>('.cm-me-property-input')?.value).toBe('Hybrid notes');
 
     editor.destroy();
     parent.remove();
+
+    const collapsedParent = document.createElement('section');
+    document.body.appendChild(collapsedParent);
+    const collapsedEditor = createMarkdownEditorView({
+      parent: collapsedParent,
+      markdown,
+      mode: 'hybrid',
+      hybridFrontmatterMode: 'collapsed',
+    });
+
+    collapsedEditor.setSelection({ anchor: bodyPosition, head: bodyPosition });
+
+    const collapsedDetails = collapsedParent.querySelector<HTMLDetailsElement>('.cm-me-properties-details');
+    expect(collapsedDetails).toBeInstanceOf(HTMLDetailsElement);
+    expect(collapsedDetails?.open).toBe(false);
+    expect(collapsedParent.querySelector('[data-property-key="topic"]')?.textContent).toBe('topic: Research');
+    expect(collapsedParent.querySelector<HTMLInputElement>('.cm-me-property-input')?.value).toBe('Hybrid notes');
+
+    collapsedParent.querySelector<HTMLElement>('.cm-me-properties-heading')?.click();
+    expect(collapsedDetails?.open).toBe(true);
+    expect(collapsedParent.querySelector('.cm-me-properties-table')).toBeInstanceOf(HTMLElement);
+
+    collapsedEditor.destroy();
+    collapsedParent.remove();
 
     const hiddenParent = document.createElement('section');
     document.body.appendChild(hiddenParent);
@@ -674,6 +699,42 @@ describe('createMarkdownEditorView', () => {
     const statusType = parent.querySelector<HTMLButtonElement>('[aria-label="Set status property type to Boolean"]');
     statusType!.click();
     expect(editor.getMarkdown()).toContain('status: false');
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('uses allowed schema values as frontmatter property pickers', () => {
+    const markdown = ['---', 'title: Hybrid notes', 'status: draft', 'tags: editor, mvp', '---', '# Title'].join('\n');
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+      frontmatterSchema: [
+        { key: 'status', label: 'Status', type: 'text', allowedValues: ['draft', 'published'] },
+        { key: 'tags', label: 'Tags', type: 'tags', allowedValues: ['agent', 'editor', 'mvp', 'runbook'] },
+      ],
+    });
+
+    const bodyPosition = markdown.indexOf('# Title');
+    editor.setSelection({ anchor: bodyPosition, head: bodyPosition });
+
+    const statusInput = parent.querySelector<HTMLInputElement>('[aria-label="status property value"]');
+    expect(statusInput?.getAttribute('list')).toBeTruthy();
+    const statusValues = Array.from(parent.querySelectorAll<HTMLOptionElement>(`#${statusInput!.getAttribute('list')} option`)).map((option) => option.value);
+    expect(statusValues).toEqual(['draft', 'published']);
+
+    const tagsInput = parent.querySelector<HTMLInputElement>('[aria-label="tags tag entry"]');
+    expect(tagsInput?.getAttribute('list')).toBeTruthy();
+    const tagValues = Array.from(parent.querySelectorAll<HTMLOptionElement>(`#${tagsInput!.getAttribute('list')} option`)).map((option) => option.value);
+    expect(tagValues).toEqual(['agent', 'runbook']);
+
+    tagsInput!.value = 'runbook';
+    tagsInput!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(editor.getMarkdown()).toContain('tags: editor, mvp, runbook');
 
     editor.destroy();
     parent.remove();

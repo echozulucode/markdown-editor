@@ -31,6 +31,7 @@ import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
 import { LinkPlugin } from '@lexical/react/LexicalLinkPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
+import { MarkdownShortcutPlugin } from '@lexical/react/LexicalMarkdownShortcutPlugin';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import {
   $createCodeNode,
@@ -638,6 +639,7 @@ export function WysiwygLexicalEditor({
           <HistoryPlugin />
           <ListPlugin />
           <CheckListPlugin />
+          {!readOnly ? <MarkdownShortcutPlugin transformers={WYSIWYG_TRANSFORMERS} /> : null}
           <LinkPlugin />
           <TablePlugin
             hasCellMerge={false}

@@ -60,6 +60,7 @@ export const MarkdownEditor = React.forwardRef<
     renderers,
     hostServices,
     propertySchema,
+    frontmatterDisplay,
     modeIcons,
     wysiwygToolbarIcons,
   },
@@ -71,7 +72,8 @@ export const MarkdownEditor = React.forwardRef<
   const [internalMode, setInternalMode] = React.useState<EditorMode>(
     allowedModes.includes(firstMode) ? firstMode : preferredInitialMode(allowedModes),
   );
-  const [showProperties, setShowProperties] = React.useState(true);
+  const normalizedFrontmatterDisplay = frontmatterDisplay ?? 'expanded';
+  const [showProperties, setShowProperties] = React.useState(normalizedFrontmatterDisplay !== 'hidden');
   const markdown = value ?? internalMarkdown;
   const activeMode = mode ?? internalMode;
   const hasFrontmatter = /^---\r?\n/.test(markdown);
@@ -156,7 +158,11 @@ export const MarkdownEditor = React.forwardRef<
           mode: modeRef.current,
         });
       },
-      hybridFrontmatterMode: showProperties ? 'table' : 'hidden',
+      hybridFrontmatterMode: showProperties
+        ? normalizedFrontmatterDisplay === 'collapsed'
+          ? 'collapsed'
+          : 'table'
+        : 'hidden',
       frontmatterSchema: propertySchema,
       hybridRenderMarkdown,
     });
@@ -168,7 +174,11 @@ export const MarkdownEditor = React.forwardRef<
         cmRef.current = null;
       }
     };
-  }, [ariaLabel, activeMode, hybridRenderMarkdown, isCodeMirrorMode, propertySchema, readOnly, showProperties]);
+  }, [ariaLabel, activeMode, hybridRenderMarkdown, isCodeMirrorMode, normalizedFrontmatterDisplay, propertySchema, readOnly, showProperties]);
+
+  React.useEffect(() => {
+    setShowProperties(normalizedFrontmatterDisplay !== 'hidden');
+  }, [normalizedFrontmatterDisplay]);
 
   React.useEffect(() => {
     const handle = cmRef.current;

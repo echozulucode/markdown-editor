@@ -61,6 +61,34 @@ test.describe('mode matrix route', () => {
     await allModesCard.locator('.me-toolbar').first().getByRole('button', { name: 'Preview' }).click();
     await expect(allModesCard.locator('.me-preview')).toContainText('Shared host state reached every editor.');
   });
+
+  test('WYSIWYG mode applies live Markdown typing shortcuts to exported Markdown', async ({ page }) => {
+    const card = page.getByTestId('mode-card-all-modes');
+    const toolbar = card.locator('.me-toolbar').first();
+
+    await toolbar.getByRole('button', { name: 'WYSIWYG' }).click();
+    const wysiwygInput = card.getByRole('textbox', { name: 'all modes editor' });
+    await expect(wysiwygInput).toHaveAttribute('contenteditable', 'true');
+
+    await wysiwygInput.click();
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
+    await page.keyboard.press('Backspace');
+    await page.keyboard.type('# Shortcut heading');
+
+    await toolbar.getByRole('button', { name: 'Markdown' }).click();
+    const markdownInput = card.locator('.cm-content').first();
+    await expect(markdownInput).toContainText('# Shortcut heading');
+    await expect(markdownInput).not.toContainText('\\# Shortcut heading');
+
+    await markdownInput.fill('');
+    await toolbar.getByRole('button', { name: 'WYSIWYG' }).click();
+    await wysiwygInput.click();
+    await page.keyboard.type('- Shortcut item');
+
+    await toolbar.getByRole('button', { name: 'Markdown' }).click();
+    await expect(markdownInput).toContainText('- Shortcut item');
+    await expect(markdownInput).not.toContainText('\\- Shortcut item');
+  });
 });
 
 test.describe('renderer route', () => {
