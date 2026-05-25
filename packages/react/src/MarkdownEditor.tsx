@@ -34,6 +34,8 @@ export interface MarkdownEditorComponentProps
   renderers?: RendererRegistry;
   /** Host-supplied icons for the top-level mode switcher. Keep icon packs out of the reusable package. */
   modeIcons?: Partial<Record<EditorMode, React.ReactNode>>;
+  /** Whether host service controls such as the explicit link-search box should render in the toolbar. */
+  hostServiceToolbar?: boolean;
   wysiwygToolbarIcons?: WysiwygToolbarIcons;
   className?: string;
 }
@@ -62,6 +64,7 @@ export const MarkdownEditor = React.forwardRef<
     propertySchema,
     frontmatterDisplay,
     modeIcons,
+    hostServiceToolbar = true,
     wysiwygToolbarIcons,
   },
   forwardedRef,
@@ -78,7 +81,7 @@ export const MarkdownEditor = React.forwardRef<
   const activeMode = mode ?? internalMode;
   const hasFrontmatter = /^---\r?\n/.test(markdown);
   const hasHostServiceControls =
-    !readOnly && activeMode !== 'preview' && (hostServices?.searchLinks !== undefined || hostServices?.uploadAsset !== undefined);
+    !readOnly && hostServiceToolbar && activeMode !== 'preview' && (hostServices?.searchLinks !== undefined || hostServices?.uploadAsset !== undefined);
   const showToolbar = allowedModes.length > 1 || (activeMode === 'hybrid' && hasFrontmatter) || hasHostServiceControls;
   const hostRef = React.useRef<HTMLDivElement | null>(null);
   const cmRef = React.useRef<MarkdownEditorViewHandle | null>(null);
@@ -360,7 +363,7 @@ export const MarkdownEditor = React.forwardRef<
               onClick={() => setShowProperties((current) => !current)}
             >
               <span className="me-mode-button-icon" aria-hidden="true">
-                {showProperties ? <IconSvg path={EYE_SLASH_ICON_PATH} /> : <IconSvg path={EYE_ICON_PATH} />}
+                {showProperties ? <IconSvg path={SLIDERS_ICON_PATH} dataIcon="sliders" /> : <IconSvg path={LIST_ICON_PATH} dataIcon="list" />}
               </span>
               <span className="me-sr-only">{showProperties ? 'Hide properties' : 'Show properties'}</span>
             </button>
@@ -409,16 +412,16 @@ export const MarkdownEditor = React.forwardRef<
   );
 });
 
-function IconSvg({ path }: { path: string }) {
+function IconSvg({ path, dataIcon }: { path: string; dataIcon?: string }) {
   return (
-    <svg className="me-inline-icon" viewBox="0 0 576 512" focusable="false" aria-hidden="true">
+    <svg className="me-inline-icon" data-icon={dataIcon} viewBox="0 0 576 512" focusable="false" aria-hidden="true">
       <path fill="currentColor" d={path} />
     </svg>
   );
 }
 
-const EYE_ICON_PATH = 'M288 80c-65.2 0-118.8 29.6-159.9 67.7C89.6 183.5 63 226 49.4 256c13.6 30 40.2 72.5 78.7 108.3C169.2 402.4 222.8 432 288 432s118.8-29.6 159.9-67.7c38.5-35.8 65.1-78.3 78.7-108.3c-13.6-30-40.2-72.5-78.7-108.3C406.8 109.6 353.2 80 288 80zm0 304a128 128 0 1 1 0-256 128 128 0 1 1 0 256zm0-208a80 80 0 1 0 0 160 80 80 0 1 0 0-160z';
-const EYE_SLASH_ICON_PATH = 'M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l528 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L432 350.5c37.1-33.2 63.7-73.2 77.6-94.5C474.2 201.8 397.3 96 288 96c-31.3 0-60.6 8.7-87.2 22.8L38.8 5.1zM288 416c31.3 0 60.6-8.7 87.2-22.8L302.7 329.4c-4.7 1.7-9.6 2.6-14.7 2.6a44 44 0 0 1-44-44c0-5.1 .9-10 2.6-14.7L159.9 197C119.8 227.3 91.7 268.8 76.4 288C111.8 342.2 178.7 416 288 416z';
+const LIST_ICON_PATH = 'M40 48C26.7 48 16 58.7 16 72v48c0 13.3 10.7 24 24 24h48c13.3 0 24-10.7 24-24V72c0-13.3-10.7-24-24-24H40zm144 16c-17.7 0-32 14.3-32 32s14.3 32 32 32h352c17.7 0 32-14.3 32-32s-14.3-32-32-32H184zM40 208c-13.3 0-24 10.7-24 24v48c0 13.3 10.7 24 24 24h48c13.3 0 24-10.7 24-24v-48c0-13.3-10.7-24-24-24H40zm144 16c-17.7 0-32 14.3-32 32s14.3 32 32 32h352c17.7 0 32-14.3 32-32s-14.3-32-32-32H184zM40 368c-13.3 0-24 10.7-24 24v48c0 13.3 10.7 24 24 24h48c13.3 0 24-10.7 24-24v-48c0-13.3-10.7-24-24-24H40zm144 16c-17.7 0-32 14.3-32 32s14.3 32 32 32h352c17.7 0 32-14.3 32-32s-14.3-32-32-32H184z';
+const SLIDERS_ICON_PATH = 'M0 416c0 17.7 14.3 32 32 32h54.7c13.2 37.3 48.7 64 90.5 64s77.4-26.7 90.5-64H544c17.7 0 32-14.3 32-32s-14.3-32-32-32H267.8c-13.2-37.3-48.7-64-90.5-64s-77.4 26.7-90.5 64H32c-17.7 0-32 14.3-32 32zm128 0a49.3 49.3 0 1 1 98.7 0 49.3 49.3 0 1 1-98.7 0zM0 256c0 17.7 14.3 32 32 32h246.7c13.2 37.3 48.7 64 90.5 64s77.4-26.7 90.5-64H544c17.7 0 32-14.3 32-32s-14.3-32-32-32h-84.3c-13.2-37.3-48.7-64-90.5-64s-77.4 26.7-90.5 64H32c-17.7 0-32 14.3-32 32zm320 0a49.3 49.3 0 1 1 98.7 0 49.3 49.3 0 1 1-98.7 0zM0 96c0 17.7 14.3 32 32 32h54.7c13.2 37.3 48.7 64 90.5 64s77.4-26.7 90.5-64H544c17.7 0 32-14.3 32-32s-14.3-32-32-32H267.8C254.6 26.7 219.1 0 177.3 0S99.9 26.7 86.7 64H32C14.3 64 0 78.3 0 96zm128 0a49.3 49.3 0 1 1 98.7 0 49.3 49.3 0 1 1-98.7 0z';
 
 function HostServiceToolbar({
   services,
