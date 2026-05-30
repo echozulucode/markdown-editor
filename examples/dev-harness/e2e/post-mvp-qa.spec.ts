@@ -106,10 +106,10 @@ test.describe('post-MVP accessibility audit guards', () => {
       'aria-pressed',
       'true',
     );
-    await editorToolbar.getByRole('button', { name: 'WYSIWYG' }).focus();
+    await editorToolbar.getByRole('button', { name: 'Rich Text' }).focus();
     await page.keyboard.press('Enter');
 
-    const wysiwygToolbar = card.getByRole('toolbar', { name: 'WYSIWYG formatting controls' });
+    const wysiwygToolbar = card.getByRole('toolbar', { name: 'Rich text formatting controls' });
     await expect(wysiwygToolbar).toBeVisible();
     await expect(wysiwygToolbar.getByRole('button', { name: 'Bold' })).toHaveAttribute('aria-pressed');
     await expect(wysiwygToolbar.getByRole('button', { name: 'Italic' })).toHaveAttribute(

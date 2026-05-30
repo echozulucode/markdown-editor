@@ -60,16 +60,39 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
 
 function normalizeHostResult(result: CoreRenderResult | RendererResult): RendererResult {
   if (isRendererResult(result)) {
-    return result;
+    return { ...result, html: constrainDiagramSvgWidth(result.html) };
   }
 
   return {
     ok: true,
-    html: result.html,
+    html: constrainDiagramSvgWidth(result.html),
     diagnostics: result.diagnostics?.filter((diagnostic) => diagnostic.severity !== 'info') as
       | RendererDiagnostic[]
       | undefined
   };
+}
+
+/**
+ * Give different-sized PlantUML diagrams sensible default sizing. A host SVG
+ * with only a `viewBox` (no width/height) is stretched by the browser to fill
+ * its container, so a small diagram renders huge on a wide screen. We cap such
+ * SVGs at their intrinsic viewBox width via `max-width: <W>px` — the diagram
+ * never upscales past its natural size yet still shrinks responsively on narrow
+ * screens (mirroring how Mermaid sizes its output). SVGs that already declare a
+ * width or a max-width, and non-SVG output (e.g. <img>), are left untouched.
+ */
+export function constrainDiagramSvgWidth(html: string): string {
+  return html.replace(/<svg\b[^>]*>/gi, (tag) => {
+    if (/\swidth\s*=/.test(tag)) return tag;
+    if (/style\s*=\s*"[^"]*max-width/i.test(tag)) return tag;
+    const viewBox = tag.match(/viewBox\s*=\s*"\s*[-\d.]+\s+[-\d.]+\s+([\d.]+)\s+[\d.]+/i);
+    const width = viewBox ? Math.round(parseFloat(viewBox[1]!)) : NaN;
+    if (!Number.isFinite(width) || width <= 0) return tag;
+    const declaration = `max-width:${width}px;`;
+    return /style\s*=\s*"/i.test(tag)
+      ? tag.replace(/style\s*=\s*"/i, `style="${declaration}`)
+      : tag.replace(/<svg\b/i, `<svg style="${declaration}"`);
+  });
 }
 
 function isRendererResult(result: CoreRenderResult | RendererResult): result is RendererResult {

@@ -82,6 +82,7 @@ import {
   TableRowNode,
 } from '@lexical/table';
 import type { ChangeMeta, MarkdownDiagnostic } from '@markdown-editor/core';
+import { sanitizeDiagramHtml } from './sanitizeHtml.js';
 
 const INSERT_MERMAID_COMMAND: LexicalCommand<string> = createCommand('INSERT_MERMAID_COMMAND');
 const INSERT_PLANTUML_COMMAND: LexicalCommand<string> = createCommand('INSERT_PLANTUML_COMMAND');
@@ -552,6 +553,47 @@ const WYSIWYG_NODES = [
   PlantUmlNode,
 ];
 
+const UNORDERED_ITEM = /^ *[-*+] /;
+const CODE_FENCE = /^ *(```|~~~)/;
+
+/**
+ * Merge adjacent unordered lists that Lexical serialized with a blank line
+ * between them. Lexical models a checkbox list and a plain bullet list as
+ * different node types, so `- [ ] task` followed by `- bullet` exports as two
+ * lists separated by a blank line — which is the "weird blank lines" a checkbox
+ * introduces when list types are mixed. In Markdown both share the `-` marker
+ * and render as a single list, so dropping the blank line is faithful and makes
+ * the round-trip tight. Same-type lists are already merged by Lexical; this only
+ * affects the check<->bullet boundary. Fenced code blocks are skipped so a code
+ * line that merely looks like a list item is never touched.
+ */
+function mergeAdjacentUnorderedLists(markdown: string): string {
+  const lines = markdown.split('\n');
+  const out: string[] = [];
+  let inFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (CODE_FENCE.test(line)) {
+      inFence = !inFence;
+    }
+    if (
+      !inFence &&
+      line === '' &&
+      UNORDERED_ITEM.test(out[out.length - 1] ?? '') &&
+      UNORDERED_ITEM.test(lines[i + 1] ?? '')
+    ) {
+      continue; // drop the blank line between two adjacent unordered list items
+    }
+    out.push(line);
+  }
+  return out.join('\n');
+}
+
+/** Serialize the current editor body to Markdown with list normalization applied. */
+function serializeWysiwygBody(): string {
+  return mergeAdjacentUnorderedLists($convertToMarkdownString(WYSIWYG_TRANSFORMERS));
+}
+
 export type WysiwygToolbarIconKey =
   | 'bold'
   | 'italic'
@@ -576,7 +618,7 @@ export interface WysiwygLexicalEditorProps {
 export function WysiwygLexicalEditor({
   markdown,
   readOnly = false,
-  ariaLabel = 'WYSIWYG Markdown editor',
+  ariaLabel = 'Rich text Markdown editor',
   placeholder = 'Start typing...',
   renderServices,
   toolbarIcons,
@@ -677,7 +719,7 @@ export function roundTripWysiwygMarkdown(markdown: string): string {
 
   let body = '';
   editor.getEditorState().read(() => {
-    body = $convertToMarkdownString(WYSIWYG_TRANSFORMERS);
+    body = serializeWysiwygBody();
   });
 
   return replaceEnvelopeBody(envelope, body);
@@ -812,7 +854,7 @@ export function applyWysiwygTableActionForTests(
 
   let body = '';
   editor.getEditorState().read(() => {
-    body = $convertToMarkdownString(WYSIWYG_TRANSFORMERS);
+    body = serializeWysiwygBody();
   });
 
   return replaceEnvelopeBody(envelope, body);
@@ -1181,7 +1223,7 @@ function WysiwygToolbar({ icons = {} }: { icons?: WysiwygToolbarIcons }): React.
   );
 
   return (
-    <div className="me-wysiwyg-toolbar" role="toolbar" aria-label="WYSIWYG formatting controls">
+    <div className="me-wysiwyg-toolbar" role="toolbar" aria-label="Rich text formatting controls">
       <span className="me-wysiwyg-toolbar-group" aria-label="Block formatting">
         <select
           className="me-wysiwyg-block-select"
@@ -1354,7 +1396,10 @@ function MermaidBlock({
     import('mermaid')
       .then(async (module) => {
         const renderer = module.default;
-        renderer.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
+        // Top-level htmlLabels:false -> SVG <text> labels that survive HTML
+        // sanitization (DOMPurify strips foreignObject HTML labels, hiding text).
+        // Mermaid v11 only honors the top-level flag for flowcharts.
+        renderer.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default', htmlLabels: false, flowchart: { htmlLabels: false } });
         const rendered = await renderer.render(diagramId, source);
         if (!disposed) {
           setHtml(rendered.svg);
@@ -1410,7 +1455,7 @@ function MermaidBlock({
       ) : error ? (
         <pre className="me-wysiwyg-mermaid-error">{error}</pre>
       ) : html ? (
-        <div className="me-wysiwyg-mermaid-rendered" dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="me-wysiwyg-mermaid-rendered" dangerouslySetInnerHTML={{ __html: sanitizeDiagramHtml(html) }} />
       ) : (
         <div className="me-wysiwyg-mermaid-loading">Rendering diagram...</div>
       )}
@@ -1504,7 +1549,7 @@ function PlantUmlBlock({
       ) : error ? (
         <pre className="me-wysiwyg-diagram-error">{error}</pre>
       ) : html ? (
-        <div className="me-wysiwyg-diagram-rendered" dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="me-wysiwyg-diagram-rendered" dangerouslySetInnerHTML={{ __html: sanitizeDiagramHtml(html) }} />
       ) : (
         <div className="me-wysiwyg-diagram-loading">Rendering diagram...</div>
       )}
@@ -1677,7 +1722,7 @@ function importMarkdownBody(markdown: string): void {
 function exportEditorState(editorState: EditorState, sourceMarkdown: string): string {
   let body = '';
   editorState.read(() => {
-    body = $convertToMarkdownString(WYSIWYG_TRANSFORMERS);
+    body = serializeWysiwygBody();
   });
 
   return replaceEnvelopeBody(splitMarkdownEnvelope(sourceMarkdown), body);

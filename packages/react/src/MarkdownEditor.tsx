@@ -21,6 +21,7 @@ import {
   type RendererRegistry,
 } from '@markdown-editor/renderers';
 import type { WysiwygToolbarIcons } from '@markdown-editor/wysiwyg-lexical';
+import { sanitizePreviewHtml } from './sanitizeHtml.js';
 
 const CODEMIRROR_MODES = new Set<EditorMode>(['markdown', 'hybrid']);
 const DEFAULT_MODES: EditorMode[] = ['hybrid', 'markdown', 'preview'];
@@ -387,7 +388,7 @@ export const MarkdownEditor = React.forwardRef<
           onDiagnostics={(diagnostics) => onDiagnosticsRef.current?.(diagnostics)}
         />
       ) : (
-        <React.Suspense fallback={<div className="me-wysiwyg-loading" role="status">Loading WYSIWYG editor...</div>}>
+        <React.Suspense fallback={<div className="me-wysiwyg-loading" role="status">Loading rich text editor...</div>}>
           <LazyWysiwygLexicalEditor
             markdown={markdown}
             readOnly={readOnly}
@@ -628,7 +629,7 @@ function PreviewSurface({
     <div
       className="me-preview"
       aria-label="Markdown preview"
-      dangerouslySetInnerHTML={{ __html: result?.html ?? '<p>Rendering preview...</p>' }}
+      dangerouslySetInnerHTML={{ __html: result?.html ? sanitizePreviewHtml(result.html) : '<p>Rendering preview...</p>' }}
     />
   );
 }
@@ -651,7 +652,9 @@ function modeLabel(mode: EditorMode): string {
     case 'preview':
       return 'Preview';
     case 'wysiwyg':
-      return 'WYSIWYG';
+      // Modern, user-facing name for the WYSIWYG mode. The internal mode key
+      // stays 'wysiwyg' for API stability.
+      return 'Rich Text';
   }
 }
 

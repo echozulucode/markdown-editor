@@ -566,6 +566,81 @@ describe('createMarkdownEditorView', () => {
     parent.remove();
   });
 
+  function hybridWithCapturedView(markdown: string, hybridFrontmatterMode?: 'table' | 'collapsed' | 'hidden' | 'source') {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    let view: EditorView | null = null;
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+      hybridFrontmatterMode,
+      extensions: [EditorView.updateListener.of((update) => { view = update.view; })],
+    });
+    // The updateListener only fires on updates; trigger one to capture the view.
+    editor.setSelection({ anchor: 0, head: 0 });
+    return { editor, parent, getView: () => view as unknown as EditorView };
+  }
+
+  const FM = ['---', 'title: Hybrid', 'status: draft', '---', '# Body', '', 'text'].join('\n');
+
+  it('hybrid: a range delete that crosses the frontmatter boundary is filtered (YAML preserved)', () => {
+    const { editor, parent, getView } = hybridWithCapturedView(FM);
+    const bodyStart = FM.indexOf('# Body');
+    getView().dispatch({ changes: { from: 6, to: bodyStart, insert: '' }, userEvent: 'delete' });
+    expect(editor.getMarkdown()).toBe(FM);
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('hybrid: select-all delete cannot wipe hidden frontmatter', () => {
+    const { editor, parent, getView } = hybridWithCapturedView(FM);
+    const view = getView();
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '' }, userEvent: 'delete' });
+    expect(editor.getMarkdown()).toBe(FM);
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('hybrid: a body-only edit is NOT over-protected (still editable)', () => {
+    const { editor, parent, getView } = hybridWithCapturedView(FM);
+    const textPos = FM.indexOf('text');
+    getView().dispatch({ changes: { from: textPos, to: textPos, insert: 'X' }, userEvent: 'input' });
+    expect(editor.getMarkdown()).toBe(FM.replace('text', 'Xtext'));
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('hybrid source mode: frontmatter IS editable (protection only applies when hidden)', () => {
+    const { editor, parent, getView } = hybridWithCapturedView(FM, 'source');
+    getView().dispatch({ changes: { from: 6, to: 7, insert: '' }, userEvent: 'delete' });
+    expect(editor.getMarkdown()).not.toBe(FM);
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('frontmatter protection follows setMode: editable in markdown, protected after switching to hybrid', () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    let view: EditorView | null = null;
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown: FM,
+      mode: 'markdown',
+      extensions: [EditorView.updateListener.of((update) => { view = update.view; })],
+    });
+    editor.setSelection({ anchor: 0, head: 0 });
+    const v = view as unknown as EditorView;
+    v.dispatch({ changes: { from: 6, to: 7, insert: '' }, userEvent: 'delete' });
+    expect(editor.getMarkdown()).not.toBe(FM);
+    editor.setMode('hybrid');
+    const baseline = editor.getMarkdown();
+    v.dispatch({ changes: { from: 6, to: 7, insert: '' }, userEvent: 'delete' });
+    expect(editor.getMarkdown()).toBe(baseline);
+    editor.destroy();
+    parent.remove();
+  });
+
   it('edits frontmatter values through the hybrid properties table', () => {
     const markdown = ['---', 'title: Hybrid notes', 'tags: editor, mvp', '---', '# Title'].join('\n');
     const parent = document.createElement('section');
@@ -763,6 +838,34 @@ describe('createMarkdownEditorView', () => {
     parent.querySelector<HTMLButtonElement>('.cm-me-property-add')?.click();
     expect(editor.getMarkdown()).toContain('published: true');
     expect(parent.querySelector('[data-property-key="published"] .cm-me-property-type-icon')?.textContent).toBe('✓');
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('setMode switches markdown<->hybrid in place, preserving selection and document (P1-2)', () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown: '# Title\n\nbody text here\n',
+      mode: 'markdown',
+    });
+
+    editor.setSelection({ anchor: 10, head: 14 });
+    const before = editor.getSelection();
+
+    editor.setMode('hybrid');
+    // A reconfigure (not a destroy/recreate) keeps the selection and document.
+    expect(editor.getSelection()).toEqual(before);
+    expect(editor.getMarkdown()).toBe('# Title\n\nbody text here\n');
+    // Hybrid decorations are now active (heading marker hidden off the active line).
+    expect(parent.querySelector('.cm-content')).not.toBeNull();
+
+    editor.setMode('markdown');
+    expect(editor.getSelection()).toEqual(before);
+    expect(editor.getMarkdown()).toBe('# Title\n\nbody text here\n');
 
     editor.destroy();
     parent.remove();

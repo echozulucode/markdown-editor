@@ -39,53 +39,70 @@ export function roundTripMarkdown(raw: string): string {
   return serializeMarkdown(parseMarkdown(raw));
 }
 
+/** Keys that must never be copied off untrusted YAML onto a JS object. */
+const FORBIDDEN_FRONTMATTER_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/**
+ * Copy frontmatter onto a null-prototype object, dropping prototype-polluting
+ * keys (`__proto__`/`constructor`/`prototype`). gray-matter/js-yaml can surface
+ * these as own properties from a hostile document; stripping them here keeps
+ * every downstream consumer (which spreads/indexes frontmatter) safe.
+ */
+function sanitizeFrontmatter(data: Record<string, unknown>): Frontmatter {
+  const clean = Object.create(null) as Frontmatter;
+  for (const [key, value] of Object.entries(data)) {
+    if (FORBIDDEN_FRONTMATTER_KEYS.has(key)) continue;
+    clean[key] = value;
+  }
+  return clean;
+}
+
+function noFrontmatter(raw: string): FrontmatterSplit {
+  return {
+    rawFrontmatter: '',
+    body: raw,
+    hasFrontmatter: false,
+    frontmatter: sanitizeFrontmatter({}),
+    trailing: '',
+  };
+}
+
 export function splitFrontmatter(raw: string): FrontmatterSplit {
-  if (!FRONTMATTER_FENCE.test(raw)) {
-    return {
-      rawFrontmatter: '',
-      body: raw,
-      hasFrontmatter: false,
-      frontmatter: {},
-      trailing: '',
-    };
+  // Tolerate a leading UTF-8 BOM: detect the fence after it, but keep the BOM
+  // byte attached to rawFrontmatter so the round-trip stays byte-stable.
+  // Without this, a BOM'd document parsed as having no frontmatter.
+  const bom = raw.charCodeAt(0) === 0xfeff ? '\uFEFF' : '';
+  const text = bom ? raw.slice(bom.length) : raw;
+
+  if (!FRONTMATTER_FENCE.test(text)) {
+    return noFrontmatter(raw);
   }
 
-  const firstNewline = raw.indexOf('\n');
+  const firstNewline = text.indexOf('\n');
   if (firstNewline === -1) {
-    return {
-      rawFrontmatter: '',
-      body: raw,
-      hasFrontmatter: false,
-      frontmatter: {},
-      trailing: '',
-    };
+    return noFrontmatter(raw);
   }
 
   const afterOpen = firstNewline + 1;
-  const closing = findClosingFence(raw, afterOpen);
+  const closing = findClosingFence(text, afterOpen);
   if (closing === -1) {
-    return {
-      rawFrontmatter: '',
-      body: raw,
-      hasFrontmatter: false,
-      frontmatter: {},
-      trailing: '',
-    };
+    return noFrontmatter(raw);
   }
 
-  const rawFrontmatter = raw.slice(0, closing.endIdx);
-  const body = raw.slice(closing.endIdx);
+  const rawFrontmatterNoBom = text.slice(0, closing.endIdx);
+  const body = text.slice(closing.endIdx);
 
-  let frontmatter: Frontmatter = {};
+  let frontmatter: Frontmatter = sanitizeFrontmatter({});
   try {
-    const parsed = matter(rawFrontmatter + body);
-    frontmatter = (parsed.data ?? {}) as Frontmatter;
+    const parsed = matter(rawFrontmatterNoBom + body);
+    frontmatter = sanitizeFrontmatter((parsed.data ?? {}) as Record<string, unknown>);
   } catch {
-    frontmatter = {};
+    frontmatter = sanitizeFrontmatter({});
   }
 
   return {
-    rawFrontmatter,
+    // Re-attach the BOM so replaceBody (rawFrontmatter + body) round-trips.
+    rawFrontmatter: bom + rawFrontmatterNoBom,
     body,
     hasFrontmatter: true,
     frontmatter,

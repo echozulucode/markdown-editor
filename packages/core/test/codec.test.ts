@@ -150,4 +150,26 @@ describe('frontmatter handling', () => {
     expect(serializeMarkdown(parsed)).toBe(raw);
     expect(splitFrontmatter(raw).frontmatter).toEqual({});
   });
+
+  it('parses frontmatter behind a UTF-8 BOM and round-trips byte-identically (P1-4)', () => {
+    const raw = '﻿---\ntitle: BOM Doc\ntags: [x]\n---\n\nBody.\n';
+    const parsed = parseMarkdown(raw);
+    expect(parsed.hasFrontmatter).toBe(true);
+    expect(parsed.frontmatter['title']).toBe('BOM Doc');
+    // BOM preserved on round-trip and on the surgical replaceBody path.
+    expect(serializeMarkdown(parsed)).toBe(raw);
+    expect(replaceBody(parsed, parsed.body)).toBe(raw);
+  });
+
+  it('strips prototype-polluting frontmatter keys (P1-3)', () => {
+    const raw =
+      '---\ntitle: Safe\n__proto__:\n  polluted: true\nconstructor: nope\n---\n\nBody.\n';
+    const { frontmatter } = splitFrontmatter(raw);
+    expect(Object.prototype.hasOwnProperty.call(frontmatter, '__proto__')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(frontmatter, 'constructor')).toBe(false);
+    // Object.prototype is not polluted.
+    expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
+    // Benign keys survive.
+    expect(frontmatter['title']).toBe('Safe');
+  });
 });

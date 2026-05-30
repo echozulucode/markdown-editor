@@ -21,7 +21,14 @@ export function createMermaidRenderer(options: MermaidRendererOptions = {}): Asy
       renderer.initialize({
         startOnLoad: false,
         securityLevel: 'strict',
-        theme: 'default'
+        theme: 'default',
+        // Render labels as SVG <text>, not HTML in <foreignObject>. The
+        // downstream HTML sanitizer (DOMPurify) categorically strips foreignObject
+        // HTML, which made diagram text disappear. Mermaid v11 only honors the
+        // TOP-LEVEL `htmlLabels` flag for flowcharts (the per-diagram
+        // `flowchart.htmlLabels` alone is NOT enough); set both.
+        htmlLabels: false,
+        flowchart: { htmlLabels: false }
       });
 
       const id = `me-mermaid-${blockId.replace(/[^a-zA-Z0-9_-]/g, '-')}-${++mermaidCounter}`;

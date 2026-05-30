@@ -63,6 +63,13 @@ export interface MarkdownEditorViewHandle {
   setSelection(selection: SelectionSnapshot): void;
   insertMarkdown(markdown: string): void;
   setReadOnly(readOnly: boolean): void;
+  /**
+   * Switch the editor mode (markdown <-> hybrid) in place by reconfiguring the
+   * existing view, preserving selection, scroll, and undo history. Optionally
+   * also updates the hybrid frontmatter display. Avoids the destroy/recreate
+   * that loses editor state.
+   */
+  setMode(mode: CodeMirrorEditorMode, hybridFrontmatterMode?: HybridFrontmatterMode): void;
 }
 
 export type { ChangeMeta, EditorMode, FrontmatterPropertySchema, FrontmatterPropertyType };

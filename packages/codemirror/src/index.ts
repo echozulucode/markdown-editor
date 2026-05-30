@@ -23,6 +23,7 @@ import {
 
 import type {
   ChangeMeta,
+  CodeMirrorEditorMode,
   FrontmatterPropertySchema,
   FrontmatterPropertyType,
   HybridMarkdownRenderer,
@@ -56,7 +57,7 @@ const allowFrontmatterEdit = Annotation.define<boolean>();
 export function createMarkdownEditorView(
   options: MarkdownEditorViewOptions
 ): MarkdownEditorViewHandle {
-  const mode = options.mode ?? "markdown";
+  let mode: CodeMirrorEditorMode = options.mode ?? "markdown";
   let destroyed = false;
   let suppressChange = false;
 
@@ -64,7 +65,7 @@ export function createMarkdownEditorView(
     parent: options.parent,
     state: EditorState.create({
       doc: options.markdown ?? "",
-      extensions: createExtensions(options, mode, (transaction) => {
+      extensions: createExtensions(options, () => mode, (transaction) => {
         if (suppressChange || !transaction.docChanged) {
           return;
         }
@@ -135,12 +136,15 @@ export function createMarkdownEditorView(
     },
     insertMarkdown(markdownText: string) {
       assertLive();
+      // Merge the replaceSelection spec with the scroll/userEvent options into a
+      // single transaction. Passing them as a second dispatch arg (the previous
+      // bug) silently dropped both — no scroll, and the change was mis-attributed
+      // as programmatic instead of a user input.
       view.dispatch(
-        view.state.replaceSelection(markdownText),
-        {
+        view.state.update(view.state.replaceSelection(markdownText), {
           scrollIntoView: true,
           userEvent: "input"
-        }
+        })
       );
     },
     setReadOnly(readOnly: boolean) {
@@ -150,6 +154,17 @@ export function createMarkdownEditorView(
           readOnlyCompartment.reconfigure(EditorState.readOnly.of(readOnly)),
           editableCompartment.reconfigure(EditorView.editable.of(!readOnly))
         ]
+      });
+    },
+    setMode(nextMode, hybridFrontmatterMode) {
+      assertLive();
+      mode = nextMode;
+      if (hybridFrontmatterMode !== undefined) {
+        options.hybridFrontmatterMode = hybridFrontmatterMode;
+      }
+      // Reconfigure in place: selection, scroll, and undo history are kept.
+      view.dispatch({
+        effects: modeCompartment.reconfigure(modePlaceholder(mode, options))
       });
     }
   };
@@ -163,7 +178,7 @@ export function createMarkdownEditorView(
 
 function createExtensions(
   options: MarkdownEditorViewOptions,
-  mode: MarkdownEditorViewOptions["mode"],
+  getMode: () => CodeMirrorEditorMode,
   onTransaction: (transaction: Transaction) => void
 ): Extension[] {
   const extensions: Extension[] = [
@@ -178,7 +193,7 @@ function createExtensions(
     }),
     EditorState.transactionFilter.of((transaction) => {
       if (
-        mode === "hybrid"
+        getMode() === "hybrid"
         && options.hybridFrontmatterMode !== "source"
         && transaction.docChanged
         && transaction.annotation(allowFrontmatterEdit) !== true
@@ -191,7 +206,7 @@ function createExtensions(
     }),
     readOnlyCompartment.of(EditorState.readOnly.of(options.readOnly === true)),
     editableCompartment.of(EditorView.editable.of(options.readOnly !== true)),
-    modeCompartment.of(modePlaceholder(mode ?? "markdown", options)),
+    modeCompartment.of(modePlaceholder(getMode(), options)),
     EditorView.domEventHandlers({
       beforeinput(event, view) {
         if (view.state.readOnly) {
@@ -199,7 +214,7 @@ function createExtensions(
           return true;
         }
 
-        if (mode === "hybrid" && isDestructiveBeforeInput(event)) {
+        if (getMode() === "hybrid" && isDestructiveBeforeInput(event)) {
           const direction = event.inputType.includes("Forward") ? "forward" : "backward";
           if (preventHiddenFrontmatterDelete(view, direction, options)) {
             event.preventDefault();
@@ -1123,8 +1138,13 @@ class FrontmatterPropertiesWidget extends WidgetType {
     headingText.className = "cm-me-properties-heading-text";
     headingText.textContent = "Properties";
 
-    const chips = this.createSummaryChips(entries);
-    heading.append(headingText, chips);
+    // The summary chips are an at-a-glance view for the COLLAPSED state only.
+    // When the panel is expanded the property editor table below shows the same
+    // content, so the chips would just be redundant pills — omit them.
+    heading.append(headingText);
+    if (this.collapsed) {
+      heading.append(this.createSummaryChips(entries));
+    }
 
     const list = document.createElement("div");
     list.className = "cm-me-properties-table";

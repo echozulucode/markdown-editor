@@ -22,9 +22,9 @@ test.describe('mode matrix route', () => {
     await expect(card.locator('.me-preview')).toContainText('Markdown editor harness');
     await expect(card.locator('.me-renderer-task-checkbox')).toHaveCount(3);
 
-    await toolbar.getByRole('button', { name: 'WYSIWYG' }).click();
+    await toolbar.getByRole('button', { name: 'Rich Text' }).click();
     await expect(card.locator('.me-editor[data-mode="wysiwyg"]')).toBeVisible();
-    await expect(card.getByRole('toolbar', { name: 'WYSIWYG formatting controls' })).toBeVisible();
+    await expect(card.getByRole('toolbar', { name: 'Rich text formatting controls' })).toBeVisible();
     await expect(card).toContainText('Markdown editor harness');
   });
 
@@ -35,7 +35,7 @@ test.describe('mode matrix route', () => {
     await expect(toolbar.getByRole('button', { name: 'Markdown' })).toBeVisible();
     await expect(toolbar.getByRole('button', { name: 'Preview' })).toBeVisible();
     await expect(toolbar.getByRole('button', { name: 'Hybrid' })).toHaveCount(0);
-    await expect(toolbar.getByRole('button', { name: 'WYSIWYG' })).toHaveCount(0);
+    await expect(toolbar.getByRole('button', { name: 'Rich Text' })).toHaveCount(0);
 
     await toolbar.getByRole('button', { name: 'Preview' }).click();
     await expect(card.locator('.me-editor[data-mode="preview"]')).toBeVisible();
@@ -66,7 +66,7 @@ test.describe('mode matrix route', () => {
     const card = page.getByTestId('mode-card-all-modes');
     const toolbar = card.locator('.me-toolbar').first();
 
-    await toolbar.getByRole('button', { name: 'WYSIWYG' }).click();
+    await toolbar.getByRole('button', { name: 'Rich Text' }).click();
     const wysiwygInput = card.getByRole('textbox', { name: 'all modes editor' });
     await expect(wysiwygInput).toHaveAttribute('contenteditable', 'true');
 
@@ -81,7 +81,7 @@ test.describe('mode matrix route', () => {
     await expect(markdownInput).not.toContainText('\\# Shortcut heading');
 
     await markdownInput.fill('');
-    await toolbar.getByRole('button', { name: 'WYSIWYG' }).click();
+    await toolbar.getByRole('button', { name: 'Rich Text' }).click();
     await wysiwygInput.click();
     await page.keyboard.type('- Shortcut item');
 
@@ -155,10 +155,10 @@ test.describe('accessibility and performance smoke gates', () => {
     const editorToolbar = card.getByRole('toolbar', { name: 'Editor controls' });
 
     await expect(editorToolbar.getByRole('button', { name: 'Hybrid' })).toHaveAttribute('aria-pressed', 'true');
-    await editorToolbar.getByRole('button', { name: 'WYSIWYG' }).focus();
+    await editorToolbar.getByRole('button', { name: 'Rich Text' }).focus();
     await page.keyboard.press('Enter');
 
-    const wysiwygToolbar = card.getByRole('toolbar', { name: 'WYSIWYG formatting controls' });
+    const wysiwygToolbar = card.getByRole('toolbar', { name: 'Rich text formatting controls' });
     await expect(wysiwygToolbar).toBeVisible();
     await expect(wysiwygToolbar.getByRole('button', { name: 'Bulleted list' })).toHaveAttribute('aria-pressed');
     await expect(wysiwygToolbar.getByLabel('Current block style')).toBeVisible();

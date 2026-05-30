@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDefaultRendererRegistry, createPlantUmlRenderer, createShikiCodeRenderer, renderMarkdownToHtml } from '../src';
+import { constrainDiagramSvgWidth, createDefaultRendererRegistry, createPlantUmlRenderer, createShikiCodeRenderer, renderMarkdownToHtml } from '../src';
 
 describe('renderer fallbacks', () => {
   it('renders leading YAML frontmatter as read-only properties', async () => {
@@ -104,6 +104,41 @@ describe('async renderer errors', () => {
     expect(result.diagnostics).toHaveLength(1);
     expect(result.diagnostics[0].code).toBe('renderer.plantuml.failed');
     expect(result.html).toContain('@startuml');
+  });
+
+  it('caps a viewBox-only host SVG at its intrinsic width so small diagrams do not render huge', async () => {
+    const registry = createDefaultRendererRegistry({
+      plantUml: createPlantUmlRenderer({
+        renderPlantUml: async () => ({
+          html: '<figure class="me-renderer-diagram me-renderer-plantuml"><svg viewBox="0 0 520 170"><rect/></svg></figure>',
+        }),
+      }),
+    });
+    const result = await renderMarkdownToHtml('```plantuml\n@startuml\nA -> B\n@enduml\n```', { registry });
+    expect(result.html).toContain('max-width:520px');
+  });
+});
+
+describe('constrainDiagramSvgWidth', () => {
+  it('adds max-width from the viewBox when no width is declared', () => {
+    expect(constrainDiagramSvgWidth('<svg viewBox="0 0 300 120"><rect/></svg>')).toContain('max-width:300px');
+  });
+
+  it('merges into an existing style attribute', () => {
+    const out = constrainDiagramSvgWidth('<svg viewBox="0 0 80 40" style="display:block"><rect/></svg>');
+    expect(out).toContain('max-width:80px;display:block');
+  });
+
+  it('leaves SVGs that already declare a width or max-width untouched', () => {
+    const withWidth = '<svg width="200" viewBox="0 0 200 100"></svg>';
+    expect(constrainDiagramSvgWidth(withWidth)).toBe(withWidth);
+    const withMax = '<svg viewBox="0 0 200 100" style="max-width:200px"></svg>';
+    expect(constrainDiagramSvgWidth(withMax)).toBe(withMax);
+  });
+
+  it('ignores non-SVG output such as <img>', () => {
+    const img = '<img src="x.png" alt="diagram">';
+    expect(constrainDiagramSvgWidth(img)).toBe(img);
   });
 });
 

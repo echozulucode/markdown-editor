@@ -30,7 +30,7 @@ test.describe('examples gallery', () => {
     await expect(toolbar.getByRole('button', { name: 'Hybrid' })).toHaveAttribute('aria-pressed', 'true');
     await expect(toolbar.getByRole('button', { name: 'Markdown' })).toBeVisible();
     await expect(toolbar.getByRole('button', { name: 'Preview' })).toBeVisible();
-    await expect(toolbar.getByRole('button', { name: 'WYSIWYG' })).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: 'Rich Text' })).toBeVisible();
     await expect(example).toContainText('Release Runbook');
     await expect(example).toContainText('Validate renderer isolation');
   });
@@ -45,14 +45,14 @@ test.describe('examples gallery', () => {
 
   test('single-mode examples hide the mode switcher for focused host workflows', async ({ page }) => {
     await expect(page.getByTestId('example-hybrid-knowledge').getByRole('toolbar')).toHaveCount(1);
-    await expect(page.getByTestId('example-wysiwyg-contributor').getByRole('button', { name: 'WYSIWYG' })).toHaveCount(0);
+    await expect(page.getByTestId('example-wysiwyg-contributor').getByRole('button', { name: 'Rich Text' })).toHaveCount(0);
     await expect(page.getByTestId('example-published-docs').getByRole('toolbar')).toHaveCount(0);
     await expect(page.getByTestId('example-comment-composer').getByRole('toolbar')).toHaveCount(0);
   });
 
   test('wysiwyg examples render Font Awesome toolbar icons', async ({ page }) => {
     const example = page.getByTestId('example-wysiwyg-contributor');
-    const toolbar = example.getByRole('toolbar', { name: 'WYSIWYG formatting controls' });
+    const toolbar = example.getByRole('toolbar', { name: 'Rich text formatting controls' });
 
     await expect(toolbar).toBeVisible();
     await expect(toolbar.locator('svg.svg-inline--fa')).toHaveCount(6);
@@ -64,8 +64,8 @@ test.describe('examples gallery', () => {
 
     const example = page.getByTestId('example-full-page-docs');
     await example.scrollIntoViewIfNeeded();
-    await example.getByRole('button', { name: 'WYSIWYG' }).click();
-    await expect(example.getByRole('toolbar', { name: 'WYSIWYG formatting controls' })).toBeVisible();
+    await example.getByRole('button', { name: 'Rich Text' }).click();
+    await expect(example.getByRole('toolbar', { name: 'Rich text formatting controls' })).toBeVisible();
 
     await example.locator('.me-wysiwyg-code').first().click();
     await expect(example.getByLabel('Code block language')).toBeVisible();

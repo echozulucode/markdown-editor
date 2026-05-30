@@ -52,7 +52,7 @@ const routes: HarnessRoute[] = [
     id: "modes",
     label: "Mode Matrix",
     path: "/modes",
-    description: "Host configuration checks for markdown, hybrid, preview, and WYSIWYG subsets."
+    description: "Host configuration checks for markdown, hybrid, preview, and rich text subsets."
   },
   {
     id: "examples",
@@ -624,7 +624,7 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
         id="full-page-docs"
         eyebrow="All modes"
         title="Full-page technical docs editor"
-        description="A complete authoring surface with Markdown, hybrid, preview, and WYSIWYG available."
+        description="A complete authoring surface with Markdown, hybrid, preview, and rich text available."
       >
         <MarkdownEditor
           ariaLabel="Full-page technical docs editor"
@@ -682,7 +682,7 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
 
       <ExampleShell
         id="wysiwyg-contributor"
-        eyebrow="WYSIWYG only"
+        eyebrow="Rich text only"
         title="Contributor article editor"
         description="A visual editing surface for authors who should not need Markdown controls."
       >
