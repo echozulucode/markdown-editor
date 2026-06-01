@@ -3,6 +3,13 @@
   --me-font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   --me-surface: #ffffff;
   --me-surface-muted: #f6f7f8;
+  /* Themeable surfaces (light defaults). A host can remap these — and the core
+     vars above — to its own tokens so the editor follows the site light/dark
+     theme. */
+  --me-surface-raised: #ffffff;
+  --me-code-bg: #f8fafc;
+  --me-callout-bg: #eff6ff;
+  --me-error-bg: #fff1f2;
   --me-border: #d9dee5;
   --me-text: #18202a;
   --me-muted: #5d6978;
@@ -150,7 +157,7 @@
 
 .me-link-suggestion:hover,
 .me-link-suggestion:focus-visible {
-  background: #eff6ff;
+  background: var(--me-callout-bg);
   outline: none;
 }
 
@@ -260,7 +267,7 @@
   margin: 0.25em 0 0;
   border: 1px solid #9aa7b2;
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--me-surface);
   opacity: 1;
 }
 
@@ -281,7 +288,7 @@
   overflow: auto;
   border: 1px solid var(--me-border);
   border-radius: 6px;
-  background: #f8fafc;
+  background: var(--me-code-bg);
   padding: 12px;
 }
 
@@ -292,7 +299,7 @@
 .me-renderer-code-highlight .shiki {
   margin: 0;
   border: 1px solid var(--me-border);
-  background: #ffffff;
+  background: var(--me-surface);
 }
 
 .me-renderer-diagram {
@@ -301,7 +308,7 @@
   padding: 12px;
   border: 1px solid var(--me-border);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--me-surface);
 }
 
 .me-renderer-diagram svg {
@@ -321,7 +328,7 @@
   padding: 8px;
   border: 1px solid var(--me-border);
   border-radius: 6px;
-  background: #fbfcfe;
+  background: var(--me-surface-muted);
 }
 
 .me-renderer-properties-table {
@@ -365,7 +372,7 @@
 
 .me-renderer-callout {
   border-left: 4px solid var(--me-accent);
-  background: #eff6ff;
+  background: var(--me-callout-bg);
   padding: 10px 12px;
 }
 
@@ -426,7 +433,7 @@
   vertical-align: -0.16em;
   border: 1px solid #9aa7b2;
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--me-surface);
 }
 
 .me-codemirror .cm-me-task-checkbox-checked {
@@ -449,7 +456,7 @@
 
 .me-codemirror .cm-me-hybrid-wiki-link {
   border-radius: 4px;
-  background: #eff6ff;
+  background: var(--me-callout-bg);
   padding: 0 3px;
   text-decoration: none;
 }
@@ -503,7 +510,7 @@
   overflow: auto;
   border: 1px solid #fecaca;
   border-radius: 6px;
-  background: #fff1f2;
+  background: var(--me-error-bg);
   color: #991b1b;
   padding: 12px;
 }
@@ -1024,6 +1031,25 @@
   padding-left: 1.45rem;
 }
 
+/* Render real list markers. ul/ol share the .me-wysiwyg-list class, so target by
+   element; the element+class selector also wins over a generic `ul {}` reset in
+   a host app. Check lists use a separate class and keep their custom markers. */
+ul.me-wysiwyg-list {
+  list-style: disc outside;
+}
+ol.me-wysiwyg-list {
+  list-style: decimal outside;
+}
+ul.me-wysiwyg-list ul.me-wysiwyg-list {
+  list-style-type: circle;
+}
+ul.me-wysiwyg-list ul.me-wysiwyg-list ul.me-wysiwyg-list {
+  list-style-type: square;
+}
+.me-wysiwyg-list-item {
+  margin: 0;
+}
+
 .me-wysiwyg-check-list {
   padding-left: 0;
   list-style: none;
@@ -1046,7 +1072,7 @@
   box-sizing: border-box;
   border: 1px solid #9aa7b2;
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--me-surface);
   content: "";
 }
 
@@ -1079,7 +1105,7 @@
   overflow: auto;
   border: 1px solid var(--me-border);
   border-radius: 6px;
-  background: #f8fafc;
+  background: var(--me-code-bg);
   margin: 14px 0;
   padding: 40px 12px 12px;
   font-family: var(--me-font-mono);
@@ -1174,7 +1200,7 @@
 
 .me-wysiwyg-text-code {
   border-radius: 4px;
-  background: #eef2f7;
+  background: var(--me-surface-muted);
   font-family: var(--me-font-mono);
   padding: 0 3px;
 }
@@ -1186,7 +1212,7 @@
   overflow: auto;
   border: 1px solid var(--me-border);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--me-surface);
 }
 
 .me-wysiwyg-mermaid figcaption,
@@ -1197,7 +1223,7 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--me-border);
-  background: #f8fafc;
+  background: var(--me-code-bg);
   color: var(--me-muted);
   font-size: 13px;
   padding: 7px 10px;
@@ -1259,7 +1285,7 @@
 .me-wysiwyg-mermaid-error,
 .me-wysiwyg-diagram-error {
   color: #991b1b;
-  background: #fff1f2;
+  background: var(--me-error-bg);
   font-family: var(--me-font-mono);
 }
 
