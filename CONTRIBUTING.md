@@ -32,6 +32,8 @@ Pick the affected packages and a semver bump and write a short summary. Commit t
 
 Merging changesets to `main` triggers the release workflow, which opens a "Version Packages" PR. Merging that PR publishes to npm with provenance. Requires an `NPM_TOKEN` repository secret with publish rights to the `@echozedlabs` scope.
 
+Full step-by-step setup — creating the npm token, where to paste it, first publish, and troubleshooting — is in [`PUBLISHING.md`](./PUBLISHING.md).
+
 ## Code of conduct
 
 Be respectful and constructive. By participating you agree to uphold a welcoming, harassment-free environment.

@@ -123,6 +123,8 @@ Pre-1.0 (`0.1.x`) — the public API may still change between minor versions unt
 
 Issues and PRs welcome. Run `pnpm install && pnpm -r build && pnpm -r test` before opening a PR, and add a changeset (`pnpm changeset`) describing user-facing changes. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
+Maintainers: see [`PUBLISHING.md`](./PUBLISHING.md) for the release runbook (npm token setup, first publish, and ongoing releases).
+
 ## License
 
 [MIT](./LICENSE) © Eric Zimmerman (echozed)
