@@ -1,8 +1,29 @@
 {
-  "name": "@markdown-editor/wysiwyg-lexical",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@echozedlabs/wysiwyg-lexical",
+  "version": "0.1.0",
+  "description": "Lexical-powered rich-text (WYSIWYG) markdown editing surface for the echozed markdown editor.",
   "type": "module",
+  "license": "MIT",
+  "author": "Eric Zimmerman (https://echozed.com)",
+  "homepage": "https://echozed.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/echozulucode/markdown-editor.git",
+    "directory": "packages/wysiwyg-lexical"
+  },
+  "bugs": {
+    "url": "https://github.com/echozulucode/markdown-editor/issues"
+  },
+  "keywords": [
+    "markdown",
+    "wysiwyg",
+    "lexical",
+    "rich-text",
+    "editor"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -12,10 +33,18 @@
     },
     "./styles.css": "./src/styles.css"
   },
+  "files": [
+    "dist",
+    "src/styles.css"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run && tsc -p tsconfig.test.json --noEmit",
-    "typecheck": "tsc -p tsconfig.test.json --noEmit"
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "@lexical/code": "^0.44.0",
@@ -26,7 +55,7 @@
     "@lexical/rich-text": "^0.44.0",
     "@lexical/selection": "^0.44.0",
     "@lexical/table": "^0.44.0",
-    "@markdown-editor/core": "workspace:*",
+    "@echozedlabs/core": "workspace:*",
     "dompurify": "^3.4.3",
     "lexical": "^0.44.0",
     "mermaid": "^11.15.0"

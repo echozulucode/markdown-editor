@@ -8,25 +8,25 @@ import type {
   MarkdownEditorProps,
   ModeChangeMeta,
   TextSelection,
-} from '@markdown-editor/core';
+} from '@echozedlabs/core';
 import {
   createMarkdownEditorView,
   type CodeMirrorEditorMode,
   type MarkdownEditorViewHandle,
-} from '@markdown-editor/codemirror';
+} from '@echozedlabs/codemirror';
 import {
   createDefaultRendererRegistry,
   renderMarkdownToHtml,
   type RenderMarkdownToHtmlResult,
   type RendererRegistry,
-} from '@markdown-editor/renderers';
-import type { WysiwygToolbarIcons } from '@markdown-editor/wysiwyg-lexical';
+} from '@echozedlabs/renderers';
+import type { WysiwygToolbarIcons } from '@echozedlabs/wysiwyg-lexical';
 import { sanitizePreviewHtml } from './sanitizeHtml.js';
 
 const CODEMIRROR_MODES = new Set<EditorMode>(['markdown', 'hybrid']);
 const DEFAULT_MODES: EditorMode[] = ['hybrid', 'markdown', 'preview'];
 const LazyWysiwygLexicalEditor = React.lazy(async () => {
-  const module = await import('@markdown-editor/wysiwyg-lexical');
+  const module = await import('@echozedlabs/wysiwyg-lexical');
   return { default: module.WysiwygLexicalEditor };
 });
 

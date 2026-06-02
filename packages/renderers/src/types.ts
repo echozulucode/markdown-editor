@@ -1,7 +1,7 @@
 import type {
   MarkdownDiagnostic,
   RenderResult as CoreRenderResult,
-} from '@markdown-editor/core';
+} from '@echozedlabs/core';
 
 export type RendererBlockKind =
   | 'paragraph'

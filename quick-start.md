@@ -25,11 +25,11 @@ Use the left sidebar to explore: **/markdown** (source), **/modes** (all modes +
 - After changing a package's source, rebuild it so the harness picks it up:
   ```bash
   pnpm -r build                                   # or one package:
-  pnpm --filter @markdown-editor/react build
+  pnpm --filter @echozedlabs/react build
   ```
 - Alternative to `pnpm dev:harness`:
   ```bash
-  pnpm --filter @markdown-editor/dev-harness dev
+  pnpm --filter @echozedlabs/dev-harness dev
   ```
 
 ## Run the tests (optional)

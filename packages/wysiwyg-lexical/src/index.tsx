@@ -81,7 +81,7 @@ import {
   TableNode,
   TableRowNode,
 } from '@lexical/table';
-import type { ChangeMeta, MarkdownDiagnostic } from '@markdown-editor/core';
+import type { ChangeMeta, MarkdownDiagnostic } from '@echozedlabs/core';
 import { sanitizeDiagramHtml } from './sanitizeHtml.js';
 
 const INSERT_MERMAID_COMMAND: LexicalCommand<string> = createCommand('INSERT_MERMAID_COMMAND');

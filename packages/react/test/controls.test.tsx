@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { MarkdownEditor } from '../src/index.js';
-import type { MarkdownEditorHandle } from '@markdown-editor/core';
+import type { MarkdownEditorHandle } from '@echozedlabs/core';
 import { mount, run } from './mount.js';
 
 function modeButtons(container: HTMLElement): HTMLButtonElement[] {

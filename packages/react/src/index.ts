@@ -1,6 +1,6 @@
 export { MarkdownEditor } from './MarkdownEditor.js';
 export type { MarkdownEditorComponentProps } from './MarkdownEditor.js';
-export type { WysiwygToolbarIconKey, WysiwygToolbarIcons } from '@markdown-editor/wysiwyg-lexical';
+export type { WysiwygToolbarIconKey, WysiwygToolbarIcons } from '@echozedlabs/wysiwyg-lexical';
 export type {
   ChangeMeta,
   EditorDiagnostic,
@@ -12,4 +12,4 @@ export type {
   MarkdownEditorProps,
   ModeChangeMeta,
   TextSelection,
-} from '@markdown-editor/core';
+} from '@echozedlabs/core';

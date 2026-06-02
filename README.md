@@ -1,6 +1,10 @@
-# markdown-editor
+# echozed markdown editor
 
-> A modular, embeddable Markdown editor for React — Markdown-first, byte-stable round-trip, with **source / hybrid / preview / WYSIWYG** modes.
+[![npm](https://img.shields.io/npm/v/@echozedlabs/react.svg)](https://www.npmjs.com/package/@echozedlabs/react)
+[![CI](https://github.com/echozulucode/markdown-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/echozulucode/markdown-editor/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
+> A modular, embeddable Markdown editor for React — Markdown-first, byte-stable round-trip, with **source / hybrid / preview / WYSIWYG** modes. Published as [`@echozedlabs/react`](https://www.npmjs.com/package/@echozedlabs/react).
 
 The editor treats **raw Markdown bytes as the source of truth**. Every mode (a CodeMirror 6 source/hybrid view, a rendered preview, and a Lexical WYSIWYG surface) reads and writes the same canonical Markdown, so switching modes never silently rewrites your document. Frontmatter is preserved verbatim; body edits round-trip through a tested codec.
 
@@ -17,11 +21,11 @@ The editor treats **raw Markdown bytes as the source of truth**. Every mode (a C
 
 | Package | What it is |
 |---|---|
-| `@markdown-editor/core` | Markdown codec (parse/serialize/replaceBody), frontmatter split, shared types. |
-| `@markdown-editor/codemirror` | CodeMirror 6 source + hybrid editor view, frontmatter properties widget. |
-| `@markdown-editor/wysiwyg-lexical` | Lexical WYSIWYG surface + formatting toolbar, Markdown ↔ rich-text transformers. |
-| `@markdown-editor/renderers` | Renderer registry: markdown, Shiki, Mermaid, PlantUML. |
-| `@markdown-editor/react` | The public `<MarkdownEditor>` React component that ties the modes together. |
+| `@echozedlabs/core` | Markdown codec (parse/serialize/replaceBody), frontmatter split, shared types. |
+| `@echozedlabs/codemirror` | CodeMirror 6 source + hybrid editor view, frontmatter properties widget. |
+| `@echozedlabs/wysiwyg-lexical` | Lexical WYSIWYG surface + formatting toolbar, Markdown ↔ rich-text transformers. |
+| `@echozedlabs/renderers` | Renderer registry: markdown, Shiki, Mermaid, PlantUML. |
+| `@echozedlabs/react` | The public `<MarkdownEditor>` React component that ties the modes together. |
 | `examples/dev-harness` | A Vite app that exercises every mode/route — **the examples application**. |
 
 ## Prerequisites
@@ -56,18 +60,18 @@ Then open **http://localhost:5173**. Use the left sidebar to switch routes:
 | `/accessibility` | a11y-focused configurations |
 | `/performance` | typing / mode-switch smoke surfaces |
 
-Equivalent direct form: `pnpm --filter @markdown-editor/dev-harness dev`.
+Equivalent direct form: `pnpm --filter @echozedlabs/dev-harness dev`.
 See **`quick-start.md`** for the shortest path.
 
 ## Use it in your app
 
 ```bash
-pnpm add @markdown-editor/react
+pnpm add @echozedlabs/react
 ```
 
 ```tsx
-import { MarkdownEditor } from '@markdown-editor/react';
-import '@markdown-editor/react/styles.css';
+import { MarkdownEditor } from '@echozedlabs/react';
+import '@echozedlabs/react/styles.css';
 
 export function Editor() {
   const [value, setValue] = useState('# Hello\n\nStart writing…\n');
@@ -105,7 +109,7 @@ Each package has its own vitest suite (`jsdom` where a DOM is needed):
 - **react** — mode switching, keyboard shortcuts, imperative handle, preview sanitization.
 - **dev-harness** — Playwright e2e across desktop + mobile Chromium.
 
-Run one package: `pnpm --filter @markdown-editor/<pkg> test`.
+Run one package: `pnpm --filter @echozedlabs/<pkg> test`.
 
 ## Architecture in one paragraph
 
@@ -113,4 +117,12 @@ The codec (`core`) owns the canonical Markdown bytes. CodeMirror renders source/
 
 ## Status
 
-Pre-1.0, private workspace. See `docs/` for the implementation plan, test matrix, release-readiness notes, and the latest review/test-rigor plan (`docs/repo-review-2026-05-30.md`).
+Pre-1.0 (`0.1.x`) — the public API may still change between minor versions until 1.0. See `docs/` for the implementation plan, test matrix, and release-readiness notes.
+
+## Contributing
+
+Issues and PRs welcome. Run `pnpm install && pnpm -r build && pnpm -r test` before opening a PR, and add a changeset (`pnpm changeset`) describing user-facing changes. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
+## License
+
+[MIT](./LICENSE) © Eric Zimmerman (echozed)

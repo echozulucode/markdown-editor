@@ -15,15 +15,15 @@ import {
   type EditorMode,
   type FrontmatterPropertySchema,
   type WysiwygToolbarIcons
-} from "@markdown-editor/react";
+} from "@echozedlabs/react";
 import {
   createDefaultRendererRegistry,
   createMermaidRenderer,
   createPlantUmlRenderer,
   createShikiCodeRenderer,
   type RendererRegistry
-} from "@markdown-editor/renderers";
-import "@markdown-editor/react/styles.css";
+} from "@echozedlabs/renderers";
+import "@echozedlabs/react/styles.css";
 import "./styles.css";
 
 type HarnessRoute = {
@@ -302,8 +302,8 @@ severity: sev2
 > Preview rendering can fail open to source fallback, but authoring must remain available.
 
 \`\`\`bash
-pnpm --filter @markdown-editor/renderers test -- --runInBand
-pnpm --filter @markdown-editor/dev-harness test:e2e
+pnpm --filter @echozedlabs/renderers test -- --runInBand
+pnpm --filter @echozedlabs/dev-harness test:e2e
 \`\`\`
 
 \`\`\`ts

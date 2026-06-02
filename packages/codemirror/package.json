@@ -1,8 +1,26 @@
 {
-  "name": "@markdown-editor/codemirror",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@echozedlabs/codemirror",
+  "version": "0.1.0",
+  "description": "CodeMirror 6 source/hybrid markdown editing surface for the echozed markdown editor.",
   "type": "module",
+  "license": "MIT",
+  "author": "Eric Zimmerman (https://echozed.com)",
+  "homepage": "https://echozed.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/echozulucode/markdown-editor.git",
+    "directory": "packages/codemirror"
+  },
+  "bugs": {
+    "url": "https://github.com/echozulucode/markdown-editor/issues"
+  },
+  "keywords": [
+    "markdown",
+    "codemirror",
+    "editor",
+    "source-editing"
+  ],
+  "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -11,13 +29,20 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run && tsc -p tsconfig.test.json --noEmit",
-    "typecheck": "tsc -p tsconfig.test.json --noEmit"
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@markdown-editor/core": "workspace:*",
+    "@echozedlabs/core": "workspace:*",
     "@codemirror/commands": "^6.10.0",
     "@codemirror/lang-markdown": "^6.3.4",
     "@codemirror/search": "^6.5.11",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMarkdown } from '@markdown-editor/core';
+import { parseMarkdown } from '@echozedlabs/core';
 import {
   applyWysiwygTableActionForTests,
   inspectWysiwygMarkdownForTests,

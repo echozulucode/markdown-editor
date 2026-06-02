@@ -1,8 +1,27 @@
 {
-  "name": "@markdown-editor/renderers",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@echozedlabs/renderers",
+  "version": "0.1.0",
+  "description": "Preview renderers (Mermaid, Shiki syntax highlighting, and more) for the echozed markdown editor.",
   "type": "module",
+  "license": "MIT",
+  "author": "Eric Zimmerman (https://echozed.com)",
+  "homepage": "https://echozed.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/echozulucode/markdown-editor.git",
+    "directory": "packages/renderers"
+  },
+  "bugs": {
+    "url": "https://github.com/echozulucode/markdown-editor/issues"
+  },
+  "keywords": [
+    "markdown",
+    "mermaid",
+    "shiki",
+    "renderer",
+    "preview"
+  ],
+  "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -11,13 +30,20 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@markdown-editor/core": "workspace:*",
+    "@echozedlabs/core": "workspace:*",
     "mermaid": "^11.15.0",
     "shiki": "^4.0.2"
   }

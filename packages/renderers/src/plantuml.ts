@@ -1,5 +1,5 @@
 import { escapeHtml } from './escape';
-import type { RenderResult as CoreRenderResult } from '@markdown-editor/core';
+import type { RenderResult as CoreRenderResult } from '@echozedlabs/core';
 import type {
   AsyncDiagramRenderer,
   DiagramRendererOptions,

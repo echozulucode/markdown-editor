@@ -1,5 +1,5 @@
 import React from 'react';
-import type { MarkdownEditorHandle } from '@markdown-editor/core';
+import type { MarkdownEditorHandle } from '@echozedlabs/core';
 import { MarkdownEditor, type MarkdownEditorComponentProps } from '../src/index.js';
 
 const ref = React.createRef<MarkdownEditorHandle>();

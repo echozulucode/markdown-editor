@@ -1,8 +1,32 @@
 {
-  "name": "@markdown-editor/react",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@echozedlabs/react",
+  "version": "0.1.0",
+  "description": "React markdown editor with Markdown, Hybrid, Preview, and Rich Text (WYSIWYG) modes — the echozed markdown editor.",
   "type": "module",
+  "license": "MIT",
+  "author": "Eric Zimmerman (https://echozed.com)",
+  "homepage": "https://echozed.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/echozulucode/markdown-editor.git",
+    "directory": "packages/react"
+  },
+  "bugs": {
+    "url": "https://github.com/echozulucode/markdown-editor/issues"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "react",
+    "wysiwyg",
+    "rich-text",
+    "lexical",
+    "codemirror",
+    "markdown-editor"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -12,16 +36,24 @@
     },
     "./styles.css": "./src/styles.css"
   },
+  "files": [
+    "dist",
+    "src/styles.css"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.test.json --noEmit"
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@markdown-editor/codemirror": "workspace:*",
-    "@markdown-editor/core": "workspace:*",
-    "@markdown-editor/renderers": "workspace:*",
-    "@markdown-editor/wysiwyg-lexical": "workspace:*",
+    "@echozedlabs/codemirror": "workspace:*",
+    "@echozedlabs/core": "workspace:*",
+    "@echozedlabs/renderers": "workspace:*",
+    "@echozedlabs/wysiwyg-lexical": "workspace:*",
     "dompurify": "^3.4.3"
   },
   "peerDependencies": {

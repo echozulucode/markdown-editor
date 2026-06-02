@@ -4,7 +4,7 @@ import type {
   EditorMode,
   FrontmatterPropertySchema,
   FrontmatterPropertyType
-} from "@markdown-editor/core";
+} from "@echozedlabs/core";
 
 export type CodeMirrorEditorMode = Extract<EditorMode, "markdown" | "hybrid" | "preview">;
 
