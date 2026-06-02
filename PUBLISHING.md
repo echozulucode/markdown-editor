@@ -78,6 +78,10 @@ Use this if Option A blocks the first publish (e.g. "you do not have permission"
 
 > Automation (classic) tokens are account-wide publish rights — more powerful than needed. Prefer the granular token and tighten it to `@echozedlabs` once the packages exist.
 
+> ⚠️ **Do NOT use a Classic "Publish" / "Read and Publish" token.** If your account has 2FA enabled for publishing (Step 1), those tokens still demand a one-time code that CI can't provide, and the publish fails with:
+> `E403 ... Two-factor authentication or granular access token with bypass 2fa enabled is required to publish packages.`
+> Only **Granular** (Option A) and **Classic _Automation_** (this option) tokens bypass 2FA in CI.
+
 **Do not** paste this token into any file in the repo, commit it, or share it. It goes in exactly one place: the GitHub secret in Step 4 (and/or your local npm login in Step 6b).
 
 ---
@@ -188,6 +192,7 @@ You won't hand-edit versions again. For each change that consumers should see:
 | Symptom | Cause / fix |
 |---|---|
 | `ENEEDAUTH` / `401 Unauthorized` in CI | `NPM_TOKEN` secret missing, misnamed, or expired. Re-do Steps 3–4. The name must be exactly `NPM_TOKEN`. |
+| `E403` / "**Two-factor authentication or granular access token with bypass 2fa enabled is required**" | The token is a Classic **Publish** token, which can't bypass 2FA in CI. Replace it with a **Granular** token (3A) or a Classic **Automation** token (3B), **Update** the `NPM_TOKEN` secret, and re-run the workflow. `changeset publish` skips any version already on npm, so no version bump is needed. |
 | `403 Forbidden` / "you do not have permission to publish" | Token lacks **write**, or isn't scoped to `@echozedlabs`. For brand-new names, scope the token to the **org/scope** (Step 3A) or use a Classic **Automation** token (3B). |
 | `402 Payment Required` | Scoped package defaulting to private. Our `publishConfig.access` is `public`, so this usually means the token/org can't publish public — confirm org ownership (Step 2). |
 | `EOTP` / "one-time password required" | You're publishing with an interactive login + 2FA. Use `--otp=######`, or use an **Automation/Granular** token (CI path) which is OTP-exempt. |
