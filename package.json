@@ -14,10 +14,10 @@
     "url": "https://github.com/echozulucode/markdown-editor/issues"
   },
   "type": "module",
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@10.34.1",
   "engines": {
     "node": ">=20.0.0",
-    "pnpm": ">=9.0.0"
+    "pnpm": ">=10.0.0"
   },
   "scripts": {
     "build": "pnpm -r build",
@@ -34,5 +34,10 @@
     "@types/node": "^22.7.5",
     "typescript": "^5.6.3",
     "vitest": "^2.1.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

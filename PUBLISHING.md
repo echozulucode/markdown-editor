@@ -202,15 +202,37 @@ You won't hand-edit versions again. For each change that consumers should see:
 
 ---
 
-## Appendix — Tokenless publishing (OIDC trusted publishing)
+## Tokenless publishing (OIDC trusted publishing) — the active setup
 
-Once you've published at least once, you can switch CI to **trusted publishing** and
-**delete the `NPM_TOKEN` secret entirely** — npm trusts GitHub Actions directly via
-OIDC, so there's no long-lived token to rotate.
+The `release.yml` workflow is **already configured for trusted publishing**: it runs
+pnpm **10.34.1** (OIDC support landed in pnpm 10.12+), has `id-token: write`, and has
+**no `NODE_AUTH_TOKEN` / no `registry-url`**. npm trusts GitHub Actions directly via
+OIDC and mints a short-lived token at publish time — no long-lived secret to rotate.
 
-1. On npm: package → **Settings** → **Trusted Publisher** → add the GitHub repo
-   `echozulucode/markdown-editor` and the workflow `release.yml`.
-2. In `release.yml`, the `id-token: write` permission (already present) is what enables this.
-3. Remove the `NODE_AUTH_TOKEN` env line and delete the `NPM_TOKEN` repo secret.
+You must configure the **trusted publisher on npm, per package** (all 5), before the
+next automated release, or the publish will fail with an auth error.
 
-This is the most secure setup, but it requires the package to already exist on npm, so do your first release with the token (Steps 3–6), then switch.
+For **each** of `@echozedlabs/core`, `codemirror`, `renderers`, `wysiwyg-lexical`,
+`react`:
+
+1. npm → the package → **Settings** → **Trusted Publisher** → **GitHub Actions**.
+2. Fill in:
+   - **Organization or user:** `echozulucode`
+   - **Repository:** `markdown-editor`
+   - **Workflow filename:** `release.yml`  ← the publishing workflow (not `ci.yml`)
+   - **Environment name:** *leave blank* (the `release` job declares no `environment:`).
+     Only fill this in if you add `environment: <name>` to the job — the two must match.
+3. Save.
+
+Then you can **delete the `NPM_TOKEN` repo secret** — nothing references it anymore.
+(The `NPM_TOKEN` steps earlier in this doc remain valid only for the **manual**
+`pnpm release` / `pnpm -r publish` fallback from your laptop.)
+
+> First-publish ordering: trusted publishing requires the package to already exist on
+> npm. The initial `0.1.0` was published manually, so all 5 packages exist and you can
+> configure trusted publishers now. Subsequent releases (via `pnpm changeset` → merge)
+> publish through OIDC automatically.
+
+> If a CI publish ever fails with an auth/OIDC error, fall back by re-adding
+> `NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` (and the `NPM_TOKEN` secret) to
+> `release.yml` — the token path still works.
