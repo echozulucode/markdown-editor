@@ -2,7 +2,7 @@
 type: test-matrix
 project: "markdown-editor"
 status: ready_for_review
-updated: 2026-05-15
+updated: 2026-06-06
 scope: "MVP gates plus post-MVP QA tracks"
 owner: "QA/Examples lane"
 ---
@@ -85,6 +85,8 @@ This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into co
 | Post-MVP route budget smoke | Mobile Chromium, desktop Chromium | Time route readiness for `/examples`, `/modes`, and `/renderers` | Routes become ready within conservative draft local smoke budgets | Post-MVP - budget guard added |
 | Mode matrix switching | Mobile Chromium, desktop Chromium | Switch the all-modes route among hybrid, markdown, preview, and WYSIWYG | Content remains visible and the correct mode-specific surface appears | 4/5 - initial coverage added |
 | Renderer route behavior | Mobile Chromium, desktop Chromium | Visit renderer fixture route | Shiki-highlighted code, Mermaid, PlantUML, tables, callouts, unsupported-language diagnostics, and invalid Mermaid fallback render | 3/4 - initial coverage added |
+| Mermaid error isolation | Mobile Chromium, desktop Chromium | Load the invalid Mermaid fixture on `/renderers` | Inline source fallback + diagnostic appear; Mermaid's own "Syntax error in text" graphic never leaks into the DOM | Post-MVP - regression coverage added (`mermaid-rendering.spec.ts`) |
+| Hybrid editable tables | Mobile Chromium, desktop Chromium | On the full-page-docs example: edit a cell, use the toolbar to insert a row, open the right-click context menu and dismiss with Escape, set column alignment | Cell edits round-trip to Markdown source; structural ops and alignment write back to source; context menu opens/dismisses | Post-MVP - coverage added (`table-editing.spec.ts`) |
 | No-op save | 1440px | Load fixture, switch modes, save | Saved Markdown equals initial Markdown for no-op paths | 4+ |
 
 ## Accessibility Checks

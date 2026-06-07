@@ -31,4 +31,10 @@ docs:
   - file: docs/lessons.yaml
     type: lessons
     status: active
+  - file: docs/issues.yaml
+    type: issues
+    status: active
+  - file: docs/bdd-coverage-and-test-plan.md
+    type: coverage-and-plan
+    status: active
 

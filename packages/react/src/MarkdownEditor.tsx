@@ -76,10 +76,21 @@ export const MarkdownEditor = React.forwardRef<
   const [internalMode, setInternalMode] = React.useState<EditorMode>(
     allowedModes.includes(firstMode) ? firstMode : preferredInitialMode(allowedModes),
   );
+  // If `modes` changes so the current internal mode is no longer permitted — e.g.
+  // a host reuses this editor instance for a different surface, or React
+  // reconciles one usage into another — fall back to a valid mode rather than
+  // rendering a mode outside `modes` (which would show no surface at all).
+  const fallbackMode = allowedModes.includes(firstMode) ? firstMode : preferredInitialMode(allowedModes);
+  const resolvedInternalMode = allowedModes.includes(internalMode) ? internalMode : fallbackMode;
+  React.useEffect(() => {
+    if (!allowedModes.includes(internalMode)) {
+      setInternalMode(fallbackMode);
+    }
+  }, [allowedModes, internalMode, fallbackMode]);
   const normalizedFrontmatterDisplay = frontmatterDisplay ?? 'expanded';
   const [showProperties, setShowProperties] = React.useState(normalizedFrontmatterDisplay !== 'hidden');
   const markdown = value ?? internalMarkdown;
-  const activeMode = mode ?? internalMode;
+  const activeMode = mode ?? resolvedInternalMode;
   const hasFrontmatter = /^---\r?\n/.test(markdown);
   const hasHostServiceControls =
     !readOnly && hostServiceToolbar && activeMode !== 'preview' && (hostServices?.searchLinks !== undefined || hostServices?.uploadAsset !== undefined);
@@ -385,7 +396,7 @@ export const MarkdownEditor = React.forwardRef<
         <PreviewSurface
           markdown={markdown}
           registry={renderers}
-          onDiagnostics={(diagnostics) => onDiagnosticsRef.current?.(diagnostics)}
+          onDiagnostics={emitDiagnostics}
         />
       ) : (
         <React.Suspense fallback={<div className="me-wysiwyg-loading" role="status">Loading rich text editor...</div>}>
@@ -395,7 +406,7 @@ export const MarkdownEditor = React.forwardRef<
             ariaLabel={ariaLabel}
             renderServices={wysiwygRenderServices}
             toolbarIcons={wysiwygToolbarIcons}
-            onDiagnostics={(diagnostics) => onDiagnosticsRef.current?.(diagnostics)}
+            onDiagnostics={emitDiagnostics}
             onChange={(nextMarkdown, meta) => {
               markdownRef.current = nextMarkdown;
               if (value === undefined) {
@@ -585,24 +596,31 @@ function PreviewSurface({
   const [result, setResult] = React.useState<RenderMarkdownToHtmlResult | null>(null);
   const registryRef = React.useRef<RendererRegistry | undefined>(registry);
   registryRef.current = registry;
+  // Keep onDiagnostics out of the render effect's deps (via a ref). Putting it in
+  // the deps makes reporting diagnostics — which updates host state — re-trigger
+  // the effect, so the preview re-renders in a loop; and any non-stable callback
+  // identity desync would also break the single-fire-on-mount. The effect should
+  // run purely when `markdown` changes.
+  const onDiagnosticsRef = React.useRef(onDiagnostics);
+  onDiagnosticsRef.current = onDiagnostics;
 
   React.useEffect(() => {
-    const controller = new AbortController();
+    // Use a local "cancelled" guard rather than aborting the render: the renderer
+    // lazy-loads (and caches) shiki/mermaid, and aborting on cleanup can break the
+    // shared loader. The guard still drops stale/after-unmount results.
+    let cancelled = false;
     const activeRegistry = registryRef.current ?? createDefaultRendererRegistry();
 
-    renderMarkdownToHtml(markdown, {
-      registry: activeRegistry,
-      signal: controller.signal,
-    })
+    renderMarkdownToHtml(markdown, { registry: activeRegistry })
       .then((nextResult: RenderMarkdownToHtmlResult) => {
-        if (controller.signal.aborted) {
+        if (cancelled) {
           return;
         }
         setResult(nextResult);
-        onDiagnostics(nextResult.diagnostics);
+        onDiagnosticsRef.current?.(nextResult.diagnostics);
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted) {
+        if (cancelled) {
           return;
         }
         const message = error instanceof Error ? error.message : String(error);
@@ -619,11 +637,13 @@ function PreviewSurface({
           blocks: [],
           diagnostics,
         });
-        onDiagnostics(diagnostics);
+        onDiagnosticsRef.current?.(diagnostics);
       });
 
-    return () => controller.abort();
-  }, [markdown, onDiagnostics]);
+    return () => {
+      cancelled = true;
+    };
+  }, [markdown]);
 
   return (
     <div

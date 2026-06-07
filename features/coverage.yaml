@@ -1,0 +1,96 @@
+# Scenario -> automated-test traceability manifest.
+#
+# Maps every scenario in features/*.feature to the unit and Playwright tests that
+# verify it. `status` is one of:
+#   covered  - a test directly asserts the scenario's observable outcome
+#   partial  - related coverage exists but a key assertion is missing
+#   none     - no automated test asserts this behavior
+#
+# A CI gate reads this file: every scenario must resolve to status != none (or be
+# explicitly tagged @manual), and every referenced test id must still exist.
+#
+# unit refs use package/test-file::describe; e2e refs use spec-file::test-title.
+
+meta:
+  generated: "2026-06-06"
+  totals: { scenarios: 51, covered: 51, partial: 0, none: 0 }
+
+features:
+  markdown_source_editing:
+    - { scenario: "Typed changes appear in the document", status: covered,
+        unit: ["codemirror/markdown-editor-view::createMarkdownEditorView"], e2e: ["modes-renderers::controlled external value updates"] }
+    - { scenario: "Untouched content is preserved exactly", status: covered,
+        unit: ["core/codec::Markdown codec fixture corpus", "core/codec::Phase 5 hardening round trips"], e2e: [] }
+    - { scenario: "Reverting an edit restores the previous text", status: covered,
+        unit: ["codemirror/markdown-editor-view::undoes a change, restoring the previous text"], e2e: [] }
+    - { scenario: "A read-only document cannot be edited", status: covered,
+        unit: ["codemirror/markdown-editor-view::createMarkdownEditorView (read-only blocks beforeinput)"], e2e: ["modes-renderers::read-only preview card"] }
+
+  switching_editor_modes:
+    - { scenario: "Content survives a round trip through every mode", status: covered,
+        unit: ["codemirror/markdown-editor-view::setMode in place", "react/controls::mode switching control"], e2e: ["modes-renderers::all-modes card switches"] }
+    - { scenario: "The host can offer a limited set of modes", status: covered,
+        unit: ["react/smoke::renders one mode button per mode"], e2e: ["modes-renderers::markdown plus preview card only exposes configured modes", "examples::single-mode examples hide switcher"] }
+    - { scenario: "A read-only preview hides editing controls", status: covered,
+        unit: [], e2e: ["modes-renderers::read-only preview card has no toolbar"] }
+    - { scenario: "Switching an unedited document leaves the source identical", status: covered,
+        unit: ["core/codec (serialize no-op)"], e2e: ["modes-renderers::switching modes leaves an unedited source unchanged"] }
+
+  hybrid_mode_authoring:
+    - { scenario: "Inactive blocks appear rendered", status: covered, unit: ["codemirror/markdown-editor-view::renders inactive hybrid lines/blocks"], e2e: ["modes-renderers::renderer route behavior"] }
+    - { scenario: "The active block reveals its source", status: covered, unit: ["codemirror/markdown-editor-view::reveals source on caret/mousedown"], e2e: [] }
+    - { scenario: "Leaving a block restores its rendered form", status: covered, unit: ["codemirror/markdown-editor-view::re-renders when selection leaves"], e2e: [] }
+    - { scenario: "Wiki links are shown as readable references", status: covered, unit: ["codemirror/markdown-editor-view::inactive links and wiki-links render"], e2e: [] }
+
+  document_properties:
+    - { scenario: "Properties are shown using their schema labels", status: covered, unit: ["codemirror/markdown-editor-view::properties panel schema"], e2e: ["examples::hybrid schema-backed property editing"] }
+    - { scenario: "Editing a property updates the document", status: covered, unit: ["codemirror/markdown-editor-view::edits a frontmatter value"], e2e: ["examples::edit tags"] }
+    - { scenario: "Adding a tag keeps the existing tags", status: covered, unit: ["codemirror/markdown-editor-view::tag add/remove"], e2e: ["examples::adds qa tag"] }
+    - { scenario: "A new property can be added from the schema", status: covered, unit: ["codemirror/markdown-editor-view::add property"], e2e: ["examples::Add property"] }
+    - { scenario: "Properties can be reordered", status: covered, unit: ["codemirror/markdown-editor-view::reorder via drag handle"], e2e: ["examples::keyboard-reorder"] }
+    - { scenario: "A typed property offers an appropriate editor", status: covered, unit: ["codemirror/markdown-editor-view::typed values + affordances"], e2e: ["examples::type popover"] }
+
+  rendering_rich_content:
+    - { scenario: "Code blocks are syntax highlighted", status: covered, unit: ["renderers/renderers::Shiki code renderer"], e2e: ["modes-renderers::renders highlighted code"] }
+    - { scenario: "An unknown code language falls back to plain code", status: covered, unit: ["renderers/renderers::Shiki fallback (unsupported language)"], e2e: ["modes-renderers::fallback diagnostics"] }
+    - { scenario: "Tables are rendered with visible gridlines", status: covered, unit: [], e2e: ["modes-renderers::preview tables render with visible cell borders"], note: "Preview table cell borders added to react styles.css." }
+    - { scenario: "Callouts are visually distinguished", status: covered, unit: [], e2e: ["modes-renderers::renderer-callout contains 'Renderer contract'"] }
+    - { scenario: "Inline images are displayed", status: covered, unit: ["wysiwyg-lexical/roundtrip::Markdown images as image nodes"], e2e: ["examples::host-service preview image"] }
+    - { scenario: "Inline emphasis is rendered, not shown as markup", status: covered, unit: ["renderers/renderers::inline Markdown (renderInline)"], e2e: [] }
+
+  diagram_rendering:
+    - { scenario: "A valid diagram renders as a picture", status: covered, unit: ["renderers/renderers::async renderer errors (mermaid happy path)"], e2e: ["mermaid-rendering::preview shows node label text"] }
+    - { scenario: "A host-provided diagram renders through the host's service", status: covered, unit: ["renderers/renderers::PlantUML through host factory"], e2e: ["modes-renderers::plantuml svg visible"] }
+    - { scenario: "An invalid diagram fails softly", status: covered, unit: ["renderers/renderers::thrown Mermaid error -> diagnostic + source"], e2e: ["mermaid-rendering::invalid diagram fails soft without leaking error graphic"] }
+    - { scenario: "A diagram that takes too long is abandoned", status: covered, unit: ["renderers/renderers::PlantUML timeout -> inline error"], e2e: [] }
+    - { scenario: "A small diagram is not stretched to fill the view", status: covered, unit: ["renderers/renderers::constrainDiagramSvgWidth"], e2e: ["diagram-sizing::PlantUML not upscaled"] }
+
+  rich_text_editing:
+    - { scenario: "Applying a formatting control formats the selection", status: covered, unit: ["wysiwyg-lexical/toolbar::inline formatting"], e2e: ["modes-renderers::WYSIWYG applies markdown to exported source"] }
+    - { scenario: "Markdown shortcuts are recognized while typing", status: covered, unit: [], e2e: ["modes-renderers::WYSIWYG live markdown typing shortcuts"] }
+    - { scenario: "The host can supply its own toolbar icons", status: covered, unit: [], e2e: ["examples::wysiwyg renders Font Awesome toolbar icons"] }
+    - { scenario: "Tables show gridlines while editing", status: covered, unit: ["wysiwyg-lexical/roundtrip::GFM tables as table nodes"], e2e: ["examples::rich text tables render with visible cell borders"] }
+
+  inline_table_editing:
+    - { scenario: "Editing a cell updates the document", status: covered, unit: ["codemirror/markdown-editor-view::table tools edit markdown"], e2e: ["table-editing::editing a cell round-trips"] }
+    - { scenario: "Moving between cells with the keyboard", status: covered, unit: [], e2e: ["table-editing::the keyboard advances focus to the next cell"] }
+    - { scenario: "Inserting a row", status: covered, unit: ["codemirror/table-model::inserts/deletes rows", "codemirror/markdown-editor-view::toolbar op edits source"], e2e: ["table-editing::toolbar inserts a row"] }
+    - { scenario: "Inserting a column", status: covered, unit: ["codemirror/table-model::inserts/deletes columns", "codemirror/markdown-editor-view::Insert column right edits source"], e2e: [] }
+    - { scenario: "Changing a column's alignment", status: covered, unit: ["codemirror/table-model::sets column alignment"], e2e: ["table-editing::context-menu alignment writes separator"] }
+    - { scenario: "Deleting a row", status: covered, unit: ["codemirror/table-model::inserts/deletes rows"], e2e: [] }
+    - { scenario: "A table always keeps at least one column", status: covered, unit: ["codemirror/table-model::can't delete last column"], e2e: [] }
+    - { scenario: "Removing the table", status: covered, unit: ["codemirror/markdown-editor-view::removes the whole table from the source via the context menu"], e2e: ["table-editing::deleting the table removes it from the source"] }
+    - { scenario: "Structural operations are available from a right-click menu", status: covered, unit: ["codemirror/markdown-editor-view::context menu items"], e2e: ["table-editing::right-click opens a context menu"] }
+    - { scenario: "Dismissing the context menu changes nothing", status: covered, unit: ["codemirror/markdown-editor-view::Escape dismisses menu"], e2e: ["table-editing::context menu dismisses on Escape"] }
+
+  host_integration_services:
+    - { scenario: "Inserting a link to another page from suggestions", status: covered, unit: [], e2e: ["examples::host-service inserts wiki-link suggestions"] }
+    - { scenario: "Page suggestions are filtered by the search text", status: covered, unit: [], e2e: ["examples::page suggestions exclude pages that do not match the search"] }
+    - { scenario: "Attaching an uploaded image", status: covered, unit: [], e2e: ["examples::host-service uploads image"] }
+    - { scenario: "Outdated search results are discarded", status: covered, unit: ["react/host-services::discards results from a superseded search"], e2e: [] }
+
+  editor_accessibility:
+    - { scenario: "The editor is operable with the keyboard alone", status: covered, unit: [], e2e: ["modes-renderers::keyboard reachable controls", "post-mvp-qa::ARIA stateful controls during keyboard mode changes"] }
+    - { scenario: "Stateful controls announce whether they are active", status: covered, unit: ["wysiwyg-lexical/toolbar::aria-pressed reflects state"], e2e: ["post-mvp-qa::stateful editor controls expose ARIA state"] }
+    - { scenario: "Controls have meaningful names", status: covered, unit: ["wysiwyg-lexical/toolbar::accessibility baseline"], e2e: ["post-mvp-qa::example buttons have accessible names"] }
+    - { scenario: "A reduced-motion preference is respected", status: covered, unit: [], e2e: ["modes-renderers::a reduced-motion preference removes editor transitions"] }

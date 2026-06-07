@@ -55,6 +55,22 @@ describe('MarkdownEditor — mode switching control', () => {
     expect(onModeChange).not.toHaveBeenCalled();
     unmount();
   });
+
+  it('clamps the active mode into `modes` when modes change to exclude it', () => {
+    // Simulates a host reusing this editor instance for a different surface (or
+    // React reconciling one usage into another): the previous mode must not stick
+    // if it is no longer allowed, otherwise no editing surface renders.
+    const { container, rerender, unmount } = mount(
+      <MarkdownEditor defaultValue={'# Hi\n'} modes={['markdown', 'preview']} initialMode="markdown" />,
+    );
+    const section = container.querySelector('section.me-editor')!;
+    expect(section.getAttribute('data-mode')).toBe('markdown');
+
+    rerender(<MarkdownEditor defaultValue={'# Hi\n'} modes={['preview']} initialMode="preview" />);
+    expect(section.getAttribute('data-mode')).toBe('preview');
+
+    unmount();
+  });
 });
 
 describe('MarkdownEditor — keyboard shortcuts', () => {

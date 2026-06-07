@@ -22,6 +22,12 @@ export function createMermaidRenderer(options: MermaidRendererOptions = {}): Asy
         startOnLoad: false,
         securityLevel: 'strict',
         theme: 'default',
+        // On a parse error Mermaid otherwise injects its own "Syntax error in
+        // text / mermaid version X" graphic straight into the DOM (appended to
+        // <body>), which leaks onto the page even though we catch the throw and
+        // render our own source fallback below. Suppress it so invalid diagrams
+        // surface only through our diagnostics + fallback.
+        suppressErrorRendering: true,
         // Render labels as SVG <text>, not HTML in <foreignObject>. The
         // downstream HTML sanitizer (DOMPurify) categorically strips foreignObject
         // HTML, which made diagram text disappear. Mermaid v11 only honors the

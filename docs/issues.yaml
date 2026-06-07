@@ -1,0 +1,124 @@
+type: issues
+project: "markdown-editor"
+updated: 2026-06-07
+issues:
+  - id: ISSUE-001
+    title: "Mermaid injects its own error graphic onto the page for invalid diagrams"
+    category: renderers
+    severity: medium
+    observed: "An invalid Mermaid block showed a 'Syntax error in text / mermaid version 11.x' graphic floating on the page, even though createMermaidRenderer already caught the throw and rendered a clean source fallback."
+    expected: "Invalid diagrams surface only through the renderer's inline fallback + a diagnostic; no library-injected graphic leaks into the DOM."
+    trace_link: "packages/renderers/src/mermaid.ts; .changeset/mermaid-suppress-error-graphic.md; e2e/mermaid-rendering.spec.ts"
+    status: resolved
+    resolution: "Initialize Mermaid with suppressErrorRendering:true. Regression test asserts the bomb graphic never appears."
+    lesson: LESSON-040
+    next_action: "none"
+    history:
+      - "2026-06-06 found (the diagnostics fixture is intentional; the leaked graphic was not); fixed + tested."
+
+  - id: ISSUE-002
+    title: "Hybrid table widget vanishes to source for center-aligned or single-column tables"
+    category: hybrid-detection
+    severity: high
+    observed: "Centering a column (`:--:`) or deleting down to one column made the editable table widget disappear and show raw Markdown, though the source stayed valid and table-model parsed it."
+    expected: "Any GFM table the model can parse renders as the editable widget in hybrid mode."
+    trace_link: "packages/codemirror/src/index.ts (isTableSeparator); .changeset/hybrid-table-detection-fix.md; codemirror view test 'detects center-aligned and single-column tables'"
+    status: resolved
+    resolution: "isTableSeparator now matches `^\\|\\s*:?-+:?\\s*(\\|\\s*:?-+:?\\s*)*\\|?$` (any dash run, optional alignment colons, >=1 column), in step with table-model."
+    lesson: LESSON-031
+    next_action: "none"
+    history:
+      - "2026-06-06 surfaced by the BDD pilot's alignment + single-column scenarios; root-caused to the detector regex; fixed + unit test."
+
+  - id: ISSUE-003
+    title: "Harness CSS bleeds into embedded editor internals"
+    category: css-isolation
+    severity: medium
+    observed: "`.mode-card span` forced the active mode-button label to muted gray (dark text on blue); `.quick-edit-modal button` / `.conflict-column button` / `.mobile-note-frame button` restyled the editor's toolbar buttons (washed-out / invisible icons, especially in dark)."
+    expected: "Demo/host CSS styles only its own chrome, never `.me-editor` descendants."
+    trace_link: "examples/dev-harness/src/styles.css"
+    status: resolved
+    resolution: "Removed `.mode-card span`; scoped the leaking button rules to `> header`/`> footer` subtrees and `ul` rules to `> ul`, in both light and dark blocks."
+    lesson: LESSON-032
+    next_action: "none"
+    history:
+      - "2026-06-06 reported as 'Mode Matrix buttons / can't see the icon'; diagnosed via screenshot + computed-style; scoped the selectors."
+
+  - id: ISSUE-004
+    title: "Preview re-renders in an infinite loop (flickering scrollbar)"
+    category: react-effects
+    severity: high
+    observed: "The /renderers preview re-rendered continuously (flicker; ~46 renderMarkdownToHtml calls per load) because MarkdownEditor passed a fresh inline onDiagnostics callback every render and the preview effect depended on it."
+    expected: "The preview renders once per document change."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (PreviewSurface effect); .changeset/preview-flicker-and-mode-accent.md"
+    status: resolved
+    resolution: "Preview effect depends only on `markdown`; diagnostics reported via onDiagnosticsRef. Also reserved the scrollbar gutter."
+    lesson: LESSON-034
+    next_action: "none"
+    history:
+      - "2026-06-06 reported as a flickering scrollbar; first fix used a stable emitDiagnostics; final fix removed onDiagnostics from the deps entirely."
+
+  - id: ISSUE-005
+    title: "Editor switched to dark inside a light page"
+    category: theming
+    severity: medium
+    observed: "After adding `@media (prefers-color-scheme: dark)` to the editor stylesheet, the editor rendered dark inside the light harness page on a dark-OS machine."
+    expected: "The editor follows the host page theme, not the OS."
+    trace_link: "packages/react/src/styles.css; examples/dev-harness/src/main.tsx (useTheme + theme toggle)"
+    status: resolved
+    resolution: "Reverted the editor's prefers-color-scheme block; the editor follows `--me-*` tokens. Added a harness Light/Dark/Auto page-theme toggle that drives both chrome and editor tokens."
+    lesson: LESSON-033
+    next_action: "none"
+    history:
+      - "2026-06-06 reported ('why did it go dark while I'm in light mode'); reverted + added page-theme toggle, verified both schemes via Playwright colorScheme."
+
+  - id: ISSUE-006
+    title: "Date property shows two calendar icons and flickers on click"
+    category: properties
+    severity: low
+    observed: "Native `<input type=date>` shows its own picker icon and our custom 'Pick' button added a second; clicking flickered."
+    expected: "One picker affordance; no flicker."
+    trace_link: "packages/codemirror/src/index.ts; .changeset/date-picker-icon.md"
+    status: resolved
+    resolution: "Only render the custom (icon) button when `HTMLInputElement.showPicker` is unavailable; otherwise rely on the native control."
+    next_action: "none"
+    history:
+      - "2026-06-06 reported; first replaced 'Pick' text with an icon, then removed it entirely when a native picker exists."
+
+  - id: ISSUE-007
+    title: "Renderers preview blank with no diagnostics when reached by navigation"
+    category: mode-resolution
+    severity: high
+    observed: "Navigating markdown -> renderers showed an empty preview ('No renderer diagnostics'); fresh load and away+back worked. renderMarkdownToHtml was never called; the preview editor had data-mode='markdown'."
+    expected: "The preview renders on every navigation path."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (activeMode clamp); react controls test 'clamps the active mode into modes'"
+    status: resolved
+    resolution: "React reconciled the prior route's markdown-mode editor into the preview editor; initialMode only applies on mount. Clamp activeMode to allowedModes (and re-sync internalMode on modes change)."
+    lesson: LESSON-035
+    next_action: "none"
+    history:
+      - "2026-06-07 reported; ruled out Vite dev artifact via production build; instrumented to prove the effect never ran; root-caused to reconciliation + stale mode."
+
+  - id: ISSUE-008
+    title: "Controlled editor accumulates blank lines / churns the table widget on repeated structural commits"
+    category: react-controlled
+    severity: medium
+    observed: "A controlled editor (value+onChange, e.g. the full-page-docs example) re-serializes the whole document on each structural commit, adding blank lines and intermittently dropping the hybrid table widget. The BDD pilot therefore drives an uncontrolled fixture (example-bdd-table)."
+    expected: "Repeated structural edits on a controlled editor keep the document stable (no blank-line growth, no widget churn)."
+    trace_link: "docs/bdd-coverage-and-test-plan.md (Phase 2 follow-up); packages/react/src/MarkdownEditor.tsx (controlled value round-trip)"
+    status: open
+    next_action: "Investigate the controlled value/onChange round-trip normalization that adds blank lines; decide whether to dedupe no-op blank-line changes."
+    history:
+      - "2026-06-06 discovered while wiring the BDD pilot; worked around by using an uncontrolled fixture; root fix deferred."
+
+  - id: ISSUE-009
+    title: "Executable BDD covers only two features; chromium-mobile not in the BDD project list"
+    category: testing
+    severity: low
+    observed: "playwright-bdd runs inline_table_editing and diagram_rendering on chromium-desktop only; the other five interaction features are documented but not yet bound to step definitions, and the BDD config was scoped to desktop pending touch validation."
+    expected: "All interaction-level features execute as BDD on desktop + mobile."
+    trace_link: "examples/dev-harness/playwright.bdd.config.ts; examples/dev-harness/bdd-steps/; docs/bdd-coverage-and-test-plan.md"
+    status: open
+    next_action: "Author step definitions for switching_editor_modes, document_properties, host_integration_services, rich_text_editing, editor_accessibility; add chromium-mobile to the BDD projects."
+    history:
+      - "2026-06-06 pilot deliberately scoped to two desktop-validated features; remaining bindings tracked as follow-up."

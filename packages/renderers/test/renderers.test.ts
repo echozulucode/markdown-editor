@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { constrainDiagramSvgWidth, createDefaultRendererRegistry, createPlantUmlRenderer, createShikiCodeRenderer, renderMarkdownToHtml } from '../src';
+import { constrainDiagramSvgWidth, createDefaultRendererRegistry, createPlantUmlRenderer, createShikiCodeRenderer, renderInline, renderMarkdownToHtml } from '../src';
 
 describe('renderer fallbacks', () => {
   it('renders leading YAML frontmatter as read-only properties', async () => {
@@ -168,5 +168,57 @@ describe('Shiki code renderer', () => {
     expect(result.html).toContain('data-language="madeup"');
     expect(result.html).toContain('const x');
     expect(result.html).not.toContain('<tag>');
+  });
+});
+
+describe('inline Markdown', () => {
+  it('renders bold, italic, inline code, and strikethrough', () => {
+    expect(renderInline('**bold** and *italic* and `code` and ~~gone~~')).toBe(
+      '<strong>bold</strong> and <em>italic</em> and <code>code</code> and <del>gone</del>',
+    );
+  });
+
+  it('renders the __bold__ and _italic_ underscore forms', () => {
+    expect(renderInline('__b__ _i_')).toBe('<strong>b</strong> <em>i</em>');
+  });
+
+  it('renders wiki links, with and without an alias', () => {
+    expect(renderInline('See [[Renderer Registry]] now')).toBe(
+      'See <a class="me-renderer-wiki-link" data-wiki-target="Renderer Registry">Renderer Registry</a> now',
+    );
+    expect(renderInline('See [[Renderer Registry|the registry]]')).toBe(
+      'See <a class="me-renderer-wiki-link" data-wiki-target="Renderer Registry">the registry</a>',
+    );
+  });
+
+  it('does not italicize intraword underscores (snake_case)', () => {
+    expect(renderInline('use snake_case_names here')).toBe('use snake_case_names here');
+  });
+
+  it('renders safe links and rejects dangerous schemes', () => {
+    expect(renderInline('[site](https://echozed.com)')).toBe(
+      '<a href="https://echozed.com" rel="noopener noreferrer">site</a>',
+    );
+    expect(renderInline('[x](javascript:alert(1))')).toBe('[x](javascript:alert(1))');
+  });
+
+  it('escapes HTML and blocks injection', () => {
+    expect(renderInline('<img src=x onerror=alert(1)>')).toBe('&lt;img src=x onerror=alert(1)&gt;');
+    expect(renderInline('a & b < c')).toBe('a &amp; b &lt; c');
+  });
+
+  it('leaves code-span contents untouched by emphasis', () => {
+    expect(renderInline('`a*b*c`')).toBe('<code>a*b*c</code>');
+  });
+
+  it('flows through the registry for paragraphs and headings', async () => {
+    const result = await renderMarkdownToHtml(
+      '# A **bold** title\n\nSee [echozed](https://echozed.com) for *more*.',
+    );
+    expect(result.diagnostics).toEqual([]);
+    expect(result.html).toContain('<h1>A <strong>bold</strong> title</h1>');
+    expect(result.html).toContain('<a href="https://echozed.com" rel="noopener noreferrer">echozed</a>');
+    expect(result.html).toContain('<em>more</em>');
+    expect(result.html).not.toContain('**');
   });
 });

@@ -1,18 +1,53 @@
 ---
 type: status
-updated: 2026-05-15
-current_phase: "Post-MVP runtime fix ready for review"
+updated: 2026-06-07
+current_phase: "Published to npm as @echozedlabs/*; BDD living docs + demo polish done; 0.2.0 release pending"
 blockers: []
 next_actions:
-  - "Review refined hybrid properties UX in /modes and /examples"
-  - "Decide whether schema validation, required-property enforcement, and host-service value suggestions belong in the next pass"
-  - "Review complex YAML handling and decide whether unsupported structures should fall back to source editing"
-  - "Review WYSIWYG table operation controls in WYSIWYG mode"
-  - "Review the host-services example for wiki-link suggestions and image upload"
-  - "Review post-MVP QA notes and screenshot artifacts"
+  - "Publish @echozedlabs/* 0.2.0 (bundles the pending changesets) via OIDC trusted publishing — user owns releases"
+  - "After publish, bump knowledge-e3 + echozed-demo deps to ^0.2.0"
+  - "Bind remaining interaction features as executable BDD (switching_editor_modes, document_properties, host_integration_services, rich_text_editing, editor_accessibility) and add chromium-mobile to the BDD project list"
+  - "Investigate the controlled-editor blank-line churn (ISSUE-008)"
+  - "Optional: add CODE_OF_CONDUCT.md + issue/PR templates to the open-source repo"
 ---
 
 # Status Log
+
+## Session: 2026-06-04 → 2026-06-07  Packaging, BDD living docs, demo polish, and bug-fix chain
+**Phase:** Open-source publishing + post-MVP stabilization
+
+Consolidated entry for a continuous multi-day batch (the editor was renamed and published to npm during it).
+
+**Packaging & rename:**
+- Renamed all packages `@markdown-editor/*` → `@echozedlabs/*` (npm org `echozedlabs`, brand echozed.com, MIT) and published `core`, `react`, `codemirror`, `renderers`, `wysiwyg-lexical` to npm.
+- Set up Changesets (fixed versioning) + OIDC trusted publishing; switched knowledge-e3 to consume `@echozedlabs/react` / `@echozedlabs/wysiwyg-lexical` `^0.1.0` from npm; removed the workspace glob and the obsolete GitHub Actions checkout/token for the private editor repo.
+- Built a standalone `echozed-demo` (Vite+React) consuming the published packages; wrote a brand blog post + PUBLISHING.md runbook.
+
+**Editable tables (Obsidian-style, hybrid):**
+- Added a dependency-free GFM `table-model` and a `HybridTableWidget`: contenteditable cells, Tab/Shift-Tab nav, commit-on-leave, alignment preserved.
+- Replaced the simple toolbar with Word/Excel-style **icon toolbar + right-click context menu** (insert row above/below, insert col left/right, align L/C/R, delete row/col/table), plus a `setAlign` model op.
+
+**BDD living documentation + CI gate (the /bdd-gherkin-feature-author work):**
+- Authored 10 declarative Gherkin feature files in `features/` + interaction-contract YAML + README; tagged 0.1.0 baseline vs 0.2.0 additions.
+- Built `features/coverage.yaml` (scenario→test manifest, 51 scenarios) and `docs/bdd-coverage-and-test-plan.md` (coverage report + 4-phase plan). Closed all gaps → **51/51 covered**.
+- Made feature files executable with `playwright-bdd` (config + `bdd-steps/`): `inline_table_editing` and `diagram_rendering` run on chromium-desktop (`@performance` excluded, unit-covered).
+- Added CI: `scripts/check-feature-coverage.mjs` (coverage gate) + `scripts/lint-feature-intent.mjs` (no units/selectors/HTML in scenarios) wired into `.github/workflows/ci.yml` (`pnpm verify:features`) plus a `bdd` job. Both gates proven to fail on drift.
+
+**Demo polish + bug-fix chain (all verified live via Playwright, several via screenshot inspection):**
+- Fixed real product bugs (see issues.yaml): Mermaid error-graphic leak (`suppressErrorRendering`), `isTableSeparator` dropping center-aligned/single-column tables, host-CSS bleed into the editor, preview infinite re-render loop, preview blank-on-navigation (`activeMode` not clamped to `modes`).
+- Rendered wiki links in preview (`renderInline`), date property is an icon (only when native `showPicker` absent), preview table gridlines, responsive phone tables (dropped table `min-width`).
+- Restyled the mode switcher (token-based segmented control); added a harness page-theme toggle (Light/Dark/Auto) after reverting an incorrect editor-level `prefers-color-scheme` dark mode — the editor follows the **page**, not the OS.
+- Built real content for the Responsive / Accessibility / Performance harness routes (were placeholders).
+
+**Verification:** unit suites green (core, codemirror 39, renderers 23, react 15, wysiwyg-lexical); typecheck/build clean; targeted Playwright + full hand-written e2e on chromium-desktop green; BDD pilot 14/14; `pnpm verify:features` green (51/51).
+
+**Outcome:** Editor is published and consumable from npm, has executable living documentation with a CI coverage gate, and the demo is materially more polished with several latent bugs fixed.
+
+**Carry-forward notes:**
+- Pending changesets bundle into **0.2.0** (user handles the release); fixes reach knowledge-e3/echozed-demo only after that publish.
+- Several fixes were latent bugs that an old preview **re-render loop masked**; removing the loop exposed them.
+- Controlled editors (`value`+`onChange`) accumulate blank lines on repeated structural commits — open follow-up (ISSUE-008).
+- The harness's broad element selectors must stay scoped (`>`/header/footer) so they never style embedded `.me-editor` internals.
 
 ## Session: 2026-05-15 WYSIWYG Runtime Error Fix
 **Phase:** Post-MVP stabilization

@@ -89,6 +89,22 @@ test.describe('mode matrix route', () => {
     await expect(markdownInput).toContainText('- Shortcut item');
     await expect(markdownInput).not.toContainText('\\- Shortcut item');
   });
+
+  test('switching modes leaves an unedited source unchanged', async ({ page }) => {
+    const card = page.getByTestId('mode-card-all-modes');
+    const toolbar = card.locator('.me-toolbar').first();
+
+    await toolbar.getByRole('button', { name: 'Markdown' }).click();
+    const source = card.locator('.cm-content').first();
+    const before = (await source.innerText()).trim();
+
+    await toolbar.getByRole('button', { name: 'Preview' }).click();
+    await toolbar.getByRole('button', { name: 'Hybrid' }).click();
+    await toolbar.getByRole('button', { name: 'Markdown' }).click();
+
+    const after = (await source.innerText()).trim();
+    expect(after).toBe(before);
+  });
 });
 
 test.describe('renderer route', () => {
@@ -122,6 +138,21 @@ test.describe('renderer route', () => {
     await expect(source).toContainText('Renderer fixture');
     await expect(preview.locator('.me-renderer-error[data-language="mermaid"]')).toBeVisible();
     await expect(preview).toContainText('Renderer fixture');
+  });
+
+  test('preview tables render with visible cell borders', async ({ page }) => {
+    await expect(page.getByLabel('Renderer preview harness').locator('.me-preview table td').first()).toBeVisible();
+    // The preview re-renders its HTML asynchronously, detaching nodes; query a
+    // fresh connected cell each poll instead of holding one handle.
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const preview = document.querySelector('.me-editor[aria-label="Renderer preview harness"] .me-preview');
+          const td = preview?.querySelector('table td');
+          return td?.isConnected ? parseFloat(getComputedStyle(td).borderBottomWidth) : 0;
+        }),
+      )
+      .toBeGreaterThan(0);
   });
 });
 
@@ -203,5 +234,17 @@ test.describe('accessibility and performance smoke gates', () => {
 
     expect(switchMs).toBeLessThan(5000);
     expect(typingMs).toBeLessThan(5000);
+  });
+
+  test('a reduced-motion preference removes editor transitions', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/modes');
+    await expect(page.getByRole('heading', { name: 'Mode Matrix' })).toBeVisible();
+
+    const element = page.locator('.me-editor *').first();
+    await expect(element).toBeVisible();
+    const transitionDuration = await element.evaluate((node) => getComputedStyle(node).transitionDuration);
+    // The reduced-motion rule collapses transitions to effectively zero.
+    expect(parseFloat(transitionDuration)).toBeLessThan(0.01);
   });
 });
