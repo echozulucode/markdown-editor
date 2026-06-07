@@ -2,6 +2,32 @@ type: issues
 project: "markdown-editor"
 updated: 2026-06-07
 issues:
+  - id: ISSUE-010
+    title: "Hybrid rendered-block widget injected renderer HTML unsanitized (XSS)"
+    category: security
+    severity: high
+    observed: "The preview surface ran renderer HTML through sanitizePreviewHtml, but the hybrid rendered-block widget injected the same renderer HTML raw (MarkdownEditor.tsx hybridRenderMarkdown -> codemirror widget innerHTML). A custom/host renderer emitting an event handler or javascript: URL executed in hybrid but not preview."
+    expected: "Hybrid sanitizes renderer HTML exactly like preview (XSS parity)."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (hybridRenderMarkdown); packages/react/test/hybrid-sanitize.test.tsx; .changeset/hybrid-render-sanitize.md"
+    status: resolved
+    resolution: "hybridRenderMarkdown now returns sanitizePreviewHtml(result.html). Regression test fails if a renderer's onerror handler reaches the editor DOM (verified by reverting the fix)."
+    lesson: LESSON-041
+    next_action: "none"
+    history:
+      - "2026-06-07 surfaced by the QA/test-expert audit; verified the raw injection (negative test), fixed + tested."
+
+  - id: ISSUE-011
+    title: "No render debounce or large-document guard in the React component"
+    category: performance
+    severity: medium
+    observed: "Preview/WYSIWYG re-run full renderMarkdownToHtml on every change with no debounce or size guard; a large (200KB+) document re-renders synchronously per keystroke."
+    expected: "Large-document typing stays responsive (debounce/threshold or incremental render)."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (PreviewSurface effect); docs/bdd-coverage-and-test-plan.md"
+    status: open
+    next_action: "Add a large-document typing-latency e2e to characterize, then add a debounce/size guard for preview/wysiwyg rendering."
+    history:
+      - "2026-06-07 raised by the QA audit (UNCOVERED); tracked as a follow-up."
+
   - id: ISSUE-001
     title: "Mermaid injects its own error graphic onto the page for invalid diagrams"
     category: renderers
@@ -105,20 +131,24 @@ issues:
     severity: medium
     observed: "A controlled editor (value+onChange, e.g. the full-page-docs example) re-serializes the whole document on each structural commit, adding blank lines and intermittently dropping the hybrid table widget. The BDD pilot therefore drives an uncontrolled fixture (example-bdd-table)."
     expected: "Repeated structural edits on a controlled editor keep the document stable (no blank-line growth, no widget churn)."
-    trace_link: "docs/bdd-coverage-and-test-plan.md (Phase 2 follow-up); packages/react/src/MarkdownEditor.tsx (controlled value round-trip)"
-    status: open
-    next_action: "Investigate the controlled value/onChange round-trip normalization that adds blank lines; decide whether to dedupe no-op blank-line changes."
+    trace_link: "docs/bdd-coverage-and-test-plan.md (Phase 2 follow-up); packages/codemirror/test/markdown-editor-view.test.ts ('hybrid mode preserves the source byte-for-byte')"
+    status: resolved
+    resolution: "Not a defect. getMarkdown()/onChange output is byte-stable in hybrid mode and a structural edit adds no doubled blank lines (proven by a new regression test). The 'growth' was a `.cm-content` innerText measurement artifact (CodeMirror renders each line as a div; innerText inflates blank-line counts)."
+    lesson: LESSON-042
+    next_action: "none"
     history:
-      - "2026-06-06 discovered while wiring the BDD pilot; worked around by using an uncontrolled fixture; root fix deferred."
+      - "2026-06-06 discovered while wiring the BDD pilot; worked around with an uncontrolled fixture."
+      - "2026-06-07 re-characterized: no per-edit/per-switch accumulation; getMarkdown byte-stable; closed as a measurement artifact with a byte-stability test."
 
   - id: ISSUE-009
-    title: "Executable BDD covers only two features; chromium-mobile not in the BDD project list"
+    title: "Executable BDD does not yet cover all interaction features / both device projects"
     category: testing
     severity: low
-    observed: "playwright-bdd runs inline_table_editing and diagram_rendering on chromium-desktop only; the other five interaction features are documented but not yet bound to step definitions, and the BDD config was scoped to desktop pending touch validation."
+    observed: "playwright-bdd initially ran two features on chromium-desktop only."
     expected: "All interaction-level features execute as BDD on desktop + mobile."
     trace_link: "examples/dev-harness/playwright.bdd.config.ts; examples/dev-harness/bdd-steps/; docs/bdd-coverage-and-test-plan.md"
     status: open
-    next_action: "Author step definitions for switching_editor_modes, document_properties, host_integration_services, rich_text_editing, editor_accessibility; add chromium-mobile to the BDD projects."
+    next_action: "Bind the remaining features: document_properties, host_integration_services, rich_text_editing, editor_accessibility."
     history:
-      - "2026-06-06 pilot deliberately scoped to two desktop-validated features; remaining bindings tracked as follow-up."
+      - "2026-06-06 pilot deliberately scoped to two desktop-validated features."
+      - "2026-06-07 added switching_editor_modes (3 features now) and enabled chromium-mobile — 18 scenarios pass on both desktop and mobile (36 runs). Four features remain to bind."

@@ -2,7 +2,7 @@
 type: test-matrix
 project: "markdown-editor"
 status: ready_for_review
-updated: 2026-06-06
+updated: 2026-06-07
 scope: "MVP gates plus post-MVP QA tracks"
 owner: "QA/Examples lane"
 ---
@@ -115,6 +115,30 @@ This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into co
 | Mermaid timeout | Invalid/slow diagram exits through timeout path | Controlled slow renderer fixture | 3 |
 | Example gallery | Required routes load within MVP baseline | Route-level smoke timing on desktop/mobile | 7 |
 | Post-MVP route budgets | Draft route readiness target under 8 seconds | Focused Playwright smoke in `post-mvp-qa.spec.ts`, then future trace-based replacement | Post-MVP |
+
+## Abnormal-Input & Security Checks (2026-06-07 audit pass)
+
+Added after a dedicated QA/test-expert audit for normal and abnormal cases. The
+BDD coverage manifest tracks happy-path scenario traceability; these checks cover
+adversarial/edge inputs.
+
+| Area | Check | Expected Result | Coverage |
+| --- | --- | --- | --- |
+| Hybrid HTML sanitization | A renderer emits HTML with an event handler; render in hybrid | Handler stripped before the widget injects it (XSS parity with preview) | Implemented: `react/hybrid-sanitize.test.tsx` (verified by reverting the fix); BDD `rendering_rich_content` security scenario |
+| Frontmatter fail-safe | Unclosed fence, frontmatter-only, empty doc, empty `---/---` block | Fail-safe split (no crash), byte-stable round trip, `replaceBody` preserves intent | Implemented: `core/codec.test.ts` |
+| Code-fence vs table | A code fence containing pipe-table lines, rendered in hybrid | Renders as code, never as the editable table widget; source byte-stable | Implemented: `codemirror/markdown-editor-view.test.ts` |
+| Dangerous URL scheme | `![x](javascript:…)` / `vbscript:` image; `javascript:` link | No `<img>`/navigable link emitted; left as literal text | Implemented: `renderers/renderers.test.ts` |
+| Host-service failure | `searchLinks` rejects | Inline `host.searchLinks.failed` diagnostic, no crash, no suggestions | Implemented: `react/host-services.test.tsx` |
+| Hybrid source fidelity | Frontmatter+blocks doc; structural table edit | `getMarkdown()` byte-stable; no doubled blank lines (ISSUE-008 artifact closed) | Implemented: `codemirror/markdown-editor-view.test.ts` |
+| Large-document typing | Type into a 200KB+ document | Stays responsive (no per-keystroke full re-render) | **Open (ISSUE-011)** — no debounce/size guard yet |
+| `uploadAsset` failure / dangerous URL return | Reject, slow, or `javascript:` asset URL | Inline diagnostic / render layer neutralizes URL | Partial — happy path e2e only; error path follow-up |
+
+## Executable BDD lane
+
+| Feature | Projects | Status |
+| --- | --- | --- |
+| `inline_table_editing`, `diagram_rendering`, `switching_editor_modes` | chromium-desktop + chromium-mobile | Implemented — 18 scenarios pass on both (36 runs); `@performance` excluded (unit-covered) |
+| `document_properties`, `host_integration_services`, `rich_text_editing`, `editor_accessibility` | — | Open (ISSUE-009) — documented, not yet bound to step definitions |
 
 ## Phase 0/1 Exit Checklist
 

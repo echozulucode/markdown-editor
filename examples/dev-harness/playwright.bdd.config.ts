@@ -13,6 +13,7 @@ const testDir = defineBddConfig({
   features: [
     '../../features/inline_table_editing.feature',
     '../../features/diagram_rendering.feature',
+    '../../features/switching_editor_modes.feature',
   ],
   steps: ['bdd-steps/**/*.ts'],
   tags: 'not @performance',
@@ -32,10 +33,9 @@ export default defineConfig({
     baseURL: process.env.BASE_URL ?? 'http://localhost:5173',
     trace: 'on-first-retry',
   },
-  // Pilot runs on desktop only (validated). Add chromium-mobile once the table
-  // steps are confirmed under touch emulation.
   projects: [
     { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 900 } } },
+    { name: 'chromium-mobile', use: { ...devices['Pixel 5'] } },
   ],
   webServer: externalServer
     ? undefined

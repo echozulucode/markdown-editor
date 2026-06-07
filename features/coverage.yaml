@@ -13,7 +13,7 @@
 
 meta:
   generated: "2026-06-06"
-  totals: { scenarios: 51, covered: 51, partial: 0, none: 0 }
+  totals: { scenarios: 52, covered: 52, partial: 0, none: 0 }
 
 features:
   markdown_source_editing:
@@ -57,6 +57,7 @@ features:
     - { scenario: "Callouts are visually distinguished", status: covered, unit: [], e2e: ["modes-renderers::renderer-callout contains 'Renderer contract'"] }
     - { scenario: "Inline images are displayed", status: covered, unit: ["wysiwyg-lexical/roundtrip::Markdown images as image nodes"], e2e: ["examples::host-service preview image"] }
     - { scenario: "Inline emphasis is rendered, not shown as markup", status: covered, unit: ["renderers/renderers::inline Markdown (renderInline)"], e2e: [] }
+    - { scenario: "Dangerous content in rendered output is neutralized", status: covered, unit: ["react/sanitize::sanitizePreviewHtml", "react/hybrid-sanitize::sanitizes renderer HTML before the hybrid widget injects it"], e2e: [], note: "Preview + hybrid paths both run renderer HTML through sanitizePreviewHtml (XSS parity)." }
 
   diagram_rendering:
     - { scenario: "A valid diagram renders as a picture", status: covered, unit: ["renderers/renderers::async renderer errors (mermaid happy path)"], e2e: ["mermaid-rendering::preview shows node label text"] }

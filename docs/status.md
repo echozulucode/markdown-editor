@@ -1,17 +1,40 @@
 ---
 type: status
 updated: 2026-06-07
-current_phase: "Published to npm as @echozedlabs/*; BDD living docs + demo polish done; 0.2.0 release pending"
+current_phase: "Published to npm; QA-audit hardening (XSS fix) + abnormal-case coverage done; 0.2.0 release pending"
 blockers: []
 next_actions:
-  - "Publish @echozedlabs/* 0.2.0 (bundles the pending changesets) via OIDC trusted publishing — user owns releases"
+  - "Publish @echozedlabs/* 0.2.0 (bundles the pending changesets incl. the hybrid-XSS fix) via OIDC trusted publishing — user owns releases"
   - "After publish, bump knowledge-e3 + echozed-demo deps to ^0.2.0"
-  - "Bind remaining interaction features as executable BDD (switching_editor_modes, document_properties, host_integration_services, rich_text_editing, editor_accessibility) and add chromium-mobile to the BDD project list"
-  - "Investigate the controlled-editor blank-line churn (ISSUE-008)"
+  - "Bind the remaining BDD features (document_properties, host_integration_services, rich_text_editing, editor_accessibility) — ISSUE-009"
+  - "Add a large-document typing-latency e2e + a render debounce/size guard — ISSUE-011"
   - "Optional: add CODE_OF_CONDUCT.md + issue/PR templates to the open-source repo"
 ---
 
 # Status Log
+
+## Session: 2026-06-07  QA audit, security fix, and abnormal-case coverage
+**Phase:** Test hardening + traceability
+
+**Actions taken:**
+- Ran a test-expert QA audit (subagent) for normal + abnormal/adversarial cases, cross-referenced with existing coverage.
+- **Found and fixed a real XSS bug** (ISSUE-010): the hybrid rendered-block widget injected renderer HTML unsanitized while preview sanitized it. `hybridRenderMarkdown` now runs output through `sanitizePreviewHtml`; guarded by a regression test verified by reverting the fix.
+- Closed ISSUE-008 as a **measurement artifact** — `getMarkdown()` is byte-stable in hybrid and a structural edit adds no doubled blank lines; the "growth" was `.cm-content` innerText. Added a byte-stability regression test.
+- Added abnormal-case unit tests: frontmatter fail-safe edges (unclosed/frontmatter-only/empty/empty-block), code-fence-shaped-table is not an editable widget, dangerous image URL schemes rejected, `searchLinks` rejection reports a diagnostic.
+- Advanced ISSUE-009: bound `switching_editor_modes` as executable BDD and enabled chromium-mobile — 18 scenarios pass on desktop **and** mobile (36 runs). Added a `@security` BDD scenario for the sanitization behavior.
+- Updated docs/test-matrix.md (abnormal-input & security section + BDD lane), features/coverage.yaml (52/52), issues.yaml, lessons.yaml, and the BDD plan.
+
+**Verification:**
+- Unit: core 48, codemirror 41, renderers 24, react 17, wysiwyg-lexical 46 — all green.
+- e2e: 48 hand-written specs pass on chromium-desktop (sanitize fix preserved all rendered content).
+- BDD: 36 pass (desktop + mobile). `pnpm verify:features`: 52/52 covered, intent lint clean.
+
+**Outcome:** One real security bug fixed, ISSUE-008 closed, abnormal-case coverage materially expanded, BDD broadened to 3 features on 2 device projects.
+
+**Carry-forward notes:**
+- The hybrid-XSS fix ships in 0.2.0 (changeset `hybrid-render-sanitize`).
+- Open follow-ups: ISSUE-009 (4 BDD features left), ISSUE-011 (large-doc render debounce/guard), uploadAsset error-path test.
+- The `'html'` block renderer in `registry.ts` is dead code (never emitted) — harmless, noted by the audit.
 
 ## Session: 2026-06-04 → 2026-06-07  Packaging, BDD living docs, demo polish, and bug-fix chain
 **Phase:** Open-source publishing + post-MVP stabilization

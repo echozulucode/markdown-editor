@@ -175,11 +175,12 @@ Implemented and wired into `.github/workflows/ci.yml`:
    `@regulatory` / `@a11y` / `@spec-*`. Both run via `pnpm verify:features` in the
    CI `build` job.
 3. **Executable BDD lane** — the CI `bdd` job builds the packages, installs
-   Chromium, and runs `pnpm test:bdd` on chromium-desktop. It currently executes
-   `inline_table_editing` and `diagram_rendering` (the `@performance`
+   Chromium, and runs `pnpm test:bdd`. It executes `inline_table_editing`,
+   `diagram_rendering`, and `switching_editor_modes` on **both** chromium-desktop
+   and chromium-mobile (18 scenarios × 2 = 36 runs; the `@performance`
    render-timeout scenario is excluded via `tags: 'not @performance'` — it has no
-   browser fixture and is unit-covered). Expand to chromium-mobile and the other
-   features as their steps land.
+   browser fixture and is unit-covered). Bind the remaining four features as their
+   step definitions land.
 
 ## Definition of done
 
@@ -187,9 +188,10 @@ Implemented and wired into `.github/workflows/ci.yml`:
   `features/coverage.yaml`.
 - [x] CI fails on coverage-manifest drift and on intent-lint violations
   (`pnpm verify:features`, build job).
-- [x] Executable Playwright-BDD in CI for `inline_table_editing` and
-  `diagram_rendering` (bdd job; `@performance` excluded — unit-covered).
-- [ ] Remaining interaction features (`switching_editor_modes`,
-  `document_properties`, `host_integration_services`, `rich_text_editing`,
-  `editor_accessibility`) bound as executable BDD, on desktop + mobile.
+- [x] Executable Playwright-BDD in CI for `inline_table_editing`,
+  `diagram_rendering`, and `switching_editor_modes` on desktop **and** mobile
+  (bdd job; `@performance` excluded — unit-covered).
+- [ ] Remaining interaction features (`document_properties`,
+  `host_integration_services`, `rich_text_editing`, `editor_accessibility`) bound
+  as executable BDD.
 - [ ] Controlled-editor blank-line churn investigated (Phase 2 follow-up).

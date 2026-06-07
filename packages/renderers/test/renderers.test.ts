@@ -182,6 +182,13 @@ describe('inline Markdown', () => {
     expect(renderInline('__b__ _i_')).toBe('<strong>b</strong> <em>i</em>');
   });
 
+  it('does not render an <img> for a dangerous image URL scheme', () => {
+    expect(renderInline('![x](javascript:alert(1))')).not.toContain('<img');
+    expect(renderInline('![x](vbscript:msgbox(1))')).not.toContain('<img');
+    // A safe http image still renders.
+    expect(renderInline('![ok](https://e.test/a.png)')).toContain('<img');
+  });
+
   it('renders wiki links, with and without an alias', () => {
     expect(renderInline('See [[Renderer Registry]] now')).toBe(
       'See <a class="me-renderer-wiki-link" data-wiki-target="Renderer Registry">Renderer Registry</a> now',

@@ -120,7 +120,10 @@ export const MarkdownEditor = React.forwardRef<
         signal: context.signal,
       });
       onDiagnosticsRef.current?.(result.diagnostics);
-      return { html: result.html };
+      // Sanitize before the hybrid widget injects it, exactly as the preview
+      // surface does — otherwise hybrid would be an unsanitized XSS path while
+      // preview is protected.
+      return { html: sanitizePreviewHtml(result.html) };
     },
     [renderers],
   );

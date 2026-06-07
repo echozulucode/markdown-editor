@@ -351,3 +351,27 @@ lessons:
     rationale: "Mermaid v11 injects its own 'Syntax error in text / mermaid version X' graphic into the DOM on parse failure, which leaked onto the page even though the renderer already caught the throw and produced a source fallback."
     applies_to:
       - "packages/renderers/src/mermaid.ts"
+  - id: LESSON-041
+    date: 2026-06-07
+    area: security
+    lesson: "Keep the HTML-sanitization boundary symmetric across every surface that injects renderer output."
+    rationale: "Preview sanitized renderer HTML but the hybrid rendered-block widget injected it raw — an asymmetric XSS path. Whoever provides HTML to `innerHTML`/`dangerouslySetInnerHTML` (here, the React default `hybridRenderMarkdown`) must sanitize, and a regression test should fail if a renderer's event handler reaches the DOM."
+    applies_to:
+      - "packages/react/src/MarkdownEditor.tsx"
+      - "any renderer-HTML injection path"
+  - id: LESSON-042
+    date: 2026-06-07
+    area: testing
+    lesson: "Read editor source via getMarkdown()/onChange, never via `.cm-content` innerText."
+    rationale: "CodeMirror renders each line as a div, so innerText inflates blank-line counts and misrepresents the document. A reported 'blank-line churn' bug (ISSUE-008) was actually this measurement artifact; getMarkdown was byte-stable the whole time."
+    applies_to:
+      - "e2e/debug scripts"
+      - "future source assertions"
+  - id: LESSON-043
+    date: 2026-06-07
+    area: qa
+    lesson: "Run a dedicated abnormal/adversarial-input audit; happy-path scenario coverage (even 100%) hides real bugs."
+    rationale: "A test-expert audit focused on malformed frontmatter, code-fence-shaped tables, dangerous URLs, and renderer-injected HTML surfaced a real XSS asymmetry and several untested fail-safe paths that the BDD coverage manifest's '51/51 covered' did not reflect — that manifest tracks happy-path traceability, not adversarial inputs."
+    applies_to:
+      - "test strategy"
+      - "docs/bdd-coverage-and-test-plan.md"

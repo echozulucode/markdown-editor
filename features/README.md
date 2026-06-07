@@ -41,6 +41,7 @@ read by step definitions at run time.
 | `@release-0.2.0` | Behavior added by the recent requested changes. |
 | `@smoke` | Core happy-path checks to run on every commit. |
 | `@a11y` | Accessibility behavior. |
+| `@security` | Security-sensitive behavior (e.g. sanitization / XSS). |
 | `@keyboard` | Keyboard-operability behavior. |
 | `@performance` | Behavior governed by a budget in the interaction contract. |
 | `@spec-WCAG-<section>` | Traces a scenario to a WCAG success criterion. |

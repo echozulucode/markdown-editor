@@ -430,6 +430,61 @@ describe('createMarkdownEditorView', () => {
     parent.remove();
   });
 
+  it('hybrid mode preserves the source byte-for-byte and does not churn blank lines on a structural edit', async () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const doc = [
+      '---', 'title: Doc', 'tags: a, b', '---',
+      '', '# Heading', '', 'Paragraph text.',
+      '', '- [ ] one', '- [x] two',
+      '', '| A | B |', '| --- | --- |', '| 1 | 2 |',
+      '', '```ts', 'const x = 1;', '```', '',
+    ].join('\n');
+    const editor = createMarkdownEditorView({ parent, markdown: doc, mode: 'hybrid' });
+    editor.setSelection({ anchor: 0, head: 0 });
+    await flushPromises();
+
+    // No reserialization: hybrid mode keeps the exact source (ISSUE-008 churn was
+    // a `.cm-content` innerText measurement artifact, not real document growth).
+    expect(editor.getMarkdown()).toBe(doc);
+
+    // A structural table edit changes only the table; it must not introduce
+    // doubled blank lines elsewhere in the document.
+    const cell = parent.querySelector<HTMLElement>('.cm-me-table tbody [contenteditable="true"]');
+    expect(cell).toBeInstanceOf(HTMLElement);
+    cell!.focus();
+    parent.querySelector<HTMLElement>('.cm-me-table-wrap button[aria-label="Insert row below"]')!.click();
+    expect(editor.getMarkdown()).toMatch(/\| {2}\| {2}\|/); // an empty row was added
+    expect(editor.getMarkdown()).not.toMatch(/\n[ \t]*\n[ \t]*\n/); // no doubled blank lines
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('does not turn table-shaped lines inside a code fence into an editable table widget', async () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const markdown = ['# T', '', '```', '| a | b |', '| --- | --- |', '| 1 | 2 |', '```', '', 'After'].join('\n');
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+      hybridRenderMarkdown(block) {
+        return { html: `<div class="rendered-fence">${block.slice(0, 3)}</div>` };
+      },
+    });
+    editor.setSelection({ anchor: 0, head: 0 }); // cursor on the heading; the fence is inactive
+    await flushPromises();
+
+    // The pipe lines live inside a code fence, so they must render as code, never
+    // as the editable table widget.
+    expect(parent.querySelector('.cm-me-table')).toBeNull();
+    expect(editor.getMarkdown()).toBe(markdown);
+
+    editor.destroy();
+    parent.remove();
+  });
+
   it('undoes a change, restoring the previous text', () => {
     const parent = document.createElement('section');
     document.body.appendChild(parent);

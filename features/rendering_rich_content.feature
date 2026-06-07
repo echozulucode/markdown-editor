@@ -33,3 +33,8 @@ Feature: Rendering rich content
   Scenario: Inline emphasis is rendered, not shown as markup
     Given a paragraph contains bold and italic words
     Then those words are shown emphasized rather than wrapped in markup characters
+
+  @release-0.2.0 @security
+  Scenario: Dangerous content in rendered output is neutralized
+    Given a renderer emits output containing an event handler
+    Then the editor shows the safe content with the dangerous handler removed

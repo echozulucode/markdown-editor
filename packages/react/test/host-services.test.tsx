@@ -19,6 +19,30 @@ function typeInto(input: HTMLInputElement, value: string): void {
 }
 
 describe('MarkdownEditor — host page search', () => {
+  it('reports a diagnostic (not a crash) when searchLinks rejects', async () => {
+    const diagnostics: { code: string }[] = [];
+    const hostServices = {
+      searchLinks: () => Promise.reject(new Error('search failed')),
+    };
+    const { container, unmount } = mount(
+      <MarkdownEditor
+        defaultValue={'note'}
+        modes={['markdown']}
+        hostServices={hostServices}
+        onDiagnostics={(d) => diagnostics.push(...d)}
+      />,
+    );
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Search pages"]')!;
+    typeInto(input, 'release');
+    await flush();
+    await flush();
+
+    expect(diagnostics.some((d) => d.code === 'host.searchLinks.failed')).toBe(true);
+    // No suggestions are shown for a failed search.
+    expect(container.querySelectorAll('[role="option"]').length).toBe(0);
+    unmount();
+  });
+
   it('discards results from a superseded search', async () => {
     // searchLinks resolves only when the test chooses to, keyed by query, so we
     // can resolve an earlier (aborted) search after a later one.
