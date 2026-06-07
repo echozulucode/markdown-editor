@@ -1,7 +1,64 @@
 type: issues
 project: "markdown-editor"
 updated: 2026-06-07
+notes: "ISSUE-012..015 (the four React code-review findings) resolved 2026-06-07 via the R1-R5 hardening phases; see .changeset/react-wrapper-hardening.md."
 issues:
+  - id: ISSUE-012
+    title: "Imperative updates double-fire onChange"
+    category: react-api
+    severity: medium
+    observed: "updateMarkdown calls setMarkdown(..., {emitChange:true}) AND emits onChange directly; replaceMarkdown emits a third time. In CodeMirror modes a single imperative call fires onChange 2-3 times (when content changes)."
+    expected: "Exactly one onChange per imperative action, with a defined source."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (updateMarkdown/replaceMarkdown); packages/react/test/controls.test.tsx ('emits onChange exactly once per imperative update'); .changeset/react-wrapper-hardening.md"
+    status: resolved
+    resolution: "R1: updateMarkdown now calls setMarkdown(..., {emitChange:false}) and is the single emit source; replaceMarkdown routes through it (extra emit removed). A call-count test asserts exactly one onChange per setMarkdown/replaceMarkdown/insertMarkdown (failed test-first at 2x before the fix)."
+    next_action: "none"
+    history:
+      - "2026-06-07 raised by the independent React code review; verified against source."
+      - "2026-06-07 resolved (Phase R1); verified test-first (call-count test failed at 2x, passes at 1x after the fix)."
+
+  - id: ISSUE-013
+    title: "React wrapper recreates CodeMirror for in-editor mode/config changes"
+    category: react-lifecycle
+    severity: medium
+    observed: "The create-effect is keyed on activeMode/readOnly/showProperties/normalizedFrontmatterDisplay, so markdown<->hybrid, read-only toggle, and show/hide properties destroy+recreate the view, losing selection/scroll/undo — though the adapter's setMode reconfigures in place."
+    expected: "CM stays stable across in-editor changes (use setMode/setReadOnly); recreate only on CM<->non-CM transitions."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (create-effect deps + in-place setMode effect); packages/react/test/lifecycle.test.tsx; codemirror/src/index.ts:160-168"
+    status: resolved
+    resolution: "R2: create-effect deps narrowed to [ariaLabel, hybridRenderMarkdown, isCodeMirrorMode, propertySchema]; markdown<->hybrid + show/hide-properties now reconfigure in place via a setMode effect, read-only via the existing setReadOnly effect. Selection survives markdown<->hybrid and a read-only toggle (lifecycle tests failed test-first on the pre-R2 code, pass after)."
+    next_action: "none"
+    history:
+      - "2026-06-07 raised by the independent React code review; verified against source."
+      - "2026-06-07 resolved (Phase R2); selection-survival tests confirmed the fix (cursor/scroll/undo no longer lost on in-editor mode switches)."
+
+  - id: ISSUE-014
+    title: "Preview does not respond to renderer-registry changes"
+    category: react-rendering
+    severity: medium
+    observed: "PreviewSurface's render effect depends only on [markdown]; a host swapping renderers/registry/diagram services with unchanged markdown leaves the preview stale."
+    expected: "A stable registry change re-renders the preview."
+    trace_link: "packages/react/src/PreviewSurface.tsx (effect deps [markdown, registry]); packages/react/test/preview-render.test.tsx (registry-swap test)"
+    status: resolved
+    resolution: "R3: the PreviewSurface render effect deps are now [markdown, registry]; diagnostics stay on a ref so the re-render loop (LESSON-034) stays fixed. A registry-swap test asserts the preview updates when only the renderers change."
+    next_action: "none"
+    history:
+      - "2026-06-07 raised by the review. Caveat: the deps were narrowed to fix a re-render loop caused by onDiagnostics identity (LESSON-034); re-adding a stable registry is safe."
+      - "2026-06-07 resolved (Phase R3); registry-swap test confirms preview re-renders on a stable registry change."
+
+  - id: ISSUE-015
+    title: "Two diagnostics channels; HostServices.reportDiagnostics is unwired (and renderer-naming API drift)"
+    category: react-api
+    severity: low
+    observed: "core HostServices declares reportDiagnostics?() but React only emits via onDiagnostics. Separately, MarkdownEditorProps declares both rendererRegistry and renderers while the React component exposes only renderers (rendererRegistry is unreachable)."
+    expected: "One consistent diagnostics contract; no dead/ambiguous renderer prop."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (emitDiagnostics + getSnapshot); packages/core/src/types.ts (rendererRegistry @deprecated); packages/react/test/preview-render.test.tsx + controls.test.tsx + sanitize.test.ts"
+    status: resolved
+    resolution: "R4: emitDiagnostics now dispatches to both onDiagnostics and hostServices.reportDiagnostics (both-channels test); rendererRegistry is marked @deprecated in core (component already exposes only renderers); getSnapshot.selection is populated as a SelectionSnapshot from the live CM selection (test); sanitizePreviewHtml documents its trusted-renderer policy with a regression test pinning that a stray top-level <style> is dropped while SVG-scoped diagram CSS is kept."
+    next_action: "none"
+    history:
+      - "2026-06-07 raised by the review; verified against source."
+      - "2026-06-07 resolved (Phase R4); all four sub-items implemented + tested."
+
   - id: ISSUE-010
     title: "Hybrid rendered-block widget injected renderer HTML unsanitized (XSS)"
     category: security

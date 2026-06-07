@@ -198,6 +198,7 @@ export interface MarkdownEditorProps {
   modes?: EditorMode[];
   readOnly?: boolean;
   extensions?: MarkdownEditorExtension[];
+  /** @deprecated Use {@link renderers}. The React component only reads `renderers`; this field is unused and will be removed in a future minor. */
   rendererRegistry?: RendererRegistry;
   renderers?: RendererRegistry;
   hostServices?: HostServices;

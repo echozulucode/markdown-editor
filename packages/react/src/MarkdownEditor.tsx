@@ -2,8 +2,6 @@ import React from 'react';
 import type {
   ChangeMeta,
   EditorMode,
-  HostServices,
-  LinkSuggestion,
   MarkdownEditorHandle,
   MarkdownEditorProps,
   ModeChangeMeta,
@@ -17,11 +15,13 @@ import {
 import {
   createDefaultRendererRegistry,
   renderMarkdownToHtml,
-  type RenderMarkdownToHtmlResult,
   type RendererRegistry,
 } from '@echozedlabs/renderers';
 import type { WysiwygToolbarIcons } from '@echozedlabs/wysiwyg-lexical';
 import { sanitizePreviewHtml } from './sanitizeHtml.js';
+import { PreviewSurface } from './PreviewSurface.js';
+import { HostServiceToolbar } from './HostServiceToolbar.js';
+import { IconSvg, LIST_ICON_PATH, SLIDERS_ICON_PATH } from './icons.js';
 
 const CODEMIRROR_MODES = new Set<EditorMode>(['markdown', 'hybrid']);
 const DEFAULT_MODES: EditorMode[] = ['hybrid', 'markdown', 'preview'];
@@ -103,6 +103,7 @@ export const MarkdownEditor = React.forwardRef<
   const onSaveShortcutRef = React.useRef(onSaveShortcut);
   const onCancelShortcutRef = React.useRef(onCancelShortcut);
   const onDiagnosticsRef = React.useRef(onDiagnostics);
+  const hostServicesRef = React.useRef(hostServices);
 
   markdownRef.current = markdown;
   modeRef.current = activeMode;
@@ -110,6 +111,7 @@ export const MarkdownEditor = React.forwardRef<
   onSaveShortcutRef.current = onSaveShortcut;
   onCancelShortcutRef.current = onCancelShortcut;
   onDiagnosticsRef.current = onDiagnostics;
+  hostServicesRef.current = hostServices;
 
   const isCodeMirrorMode = CODEMIRROR_MODES.has(activeMode);
   const hybridRenderMarkdown = React.useCallback(
@@ -145,8 +147,12 @@ export const MarkdownEditor = React.forwardRef<
     }),
     [hostServices, renderers],
   );
+  // Single diagnostics dispatch: both public channels (the onDiagnostics prop and
+  // the optional hostServices.reportDiagnostics) receive every diagnostic, so a
+  // host can use either without ambiguity.
   const emitDiagnostics = React.useCallback((diagnostics: Parameters<NonNullable<MarkdownEditorProps['onDiagnostics']>>[0]) => {
     onDiagnosticsRef.current?.(diagnostics);
+    hostServicesRef.current?.reportDiagnostics?.(diagnostics);
   }, []);
 
   React.useEffect(() => {
@@ -192,7 +198,12 @@ export const MarkdownEditor = React.forwardRef<
         cmRef.current = null;
       }
     };
-  }, [ariaLabel, activeMode, hybridRenderMarkdown, isCodeMirrorMode, normalizedFrontmatterDisplay, propertySchema, readOnly, showProperties]);
+    // Recreate ONLY for true surface changes (entering/leaving CodeMirror, a new
+    // aria-label, a new property schema, or a new hybrid renderer). markdown<->hybrid,
+    // read-only, and show/hide-properties are reconfigured in place below so they
+    // keep selection, scroll, and undo history. `readOnly`/`activeMode`/properties
+    // values are read at creation and corrected by the in-place effects.
+  }, [ariaLabel, hybridRenderMarkdown, isCodeMirrorMode, propertySchema]);
 
   React.useEffect(() => {
     setShowProperties(normalizedFrontmatterDisplay !== 'hidden');
@@ -207,6 +218,22 @@ export const MarkdownEditor = React.forwardRef<
       handle.setMarkdown(markdown);
     }
   }, [markdown]);
+
+  // Reconfigure mode + frontmatter display in place (keeps selection, scroll, and
+  // undo history) instead of recreating the view on markdown<->hybrid or
+  // show/hide-properties changes.
+  React.useEffect(() => {
+    const handle = cmRef.current;
+    if (!handle || !isCodeMirrorMode) {
+      return;
+    }
+    const hybridFrontmatterMode = showProperties
+      ? normalizedFrontmatterDisplay === 'collapsed'
+        ? 'collapsed'
+        : 'table'
+      : 'hidden';
+    handle.setMode(activeMode as CodeMirrorEditorMode, hybridFrontmatterMode);
+  }, [activeMode, showProperties, normalizedFrontmatterDisplay, isCodeMirrorMode]);
 
   React.useEffect(() => {
     cmRef.current?.setReadOnly(readOnly || activeMode === 'preview');
@@ -270,21 +297,20 @@ export const MarkdownEditor = React.forwardRef<
         // Native CodeMirror history is intentionally preserved for now.
       },
       getSnapshot() {
+        const cmSelection = cmRef.current?.getSelection();
+        const textSelection = cmSelection ? cmSelectionToTextSelection(cmSelection) : null;
         return {
           markdown: markdownRef.current,
           version: 1,
           mode: modeRef.current,
-          selection: undefined,
+          selection: textSelection
+            ? { ranges: [{ anchor: textSelection.from, head: textSelection.to }], mainIndex: 0 }
+            : undefined,
         };
       },
       replaceMarkdown(nextMarkdown: string, meta?: ChangeMeta) {
-        updateMarkdown(nextMarkdown, meta?.source ?? 'programmatic');
-        onChangeRef.current?.(nextMarkdown, {
-          source: 'programmatic',
-          timestamp: Date.now(),
-          mode: modeRef.current,
-          ...meta,
-        });
+        // updateMarkdown emits exactly one onChange (React is the single source).
+        updateMarkdown(nextMarkdown, meta?.source ?? 'programmatic', meta);
       },
     }),
     [value],
@@ -308,9 +334,11 @@ export const MarkdownEditor = React.forwardRef<
     });
   }
 
-  function updateMarkdown(nextMarkdown: string, source: ChangeMeta['source']) {
+  function updateMarkdown(nextMarkdown: string, source: ChangeMeta['source'], meta?: Partial<ChangeMeta>) {
     markdownRef.current = nextMarkdown;
-    cmRef.current?.setMarkdown(nextMarkdown, { emitChange: true });
+    // React is the single emit source for imperative paths: set the document
+    // silently so CodeMirror does not also fire onChange (avoids a double-fire).
+    cmRef.current?.setMarkdown(nextMarkdown, { emitChange: false });
     if (value === undefined) {
       setInternalMarkdown(nextMarkdown);
     }
@@ -318,6 +346,7 @@ export const MarkdownEditor = React.forwardRef<
       source,
       mode: modeRef.current,
       timestamp: Date.now(),
+      ...meta,
     });
   }
 
@@ -427,236 +456,6 @@ export const MarkdownEditor = React.forwardRef<
   );
 });
 
-function IconSvg({ path, dataIcon }: { path: string; dataIcon?: string }) {
-  return (
-    <svg className="me-inline-icon" data-icon={dataIcon} viewBox="0 0 576 512" focusable="false" aria-hidden="true">
-      <path fill="currentColor" d={path} />
-    </svg>
-  );
-}
-
-const LIST_ICON_PATH = 'M40 48C26.7 48 16 58.7 16 72v48c0 13.3 10.7 24 24 24h48c13.3 0 24-10.7 24-24V72c0-13.3-10.7-24-24-24H40zm144 16c-17.7 0-32 14.3-32 32s14.3 32 32 32h352c17.7 0 32-14.3 32-32s-14.3-32-32-32H184zM40 208c-13.3 0-24 10.7-24 24v48c0 13.3 10.7 24 24 24h48c13.3 0 24-10.7 24-24v-48c0-13.3-10.7-24-24-24H40zm144 16c-17.7 0-32 14.3-32 32s14.3 32 32 32h352c17.7 0 32-14.3 32-32s-14.3-32-32-32H184zM40 368c-13.3 0-24 10.7-24 24v48c0 13.3 10.7 24 24 24h48c13.3 0 24-10.7 24-24v-48c0-13.3-10.7-24-24-24H40zm144 16c-17.7 0-32 14.3-32 32s14.3 32 32 32h352c17.7 0 32-14.3 32-32s-14.3-32-32-32H184z';
-const SLIDERS_ICON_PATH = 'M0 416c0 17.7 14.3 32 32 32h54.7c13.2 37.3 48.7 64 90.5 64s77.4-26.7 90.5-64H544c17.7 0 32-14.3 32-32s-14.3-32-32-32H267.8c-13.2-37.3-48.7-64-90.5-64s-77.4 26.7-90.5 64H32c-17.7 0-32 14.3-32 32zm128 0a49.3 49.3 0 1 1 98.7 0 49.3 49.3 0 1 1-98.7 0zM0 256c0 17.7 14.3 32 32 32h246.7c13.2 37.3 48.7 64 90.5 64s77.4-26.7 90.5-64H544c17.7 0 32-14.3 32-32s-14.3-32-32-32h-84.3c-13.2-37.3-48.7-64-90.5-64s-77.4 26.7-90.5 64H32c-17.7 0-32 14.3-32 32zm320 0a49.3 49.3 0 1 1 98.7 0 49.3 49.3 0 1 1-98.7 0zM0 96c0 17.7 14.3 32 32 32h54.7c13.2 37.3 48.7 64 90.5 64s77.4-26.7 90.5-64H544c17.7 0 32-14.3 32-32s-14.3-32-32-32H267.8C254.6 26.7 219.1 0 177.3 0S99.9 26.7 86.7 64H32C14.3 64 0 78.3 0 96zm128 0a49.3 49.3 0 1 1 98.7 0 49.3 49.3 0 1 1-98.7 0z';
-
-function HostServiceToolbar({
-  services,
-  onInsertMarkdown,
-  onDiagnostics,
-}: {
-  services?: HostServices;
-  onInsertMarkdown(markdown: string): void;
-  onDiagnostics(diagnostics: Parameters<NonNullable<MarkdownEditorProps['onDiagnostics']>>[0]): void;
-}) {
-  const [query, setQuery] = React.useState('');
-  const [suggestions, setSuggestions] = React.useState<LinkSuggestion[]>([]);
-  const [searching, setSearching] = React.useState(false);
-  const [uploading, setUploading] = React.useState(false);
-  const fileInputId = React.useId();
-
-  React.useEffect(() => {
-    if (!services?.searchLinks || query.trim().length === 0) {
-      setSuggestions([]);
-      setSearching(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    setSearching(true);
-
-    services.searchLinks(query.trim(), controller.signal)
-      .then((nextSuggestions) => {
-        if (!controller.signal.aborted) {
-          setSuggestions(nextSuggestions);
-        }
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) {
-          return;
-        }
-        const message = error instanceof Error ? error.message : String(error);
-        onDiagnostics([{
-          code: 'host.searchLinks.failed',
-          message,
-          severity: 'error',
-          source: 'host-service',
-        }]);
-        setSuggestions([]);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setSearching(false);
-        }
-      });
-
-    return () => controller.abort();
-  }, [onDiagnostics, query, services]);
-
-  async function uploadFile(file: File) {
-    if (!services?.uploadAsset) {
-      return;
-    }
-
-    const controller = new AbortController();
-    setUploading(true);
-    try {
-      const asset = await services.uploadAsset(file, controller.signal);
-      const alt = (asset.alt ?? file.name.replace(/\.[^.]+$/, '')) || 'Uploaded image';
-      onInsertMarkdown(`\n\n![${escapeMarkdownLabel(alt)}](${asset.url})\n`);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      onDiagnostics([{
-        code: 'host.uploadAsset.failed',
-        message,
-        severity: 'error',
-        source: 'host-service',
-      }]);
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  return (
-    <div className="me-host-tools" aria-label="Host services">
-      {services?.searchLinks ? (
-        <div className="me-link-search">
-          <label className="me-visually-hidden" htmlFor={`${fileInputId}-link-search`}>
-            Search pages
-          </label>
-          <input
-            id={`${fileInputId}-link-search`}
-            type="search"
-            value={query}
-            placeholder="Search pages"
-            aria-label="Search pages"
-            aria-controls={`${fileInputId}-link-suggestions`}
-            aria-expanded={suggestions.length > 0}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-          {query.trim().length > 0 ? (
-            <div
-              id={`${fileInputId}-link-suggestions`}
-              className="me-link-suggestions"
-              role="listbox"
-              aria-label="Page suggestions"
-            >
-              {searching ? <div className="me-link-suggestion-status">Searching...</div> : null}
-              {!searching && suggestions.length === 0 ? (
-                <div className="me-link-suggestion-status">No matches</div>
-              ) : null}
-              {suggestions.map((suggestion) => (
-                <button
-                  key={suggestion.id}
-                  type="button"
-                  role="option"
-                  className="me-link-suggestion"
-                  onClick={() => {
-                    onInsertMarkdown(suggestion.insertText);
-                    setQuery('');
-                    setSuggestions([]);
-                  }}
-                >
-                  <span>{suggestion.label}</span>
-                  {suggestion.description ? <small>{suggestion.description}</small> : null}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-      {services?.uploadAsset ? (
-        <div className="me-upload-control">
-          <input
-            id={`${fileInputId}-asset-upload`}
-            type="file"
-            accept="image/*"
-            aria-label="Upload image"
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              event.currentTarget.value = '';
-              if (file) {
-                void uploadFile(file);
-              }
-            }}
-          />
-          <label className="me-upload-button" htmlFor={`${fileInputId}-asset-upload`}>
-            {uploading ? 'Uploading...' : 'Upload image'}
-          </label>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function PreviewSurface({
-  markdown,
-  registry,
-  onDiagnostics,
-}: {
-  markdown: string;
-  registry?: RendererRegistry;
-  onDiagnostics(diagnostics: NonNullable<RenderMarkdownToHtmlResult['diagnostics']>): void;
-}) {
-  const [result, setResult] = React.useState<RenderMarkdownToHtmlResult | null>(null);
-  const registryRef = React.useRef<RendererRegistry | undefined>(registry);
-  registryRef.current = registry;
-  // Keep onDiagnostics out of the render effect's deps (via a ref). Putting it in
-  // the deps makes reporting diagnostics — which updates host state — re-trigger
-  // the effect, so the preview re-renders in a loop; and any non-stable callback
-  // identity desync would also break the single-fire-on-mount. The effect should
-  // run purely when `markdown` changes.
-  const onDiagnosticsRef = React.useRef(onDiagnostics);
-  onDiagnosticsRef.current = onDiagnostics;
-
-  React.useEffect(() => {
-    // Use a local "cancelled" guard rather than aborting the render: the renderer
-    // lazy-loads (and caches) shiki/mermaid, and aborting on cleanup can break the
-    // shared loader. The guard still drops stale/after-unmount results.
-    let cancelled = false;
-    const activeRegistry = registryRef.current ?? createDefaultRendererRegistry();
-
-    renderMarkdownToHtml(markdown, { registry: activeRegistry })
-      .then((nextResult: RenderMarkdownToHtmlResult) => {
-        if (cancelled) {
-          return;
-        }
-        setResult(nextResult);
-        onDiagnosticsRef.current?.(nextResult.diagnostics);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) {
-          return;
-        }
-        const message = error instanceof Error ? error.message : String(error);
-        const diagnostics = [
-          {
-            code: 'preview.render.failed',
-            message,
-            severity: 'error' as const,
-            source: 'renderer',
-          },
-        ];
-        setResult({
-          html: `<pre class="me-preview-error">${escapeHtml(markdown)}</pre>`,
-          blocks: [],
-          diagnostics,
-        });
-        onDiagnosticsRef.current?.(diagnostics);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [markdown]);
-
-  return (
-    <div
-      className="me-preview"
-      aria-label="Markdown preview"
-      dangerouslySetInnerHTML={{ __html: result?.html ? sanitizePreviewHtml(result.html) : '<p>Rendering preview...</p>' }}
-    />
-  );
-}
-
 function normalizeModes(modes: readonly EditorMode[]): EditorMode[] {
   const normalized = modes.filter((modeName, index) => modes.indexOf(modeName) === index);
   return normalized.length > 0 ? normalized : DEFAULT_MODES;
@@ -686,16 +485,4 @@ function cmSelectionToTextSelection(selection: { anchor: number; head: number })
     from: Math.min(selection.anchor, selection.head),
     to: Math.max(selection.anchor, selection.head),
   };
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function escapeMarkdownLabel(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/]/g, '\\]');
 }

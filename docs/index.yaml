@@ -37,4 +37,10 @@ docs:
   - file: docs/bdd-coverage-and-test-plan.md
     type: coverage-and-plan
     status: active
+  - file: docs/react-code-review-2026-06-07.md
+    type: code-review
+    status: reviewed
+  - file: docs/react-hardening-plan-2026-06-07.md
+    type: plan
+    status: ready_for_review
 

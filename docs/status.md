@@ -1,17 +1,42 @@
 ---
 type: status
 updated: 2026-06-07
-current_phase: "Published to npm; QA-audit hardening (XSS fix) + abnormal-case coverage done; 0.2.0 release pending"
+current_phase: "React wrapper hardening (R1-R5) complete; published to npm; 0.2.0 release pending"
 blockers: []
 next_actions:
-  - "Publish @echozedlabs/* 0.2.0 (bundles the pending changesets incl. the hybrid-XSS fix) via OIDC trusted publishing — user owns releases"
+  - "Publish @echozedlabs/* 0.2.0 (bundles the pending changesets incl. the hybrid-XSS fix + react-wrapper-hardening) via OIDC trusted publishing — user owns releases"
   - "After publish, bump knowledge-e3 + echozed-demo deps to ^0.2.0"
+  - "Follow-up R5: extract ModeToolbar + a useCodeMirrorEditor hook from MarkdownEditor.tsx (deferred — tightly coupled, needs new abstractions)"
   - "Bind the remaining BDD features (document_properties, host_integration_services, rich_text_editing, editor_accessibility) — ISSUE-009"
   - "Add a large-document typing-latency e2e + a render debounce/size guard — ISSUE-011"
   - "Optional: add CODE_OF_CONDUCT.md + issue/PR templates to the open-source repo"
 ---
 
 # Status Log
+
+## Session: 2026-06-07  React wrapper hardening (independent review → plan → R1-R5)
+**Phase:** React API/lifecycle hardening from the 2026-06-07 independent code review
+
+**Actions taken:**
+- Turned the independent review (`docs/react-code-review-2026-06-07.md`) into a verified plan (`docs/react-hardening-plan-2026-06-07.md`): checked all findings against source (all valid, with caveats), tracked as ISSUE-012…ISSUE-015, then executed phases R1–R5 test-first.
+- **R1 — single-source onChange:** `updateMarkdown` now sets CodeMirror silently (`emitChange:false`) and is the sole emit source; `replaceMarkdown` routes through it (extra emit removed). Imperative `setMarkdown`/`replaceMarkdown`/`insertMarkdown` now fire onChange exactly once (was 2–3×).
+- **R2 — keep CodeMirror stable:** narrowed the create-effect deps to `[ariaLabel, hybridRenderMarkdown, isCodeMirrorMode, propertySchema]`; markdown↔hybrid and show/hide-properties now reconfigure in place via a `setMode` effect (read-only via the existing `setReadOnly` effect). Selection/scroll/undo survive in-editor mode switches.
+- **R3 — preview reacts to registry:** `PreviewSurface` render effect deps are now `[markdown, registry]` (diagnostics stay on a ref, so the LESSON-034 loop stays fixed).
+- **R4 — API contract:** `emitDiagnostics` dispatches to both `onDiagnostics` and `hostServices.reportDiagnostics`; `getSnapshot().selection` is populated as a `SelectionSnapshot` from the live CM selection; `rendererRegistry` marked `@deprecated`; `sanitizePreviewHtml` trusted-renderer policy documented + a regression test pins that a stray top-level `<style>` is dropped while SVG-scoped diagram CSS is kept.
+- **R5 — extraction (partial, by design):** pulled `PreviewSurface`, `HostServiceToolbar`, and the toolbar icon helpers into their own files (`PreviewSurface.tsx`, `HostServiceToolbar.tsx`, `icons.tsx`). `MarkdownEditor.tsx` 733 → 458 lines. `ModeToolbar` + a `useCodeMirrorEditor` hook deferred as a tracked follow-up (too coupled to component state to extract safely here).
+- Added/updated tests: imperative call-count, getSnapshot-selection (controls), registry-swap + both-diagnostics-channels (preview-render), selection-survival (lifecycle), `<style>`-allowance (sanitize). Changeset `react-wrapper-hardening` (patch).
+
+**Verification:**
+- Unit: core 48, codemirror 41, react 24, renderers 24, wysiwyg-lexical 46 — all green. React typecheck/build clean.
+- e2e: 48 hand-written specs pass twice on a fresh isolated server (5207/5208) with rebuilt dist — once after R1–R4, once after the R5 extraction.
+- BDD: 36 pass (desktop + mobile). `verify:features` 52/52, intent lint clean.
+
+**Outcome:** All four review findings resolved with test-first evidence (each fix had a test that failed on the pre-fix code), the wrapper's hotspot file is materially thinner, and the full suite is green end-to-end.
+
+**Carry-forward notes:**
+- The R1–R5 changes ship in 0.2.0 (changeset `react-wrapper-hardening`, patch `@echozedlabs/react`); the user owns the release.
+- Deferred R5: `ModeToolbar` + `useCodeMirrorEditor` hook extraction (no behavior pending, purely structural).
+- Still open: ISSUE-009 (4 BDD features), ISSUE-011 (large-doc render debounce/guard).
 
 ## Session: 2026-06-07  QA audit, security fix, and abnormal-case coverage
 **Phase:** Test hardening + traceability
