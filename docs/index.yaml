@@ -10,15 +10,15 @@ docs:
   - file: docs/research.md
     type: research
     status: active
-  - file: docs/mvp-implementation-plan.md
-    type: implementation-plan
-    status: ready_for_review
   - file: docs/requirements.md
     type: requirements
     status: active
   - file: docs/api-design.md
     type: api-design
     status: draft
+  - file: docs/text-handling-side-effects.md
+    type: design-note
+    status: active
   - file: docs/test-matrix.md
     type: test-matrix
     status: ready_for_review
@@ -37,10 +37,16 @@ docs:
   - file: docs/bdd-coverage-and-test-plan.md
     type: coverage-and-plan
     status: active
-  - file: docs/react-code-review-2026-06-07.md
+  - file: docs/archive/mvp-implementation-plan.md
+    type: implementation-plan
+    status: archived
+  - file: docs/archive/repo-review-2026-05-30.md
     type: code-review
-    status: reviewed
-  - file: docs/react-hardening-plan-2026-06-07.md
+    status: archived
+  - file: docs/archive/react-code-review-2026-06-07.md
+    type: code-review
+    status: archived
+  - file: docs/archive/react-hardening-plan-2026-06-07.md
     type: plan
-    status: ready_for_review
+    status: archived
 

@@ -9,7 +9,7 @@ owner: "QA/Examples lane"
 
 # Test Matrix
 
-This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into concrete checks. Status values are evidence-based: implemented means there is committed automated coverage or a documented manual check in `docs/release-readiness.md`; partial means useful coverage exists but the full gate is not yet enforced.
+This matrix expands the MVP gates from `docs/archive/mvp-implementation-plan.md` into concrete checks. Status values are evidence-based: implemented means there is committed automated coverage or a documented manual check in `docs/release-readiness.md`; partial means useful coverage exists but the full gate is not yet enforced.
 
 ## Gate Definitions
 

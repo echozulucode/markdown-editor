@@ -5,7 +5,7 @@ status: complete
 created: 2026-06-07
 completed: 2026-06-07
 scope: "@echozedlabs/react wrapper hardening — from the 2026-06-07 independent React code review"
-source_review: docs/react-code-review-2026-06-07.md
+source_review: docs/archive/react-code-review-2026-06-07.md
 ---
 
 # React Wrapper Hardening Plan

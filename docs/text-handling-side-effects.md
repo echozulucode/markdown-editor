@@ -44,7 +44,7 @@
 Notes: the preview pipeline sanitizes renderer HTML with DOMPurify, which **categorically strips HTML inside SVG `<foreignObject>`** (verified across 6 configs in a real browser) — so diagram labels must be SVG `<text>`, not foreignObject. Mermaid v11 only honors the **top-level** `htmlLabels` flag for flowcharts (`flowchart.htmlLabels` alone is not enough). For arbitrary host diagrams, prefer SVGs that declare a `width`/`height` or a `max-width`; the PlantUML renderer adds an intrinsic-width cap for SVGs that don't.
 
 ### C. Mode-switch content fidelity (cross-cutting)
-- WYSIWYG import/export is lossy for **callouts** (`> [!note]` → plain quote), **inline/raw HTML**, **nested lists** (B3), and **table cell inline formatting/alignment** (see `docs/repo-review-2026-05-30.md` §3 P1-5). These are documented limitations; round-trip behavior is partially pinned by `roundtrip.test.ts`.
+- WYSIWYG import/export is lossy for **callouts** (`> [!note]` → plain quote), **inline/raw HTML**, **nested lists** (B3), and **table cell inline formatting/alignment** (see `docs/archive/repo-review-2026-05-30.md` §3 P1-5). These are documented limitations; round-trip behavior is partially pinned by `roundtrip.test.ts`.
 - `markdown`↔`hybrid` preserves selection/scroll/undo via the in-place `setMode` reconfigure (A7).
 
 ## Tests added in this pass
