@@ -1,6 +1,6 @@
 {
   "name": "@echozedlabs/renderers",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Preview renderers (Mermaid, Shiki syntax highlighting, and more) for the echozed markdown editor.",
   "type": "module",
   "license": "MIT",
