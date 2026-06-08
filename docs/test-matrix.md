@@ -2,14 +2,14 @@
 type: test-matrix
 project: "markdown-editor"
 status: ready_for_review
-updated: 2026-05-15
+updated: 2026-06-07
 scope: "MVP gates plus post-MVP QA tracks"
 owner: "QA/Examples lane"
 ---
 
 # Test Matrix
 
-This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into concrete checks. Status values are evidence-based: implemented means there is committed automated coverage or a documented manual check in `docs/release-readiness.md`; partial means useful coverage exists but the full gate is not yet enforced.
+This matrix expands the MVP gates from `docs/archive/mvp-implementation-plan.md` into concrete checks. Status values are evidence-based: implemented means there is committed automated coverage or a documented manual check in `docs/release-readiness.md`; partial means useful coverage exists but the full gate is not yet enforced.
 
 ## Gate Definitions
 
@@ -85,6 +85,8 @@ This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into co
 | Post-MVP route budget smoke | Mobile Chromium, desktop Chromium | Time route readiness for `/examples`, `/modes`, and `/renderers` | Routes become ready within conservative draft local smoke budgets | Post-MVP - budget guard added |
 | Mode matrix switching | Mobile Chromium, desktop Chromium | Switch the all-modes route among hybrid, markdown, preview, and WYSIWYG | Content remains visible and the correct mode-specific surface appears | 4/5 - initial coverage added |
 | Renderer route behavior | Mobile Chromium, desktop Chromium | Visit renderer fixture route | Shiki-highlighted code, Mermaid, PlantUML, tables, callouts, unsupported-language diagnostics, and invalid Mermaid fallback render | 3/4 - initial coverage added |
+| Mermaid error isolation | Mobile Chromium, desktop Chromium | Load the invalid Mermaid fixture on `/renderers` | Inline source fallback + diagnostic appear; Mermaid's own "Syntax error in text" graphic never leaks into the DOM | Post-MVP - regression coverage added (`mermaid-rendering.spec.ts`) |
+| Hybrid editable tables | Mobile Chromium, desktop Chromium | On the full-page-docs example: edit a cell, use the toolbar to insert a row, open the right-click context menu and dismiss with Escape, set column alignment | Cell edits round-trip to Markdown source; structural ops and alignment write back to source; context menu opens/dismisses | Post-MVP - coverage added (`table-editing.spec.ts`) |
 | No-op save | 1440px | Load fixture, switch modes, save | Saved Markdown equals initial Markdown for no-op paths | 4+ |
 
 ## Accessibility Checks
@@ -113,6 +115,30 @@ This matrix expands the MVP gates from `docs/mvp-implementation-plan.md` into co
 | Mermaid timeout | Invalid/slow diagram exits through timeout path | Controlled slow renderer fixture | 3 |
 | Example gallery | Required routes load within MVP baseline | Route-level smoke timing on desktop/mobile | 7 |
 | Post-MVP route budgets | Draft route readiness target under 8 seconds | Focused Playwright smoke in `post-mvp-qa.spec.ts`, then future trace-based replacement | Post-MVP |
+
+## Abnormal-Input & Security Checks (2026-06-07 audit pass)
+
+Added after a dedicated QA/test-expert audit for normal and abnormal cases. The
+BDD coverage manifest tracks happy-path scenario traceability; these checks cover
+adversarial/edge inputs.
+
+| Area | Check | Expected Result | Coverage |
+| --- | --- | --- | --- |
+| Hybrid HTML sanitization | A renderer emits HTML with an event handler; render in hybrid | Handler stripped before the widget injects it (XSS parity with preview) | Implemented: `react/hybrid-sanitize.test.tsx` (verified by reverting the fix); BDD `rendering_rich_content` security scenario |
+| Frontmatter fail-safe | Unclosed fence, frontmatter-only, empty doc, empty `---/---` block | Fail-safe split (no crash), byte-stable round trip, `replaceBody` preserves intent | Implemented: `core/codec.test.ts` |
+| Code-fence vs table | A code fence containing pipe-table lines, rendered in hybrid | Renders as code, never as the editable table widget; source byte-stable | Implemented: `codemirror/markdown-editor-view.test.ts` |
+| Dangerous URL scheme | `![x](javascript:…)` / `vbscript:` image; `javascript:` link | No `<img>`/navigable link emitted; left as literal text | Implemented: `renderers/renderers.test.ts` |
+| Host-service failure | `searchLinks` rejects | Inline `host.searchLinks.failed` diagnostic, no crash, no suggestions | Implemented: `react/host-services.test.tsx` |
+| Hybrid source fidelity | Frontmatter+blocks doc; structural table edit | `getMarkdown()` byte-stable; no doubled blank lines (ISSUE-008 artifact closed) | Implemented: `codemirror/markdown-editor-view.test.ts` |
+| Large-document typing | Type into a 200KB+ document | Stays responsive (no per-keystroke full re-render) | **Open (ISSUE-011)** — no debounce/size guard yet |
+| `uploadAsset` failure / dangerous URL return | Reject, slow, or `javascript:` asset URL | Inline diagnostic / render layer neutralizes URL | Partial — happy path e2e only; error path follow-up |
+
+## Executable BDD lane
+
+| Feature | Projects | Status |
+| --- | --- | --- |
+| `inline_table_editing`, `diagram_rendering`, `switching_editor_modes` | chromium-desktop + chromium-mobile | Implemented — 18 scenarios pass on both (36 runs); `@performance` excluded (unit-covered) |
+| `document_properties`, `host_integration_services`, `rich_text_editing`, `editor_accessibility` | — | Open (ISSUE-009) — documented, not yet bound to step definitions |
 
 ## Phase 0/1 Exit Checklist
 

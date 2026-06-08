@@ -119,6 +119,8 @@ The codec (`core`) owns the canonical Markdown bytes. CodeMirror renders source/
 
 Pre-1.0 (`0.1.x`) — the public API may still change between minor versions until 1.0. See `docs/` for the implementation plan, test matrix, and release-readiness notes.
 
+Release highlights are in [`RELEASE_NOTES.md`](./RELEASE_NOTES.md). Per-package detail lives in each package's `CHANGELOG.md`.
+
 ## Contributing
 
 Issues and PRs welcome. Run `pnpm install && pnpm -r build && pnpm -r test` before opening a PR, and add a changeset (`pnpm changeset`) describing user-facing changes. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).

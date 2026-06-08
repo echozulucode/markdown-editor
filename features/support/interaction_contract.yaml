@@ -1,0 +1,63 @@
+# Interaction contract for the markdown-editor feature suite.
+#
+# Scenarios stay declarative: they describe what the author wants and observes.
+# Every concrete value a step needs (mode names, thresholds, budgets, viewport
+# widths) lives here and is read by step definitions at run time. Change a value
+# here, never in .feature text.
+
+editor:
+  modes:
+    description: "User-selectable editing modes the host may expose."
+    values:
+      - Markdown    # raw source editing
+      - Hybrid      # document-like view; the active block reveals its source
+      - Preview     # read-only rendered output
+      - Rich Text   # visual (WYSIWYG) editing
+    owner: "Editor team"
+    lastUpdated: "2026-06-06"
+
+  canonicalFormat:
+    description: "The single source of truth every mode reads from and writes to."
+    value: "Markdown (CommonMark + GFM, with optional YAML frontmatter)"
+    rationale: "All modes import from and export to Markdown so content never drifts."
+
+table:
+  minimumColumns:
+    description: "A table always retains at least this many columns."
+    default: 1
+    rationale: "Removing the last column would stop the block being a table."
+
+diagram:
+  renderTimeout:
+    unit: "ms"
+    default: 3000
+    description: "Maximum time a diagram renderer may run before it fails soft."
+    rationale: "A slow or hung diagram must never block authoring."
+    owner: "Renderers team"
+    lastUpdated: "2026-06-06"
+
+performance:
+  modeSwitchBudget:
+    unit: "ms"
+    default: 5000
+    description: "Upper bound for a no-op mode switch in local smoke runs."
+    reference: "docs/test-matrix.md - MVP performance smoke"
+  typingLatencyBudget:
+    unit: "ms"
+    default: 5000
+    description: "Upper bound for typed text to become visible in local smoke runs."
+    reference: "docs/test-matrix.md - MVP performance smoke"
+
+responsive:
+  supportedViewports:
+    description: "Form factors the editor chrome must stay usable on with no horizontal overflow."
+    values:
+      phone: { unit: "px", width: 390 }
+      tablet: { unit: "px", width: 768 }
+      desktop: { unit: "px", width: 1366 }
+    reference: "docs/test-matrix.md - accessibility and responsive gates"
+
+accessibility:
+  toggleState:
+    description: "Stateful toolbar controls expose their on/off state to assistive technology."
+    reference: "WCAG 2.1 - 4.1.2 Name, Role, Value"

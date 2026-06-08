@@ -2,8 +2,9 @@
 type: plan
 project: "markdown-editor"
 status: ready_for_review
-version: 1
-updated: 2026-05-15
+version: 2
+updated: 2026-06-07
+note: "Packages renamed @markdown-editor/* -> @echozedlabs/* and published to npm. Older docs/log entries keep the original names."
 phases:
   - id: 1
     name: "Reference Extraction & Product Contract"
@@ -22,8 +23,17 @@ phases:
     status: completed
   - id: 6
     name: "Post-MVP Properties and Host Polish"
-    status: ready_for_review
-current_phase: "Post-MVP properties refinement implemented"
+    status: completed
+  - id: 7
+    name: "Open-Source Packaging & npm Publishing (@echozedlabs)"
+    status: completed
+  - id: 8
+    name: "Editable Tables + BDD Living Documentation & CI Gate"
+    status: completed
+  - id: 9
+    name: "Demo Polish & Stabilization (theming, real bug fixes)"
+    status: completed
+current_phase: "Published to npm; living docs + demo polish done; 0.2.0 release pending"
 ---
 
 # Plan: Standalone Markdown Editor Control
@@ -136,6 +146,29 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 - [x] Keep Font Awesome as an example-site icon adapter, not a core package dependency. The reusable editor should continue to expose icon slots/adapters so hosts can use Font Awesome, Lucide, or their own design-system icons.
 - [x] Add focused unit and browser tests for drag reordering, keyboard reordering, type switching, date/time editing, tag token add/remove, initial schema behavior, mobile layout, and YAML source updates.
 
+## Phase 7: Open-Source Packaging & npm Publishing
+- [x] Rename packages `@markdown-editor/*` → `@echozedlabs/*` (npm org `echozedlabs`, brand echozed.com, MIT license).
+- [x] Set up Changesets (fixed versioning) and OIDC trusted publishing; document the runbook in `PUBLISHING.md`.
+- [x] Publish `core`, `react`, `codemirror`, `renderers`, `wysiwyg-lexical` at 0.1.0.
+- [x] Switch knowledge-e3 to consume `@echozedlabs/*` from npm; remove the workspace glob and the private-repo CI checkout/token.
+- [x] Scaffold a standalone `echozed-demo` app consuming the published packages; write a brand blog post.
+- [ ] Publish 0.2.0 bundling the pending changesets (user owns releases), then bump knowledge-e3 + echozed-demo to `^0.2.0`.
+
+## Phase 8: Editable Tables + BDD Living Documentation & CI Gate
+- [x] Add a dependency-free GFM `table-model` and an Obsidian-style `HybridTableWidget` (contenteditable cells, Tab nav, alignment) with an icon toolbar + right-click context menu.
+- [x] Author 10 declarative Gherkin feature files in `features/` + interaction-contract YAML + README (0.1.0 baseline vs 0.2.0 additions).
+- [x] Build `features/coverage.yaml` (scenario→test manifest) and `docs/bdd-coverage-and-test-plan.md`; close all gaps to 51/51 covered.
+- [x] Make feature files executable with `playwright-bdd` (`inline_table_editing`, `diagram_rendering`).
+- [x] Add CI coverage gate + intent lint (`pnpm verify:features`) and a `bdd` job.
+- [ ] Bind remaining interaction features as executable BDD and add chromium-mobile to the BDD projects.
+
+## Phase 9: Demo Polish & Stabilization
+- [x] Fix latent bugs (see `docs/issues.yaml`): Mermaid error-graphic leak, hybrid table detection of aligned/single-column tables, host-CSS bleed into the editor, preview re-render loop, preview blank-on-navigation (activeMode clamp).
+- [x] Render wiki links in preview; date property icon; preview/rich-text table gridlines; responsive phone tables.
+- [x] Restyle the mode switcher (token-based segmented control); harness page-theme toggle (Light/Dark/Auto); editor follows the page theme, not the OS.
+- [x] Build real content for the Responsive / Accessibility / Performance harness routes.
+- [ ] Investigate controlled-editor blank-line churn on repeated structural commits.
+
 ## Key Risks
 - WYSIWYG mode can normalize Markdown in ways source-first users will reject.
 - Hybrid rendering can produce cursor, selection, and layout-jump defects if decorations are too coarse.
@@ -170,6 +203,11 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 | 2026-05-14 | Treat Phase 5 gates as MVP smoke/audit gates, not a formal compliance certification. | Automated tests now cover unit, browser, responsive, accessibility, and performance smoke paths; deeper axe, screen-reader, and production security certification remain host/release-process responsibilities. |
 | 2026-05-15 | Make the post-MVP properties panel an Obsidian-class editor rather than a CRUD table. | The target UX is compact, inline, and source-backed: drag handles for ordering, type icons and popovers, customized date/time/tag/boolean editors, and no bulky property-management screens. |
 | 2026-05-15 | Keep Font Awesome visible in examples but isolated through the existing icon adapter boundary. | The examples should demonstrate the requested graphical toolbar with a real icon set while the core packages remain library-agnostic for consumers with different design systems. |
+| 2026-06-04 | Publish under the `@echozedlabs` npm scope (MIT, brand echozed.com) and consume it from npm in knowledge-e3 + echozed-demo. | Makes the editor a real versioned open-source package instead of a workspace-only dependency; OIDC trusted publishing + Changesets give a clean release path. |
+| 2026-06-05 | Make hybrid tables inline-editable widgets with an icon toolbar + right-click context menu. | Obsidian/Word/Excel-style direct editing beats raw-pipe editing; the widget commits on leave so cell navigation never churns the document. |
+| 2026-06-06 | Treat the Gherkin feature files as living documentation enforced by a CI coverage gate + intent lint. | Feature files stay valuable only if every scenario maps to a real test and stays declarative; the manifest + gate prevent silent coverage drift. |
+| 2026-06-06 | The editor never imposes a theme; it follows the host page via `--me-*` tokens. | An embedded control that reads `prefers-color-scheme` fights its host (dark editor in a light page); the page/host owns light/dark. |
+| 2026-06-07 | Clamp `activeMode` to `modes` and depend the preview effect only on `markdown`. | Prevents a reused/reconciled editor from rendering a mode outside `modes`, and prevents the diagnostics callback from driving a preview re-render loop. |
 
 ## Errors Encountered
 | Date | Error | Resolution |
@@ -179,4 +217,9 @@ Build an independent, embeddable React/TypeScript Markdown editor control that c
 | 2026-05-13 | Aggressive CodeMirror subchunking created a Rollup circular chunk warning. | Simplified manual chunks to React, CodeMirror, and Lezer; build is clean and chunks stay below the warning threshold. |
 | 2026-05-13 | Importing Shiki's top-level bundle restored Vite large-chunk warnings and emitted hundreds of language/theme chunks. | Switched `createShikiCodeRenderer` to `shiki/core`, JavaScript regex engine, explicit language loaders, and a single default theme loader. |
 | 2026-05-14 | WYSIWYG imported Markdown task-list syntax as unordered lists containing literal `[ ]` and `[x]` text. | Added Lexical's `CHECK_LIST` Markdown transformer before the default transformer set so existing Markdown task lists become real checklist items on import. |
+| 2026-06-04 | `npm publish` at the monorepo root collided with an unrelated package; Classic *Publish* tokens hit E403. | Use `pnpm -r publish --access public --no-git-checks` (root + dev-harness stay private) with a Granular/Automation token or OIDC; enable corepack for the pnpm 10 pin. |
+| 2026-06-06 | `isTableSeparator` rejected center-aligned (`:--:`) and single-column tables, so editable tables vanished to source after centering a column or deleting to one column. | Loosened the regex to match GFM separators (any dash run, optional alignment colons, ≥1 column), in step with `table-model`. |
+| 2026-06-06 | Harness element selectors bled into editor internals (dark mode-button text, invisible toolbar icons). | Scoped the harness rules to direct children / header-footer subtrees so they never match `.me-editor` descendants. |
+| 2026-06-06 | Adding `prefers-color-scheme: dark` to the editor stylesheet made it go dark inside a light page on a dark-OS machine. | Reverted; the editor follows the page via `--me-*` tokens. Added a harness Light/Dark/Auto page-theme toggle instead. |
+| 2026-06-07 | The Renderers preview was blank with no diagnostics when reached by navigation (worked on fresh load). | React reconciled the prior route's markdown-mode editor into the preview editor; `initialMode` only applies on mount. Clamped `activeMode` to `modes` and made the preview effect depend only on `markdown`. |
 

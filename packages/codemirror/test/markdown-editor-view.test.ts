@@ -1,3 +1,4 @@
+import { undo } from '@codemirror/commands';
 import { EditorView } from '@codemirror/view';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createMarkdownEditorView } from '../src/index.js';
@@ -321,7 +322,7 @@ describe('createMarkdownEditorView', () => {
     parent.remove();
   });
 
-  it('renders inactive hybrid table image and callout blocks through the markdown renderer', async () => {
+  it('renders an editable table widget and routes image/callout blocks through the markdown renderer', async () => {
     const parent = document.createElement('section');
     document.body.appendChild(parent);
     const markdown = [
@@ -356,18 +357,179 @@ describe('createMarkdownEditorView', () => {
     editor.setSelection({ anchor: 2, head: 2 });
     await flushPromises();
 
-    expect(parent.querySelector('.rendered-table')).toBeInstanceOf(HTMLTableElement);
+    // Tables now render as the always-on editable widget (not via the renderer).
+    expect(parent.querySelector('.cm-me-table')).toBeInstanceOf(HTMLTableElement);
+    expect(parent.querySelectorAll('.cm-me-table [contenteditable="true"]').length).toBeGreaterThan(0);
+    // Images and callouts still render through the markdown renderer.
     expect(parent.querySelector('.rendered-image')).toBeInstanceOf(HTMLImageElement);
     expect(parent.querySelector('.rendered-callout')).toBeInstanceOf(HTMLElement);
-    expect(renderedBlocks).toContain('| Name | Status |\n| --- | --- |\n| Hybrid | Ready |');
+    // The table is handled by the editable widget, so it is NOT sent to the renderer.
+    expect(renderedBlocks).not.toContain('| Name | Status |\n| --- | --- |\n| Hybrid | Ready |');
+    expect(renderedBlocks.some((block) => block.startsWith('!['))).toBe(true);
 
-    parent.querySelector<HTMLElement>('.rendered-table')?.dispatchEvent(
-      new MouseEvent('mousedown', { bubbles: true }),
-    );
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('exposes table tools via a toolbar and a right-click context menu', async () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const markdown = ['# T', '| Name | Status |', '| --- | --- |', '| Hybrid | Ready |'].join('\n');
+    const editor = createMarkdownEditorView({ parent, markdown, mode: 'hybrid' });
+    editor.setSelection({ anchor: 1, head: 1 });
     await flushPromises();
 
-    expect(parent.querySelector('.rendered-table')).toBeNull();
-    expect(editor.getSelection().anchor).toBe(markdown.indexOf('| Name | Status |'));
+    // The contextual toolbar surfaces the structural operations.
+    expect(parent.querySelector('.cm-me-table-toolbar')).toBeInstanceOf(HTMLElement);
+    expect(parent.querySelector('button[aria-label="Insert column right"]')).toBeInstanceOf(HTMLButtonElement);
+    expect(parent.querySelector('button[aria-label="Align center"]')).toBeInstanceOf(HTMLButtonElement);
+    expect(parent.querySelector('button[aria-label="Delete table"]')).toBeInstanceOf(HTMLButtonElement);
+
+    // Right-clicking a cell opens an identical context menu (appended to <body>).
+    const cell = parent.querySelector<HTMLElement>('.cm-me-table [contenteditable="true"]')!;
+    cell.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 5, clientY: 5 }));
+    const menu = document.body.querySelector('.cm-me-table-menu');
+    expect(menu).toBeInstanceOf(HTMLElement);
+    const itemLabels = Array.from(menu!.querySelectorAll('.cm-me-table-menu-item')).map((i) => i.textContent);
+    expect(itemLabels).toContain('Insert row above');
+    expect(itemLabels).toContain('Delete table');
+
+    // Escape dismisses the menu.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(document.body.querySelector('.cm-me-table-menu')).toBeNull();
+
+    // A toolbar op edits the Markdown source (inserts a column).
+    parent.querySelector<HTMLElement>('button[aria-label="Insert column right"]')!.click();
+    expect(editor.getMarkdown()).toContain('| Name |  | Status |');
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('removes the whole table from the source via the context menu', async () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const markdown = ['# T', '| Name | Status |', '| --- | --- |', '| Hybrid | Ready |'].join('\n');
+    const editor = createMarkdownEditorView({ parent, markdown, mode: 'hybrid' });
+    editor.setSelection({ anchor: 1, head: 1 });
+    await flushPromises();
+
+    const cell = parent.querySelector<HTMLElement>('.cm-me-table [contenteditable="true"]')!;
+    cell.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 5, clientY: 5 }));
+    const deleteItem = Array.from(document.body.querySelectorAll<HTMLElement>('.cm-me-table-menu-item')).find(
+      (item) => item.textContent === 'Delete table',
+    )!;
+    expect(deleteItem).toBeInstanceOf(HTMLElement);
+    deleteItem.click();
+
+    expect(editor.getMarkdown()).not.toContain('| Name | Status |');
+    expect(editor.getMarkdown()).not.toContain('| Hybrid | Ready |');
+    expect(editor.getMarkdown()).toContain('# T');
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('hybrid mode preserves the source byte-for-byte and does not churn blank lines on a structural edit', async () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const doc = [
+      '---', 'title: Doc', 'tags: a, b', '---',
+      '', '# Heading', '', 'Paragraph text.',
+      '', '- [ ] one', '- [x] two',
+      '', '| A | B |', '| --- | --- |', '| 1 | 2 |',
+      '', '```ts', 'const x = 1;', '```', '',
+    ].join('\n');
+    const editor = createMarkdownEditorView({ parent, markdown: doc, mode: 'hybrid' });
+    editor.setSelection({ anchor: 0, head: 0 });
+    await flushPromises();
+
+    // No reserialization: hybrid mode keeps the exact source (ISSUE-008 churn was
+    // a `.cm-content` innerText measurement artifact, not real document growth).
+    expect(editor.getMarkdown()).toBe(doc);
+
+    // A structural table edit changes only the table; it must not introduce
+    // doubled blank lines elsewhere in the document.
+    const cell = parent.querySelector<HTMLElement>('.cm-me-table tbody [contenteditable="true"]');
+    expect(cell).toBeInstanceOf(HTMLElement);
+    cell!.focus();
+    parent.querySelector<HTMLElement>('.cm-me-table-wrap button[aria-label="Insert row below"]')!.click();
+    expect(editor.getMarkdown()).toMatch(/\| {2}\| {2}\|/); // an empty row was added
+    expect(editor.getMarkdown()).not.toMatch(/\n[ \t]*\n[ \t]*\n/); // no doubled blank lines
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('does not turn table-shaped lines inside a code fence into an editable table widget', async () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const markdown = ['# T', '', '```', '| a | b |', '| --- | --- |', '| 1 | 2 |', '```', '', 'After'].join('\n');
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown,
+      mode: 'hybrid',
+      hybridRenderMarkdown(block) {
+        return { html: `<div class="rendered-fence">${block.slice(0, 3)}</div>` };
+      },
+    });
+    editor.setSelection({ anchor: 0, head: 0 }); // cursor on the heading; the fence is inactive
+    await flushPromises();
+
+    // The pipe lines live inside a code fence, so they must render as code, never
+    // as the editable table widget.
+    expect(parent.querySelector('.cm-me-table')).toBeNull();
+    expect(editor.getMarkdown()).toBe(markdown);
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('undoes a change, restoring the previous text', () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    let view: EditorView | null = null;
+    const editor = createMarkdownEditorView({
+      parent,
+      markdown: 'Hello',
+      mode: 'markdown',
+      extensions: [EditorView.updateListener.of((update) => { view = update.view; })],
+    });
+    // Force one update so the listener captures the view.
+    editor.setSelection({ anchor: 0, head: 0 });
+    const captured = view as EditorView | null;
+    expect(captured).not.toBeNull();
+
+    captured!.dispatch({ changes: { from: 5, insert: ' world' }, userEvent: 'input' });
+    expect(editor.getMarkdown()).toBe('Hello world');
+
+    undo(captured!);
+    expect(editor.getMarkdown()).toBe('Hello');
+
+    editor.destroy();
+    parent.remove();
+  });
+
+  it('detects center-aligned and single-column tables as editable widgets in hybrid', async () => {
+    const parent = document.createElement('section');
+    document.body.appendChild(parent);
+    const markdown = [
+      '# T',
+      '| A | B |',
+      '| :--: | --- |',
+      '| 1 | 2 |',
+      '',
+      '| Solo |',
+      '| --- |',
+      '| x |',
+    ].join('\n');
+    const editor = createMarkdownEditorView({ parent, markdown, mode: 'hybrid' });
+    editor.setSelection({ anchor: 1, head: 1 });
+    await flushPromises();
+
+    // Both the center-aligned (`:--:`) and the single-column table must render as
+    // editable widgets, not fall back to source.
+    expect(parent.querySelectorAll('.cm-me-table')).toHaveLength(2);
 
     editor.destroy();
     parent.remove();

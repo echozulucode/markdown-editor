@@ -34,6 +34,7 @@ import type {
   SelectionSnapshot,
   SetMarkdownOptions
 } from "./types.js";
+import { HybridTableWidget } from "./table-widget.js";
 
 export type {
   ChangeMeta,
@@ -314,6 +315,22 @@ function buildHybridDecorations(state: EditorState, options: MarkdownEditorViewO
     const line = state.doc.line(lineNumber);
     const text = line.text;
 
+    // Tables get an always-on editable widget (Obsidian-style inline editing),
+    // not the read-only rendered-block path.
+    const tableBlock = findTableBlock(state, lineNumber);
+    if (tableBlock) {
+      builder.add(
+        tableBlock.from,
+        tableBlock.to,
+        Decoration.replace({
+          block: true,
+          widget: new HybridTableWidget(tableBlock.raw, tableBlock.from, tableBlock.to)
+        })
+      );
+      lineNumber = tableBlock.endLine + 1;
+      continue;
+    }
+
     const renderedBlock = findHybridRenderedBlock(state, lineNumber);
     if (renderedBlock) {
       if (activeLine < renderedBlock.startLine || activeLine > renderedBlock.endLine) {
@@ -584,9 +601,9 @@ function findFencedBlock(state: EditorState, startLine: number): LineRange | nul
 }
 
 function findHybridRenderedBlock(state: EditorState, startLine: number): LineRange | null {
+  // Tables are handled separately (editable widget), so they're not here.
   return findFencedBlock(state, startLine)
     ?? findCalloutBlock(state, startLine)
-    ?? findTableBlock(state, startLine)
     ?? findImageBlock(state, startLine);
 }
 
@@ -665,7 +682,11 @@ function isTableLine(text: string): boolean {
 }
 
 function isTableSeparator(text: string): boolean {
-  return /^\|\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(text.trim());
+  // GFM allows any run of dashes (>=1) with optional alignment colons, and a
+  // single-column table is valid. Keep this in step with table-model's parser so
+  // hybrid detection never drops a table the editable widget can render (e.g. a
+  // center-aligned `:--:` or a one-column `| --- |`).
+  return /^\|\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$/.test(text.trim());
 }
 
 function addInlineLinkDecorations(builder: RangeSetBuilder<Decoration>, lineFrom: number, text: string): void {
@@ -1434,16 +1455,21 @@ class FrontmatterPropertiesWidget extends WidgetType {
     }
 
     if (entry.type === "date" || entry.type === "time" || entry.type === "datetime") {
-      const pickerButton = this.createButton("Pick", `Open ${entry.key} picker`, readOnly, () => {
-        const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
-        if (typeof pickerInput.showPicker === "function") {
-          pickerInput.showPicker();
-        } else {
+      const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
+      // Native date/time inputs already render their own clickable picker icon.
+      // Only add a fallback trigger when the browser lacks showPicker, so we never
+      // show two calendar icons (and never fight the native control on click).
+      if (typeof pickerInput.showPicker !== "function") {
+        const pickerButton = this.createButton("", `Open ${entry.key} picker`, readOnly, () => {
           pickerInput.focus();
-        }
-      });
-      pickerButton.classList.add("cm-me-property-picker");
-      wrapper.append(pickerButton);
+        });
+        pickerButton.classList.add("cm-me-property-picker");
+        pickerButton.innerHTML =
+          entry.type === "time"
+            ? '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5"/></svg>'
+            : '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>';
+        wrapper.append(pickerButton);
+      }
     }
 
     return wrapper;

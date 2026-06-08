@@ -172,4 +172,35 @@ describe('frontmatter handling', () => {
     // Benign keys survive.
     expect(frontmatter['title']).toBe('Safe');
   });
+
+  it('treats an unclosed frontmatter fence as plain body (fail-safe, byte-stable)', () => {
+    const raw = '---\ntitle: x\nthis never closes\nmore body\n';
+    const split = splitFrontmatter(raw);
+    expect(split.hasFrontmatter).toBe(false);
+    expect(split.body).toBe(raw);
+    expect(roundTripMarkdown(raw)).toBe(raw);
+    // With no recognized frontmatter, replaceBody swaps the whole document.
+    expect(replaceBody(raw, 'NEW')).toBe('NEW');
+  });
+
+  it('handles a frontmatter-only document (no body) and appends a new body after it', () => {
+    const raw = '---\ntitle: x\n---\n';
+    const split = splitFrontmatter(raw);
+    expect(split.hasFrontmatter).toBe(true);
+    expect(split.body).toBe('');
+    expect(split.frontmatter['title']).toBe('x');
+    expect(roundTripMarkdown(raw)).toBe(raw);
+    expect(replaceBody(raw, '# Body\n')).toBe('---\ntitle: x\n---\n# Body\n');
+  });
+
+  it('handles an empty frontmatter block and an empty document', () => {
+    const emptyBlock = '---\n---\n\nBody.\n';
+    const block = splitFrontmatter(emptyBlock);
+    expect(block.hasFrontmatter).toBe(true);
+    expect(block.frontmatter).toEqual({});
+    expect(roundTripMarkdown(emptyBlock)).toBe(emptyBlock);
+
+    expect(splitFrontmatter('').hasFrontmatter).toBe(false);
+    expect(roundTripMarkdown('')).toBe('');
+  });
 });

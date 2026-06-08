@@ -55,6 +55,22 @@ describe('MarkdownEditor — mode switching control', () => {
     expect(onModeChange).not.toHaveBeenCalled();
     unmount();
   });
+
+  it('clamps the active mode into `modes` when modes change to exclude it', () => {
+    // Simulates a host reusing this editor instance for a different surface (or
+    // React reconciling one usage into another): the previous mode must not stick
+    // if it is no longer allowed, otherwise no editing surface renders.
+    const { container, rerender, unmount } = mount(
+      <MarkdownEditor defaultValue={'# Hi\n'} modes={['markdown', 'preview']} initialMode="markdown" />,
+    );
+    const section = container.querySelector('section.me-editor')!;
+    expect(section.getAttribute('data-mode')).toBe('markdown');
+
+    rerender(<MarkdownEditor defaultValue={'# Hi\n'} modes={['preview']} initialMode="preview" />);
+    expect(section.getAttribute('data-mode')).toBe('preview');
+
+    unmount();
+  });
 });
 
 describe('MarkdownEditor — keyboard shortcuts', () => {
@@ -99,6 +115,38 @@ describe('MarkdownEditor — keyboard shortcuts', () => {
 });
 
 describe('MarkdownEditor — imperative handle', () => {
+  it('emits onChange exactly once per imperative update (no double-fire)', () => {
+    const ref = React.createRef<MarkdownEditorHandle>();
+    const onChange = vi.fn();
+    const { unmount } = mount(
+      <MarkdownEditor ref={ref} defaultValue={'# A\n'} modes={['markdown', 'hybrid']} initialMode="markdown" onChange={onChange} />,
+    );
+
+    run(() => ref.current!.setMarkdown('# B\n'));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenLastCalledWith('# B\n', expect.objectContaining({ source: 'programmatic' }));
+
+    onChange.mockClear();
+    run(() => ref.current!.replaceMarkdown('# C\n'));
+    expect(onChange).toHaveBeenCalledTimes(1);
+
+    onChange.mockClear();
+    run(() => ref.current!.insertMarkdown(' tail'));
+    expect(onChange).toHaveBeenCalledTimes(1);
+
+    unmount();
+  });
+
+  it('getSnapshot includes the selection when CodeMirror is mounted', () => {
+    const ref = React.createRef<MarkdownEditorHandle>();
+    const { unmount } = mount(
+      <MarkdownEditor ref={ref} defaultValue={'# Hello world\n'} modes={['markdown']} initialMode="markdown" />,
+    );
+    run(() => ref.current!.setSelection({ from: 2, to: 7 }));
+    expect(ref.current!.getSnapshot().selection).toEqual({ ranges: [{ anchor: 2, head: 7 }], mainIndex: 0 });
+    unmount();
+  });
+
   it('get/set markdown and mode, and getSnapshot reflect current state', () => {
     const ref = React.createRef<MarkdownEditorHandle>();
     const onChange = vi.fn();

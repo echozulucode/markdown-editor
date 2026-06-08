@@ -1,0 +1,211 @@
+type: issues
+project: "markdown-editor"
+updated: 2026-06-07
+notes: "ISSUE-012..015 (the four React code-review findings) resolved 2026-06-07 via the R1-R5 hardening phases; see .changeset/react-wrapper-hardening.md."
+issues:
+  - id: ISSUE-012
+    title: "Imperative updates double-fire onChange"
+    category: react-api
+    severity: medium
+    observed: "updateMarkdown calls setMarkdown(..., {emitChange:true}) AND emits onChange directly; replaceMarkdown emits a third time. In CodeMirror modes a single imperative call fires onChange 2-3 times (when content changes)."
+    expected: "Exactly one onChange per imperative action, with a defined source."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (updateMarkdown/replaceMarkdown); packages/react/test/controls.test.tsx ('emits onChange exactly once per imperative update'); .changeset/react-wrapper-hardening.md"
+    status: resolved
+    resolution: "R1: updateMarkdown now calls setMarkdown(..., {emitChange:false}) and is the single emit source; replaceMarkdown routes through it (extra emit removed). A call-count test asserts exactly one onChange per setMarkdown/replaceMarkdown/insertMarkdown (failed test-first at 2x before the fix)."
+    next_action: "none"
+    history:
+      - "2026-06-07 raised by the independent React code review; verified against source."
+      - "2026-06-07 resolved (Phase R1); verified test-first (call-count test failed at 2x, passes at 1x after the fix)."
+
+  - id: ISSUE-013
+    title: "React wrapper recreates CodeMirror for in-editor mode/config changes"
+    category: react-lifecycle
+    severity: medium
+    observed: "The create-effect is keyed on activeMode/readOnly/showProperties/normalizedFrontmatterDisplay, so markdown<->hybrid, read-only toggle, and show/hide properties destroy+recreate the view, losing selection/scroll/undo — though the adapter's setMode reconfigures in place."
+    expected: "CM stays stable across in-editor changes (use setMode/setReadOnly); recreate only on CM<->non-CM transitions."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (create-effect deps + in-place setMode effect); packages/react/test/lifecycle.test.tsx; codemirror/src/index.ts:160-168"
+    status: resolved
+    resolution: "R2: create-effect deps narrowed to [ariaLabel, hybridRenderMarkdown, isCodeMirrorMode, propertySchema]; markdown<->hybrid + show/hide-properties now reconfigure in place via a setMode effect, read-only via the existing setReadOnly effect. Selection survives markdown<->hybrid and a read-only toggle (lifecycle tests failed test-first on the pre-R2 code, pass after)."
+    next_action: "none"
+    history:
+      - "2026-06-07 raised by the independent React code review; verified against source."
+      - "2026-06-07 resolved (Phase R2); selection-survival tests confirmed the fix (cursor/scroll/undo no longer lost on in-editor mode switches)."
+
+  - id: ISSUE-014
+    title: "Preview does not respond to renderer-registry changes"
+    category: react-rendering
+    severity: medium
+    observed: "PreviewSurface's render effect depends only on [markdown]; a host swapping renderers/registry/diagram services with unchanged markdown leaves the preview stale."
+    expected: "A stable registry change re-renders the preview."
+    trace_link: "packages/react/src/PreviewSurface.tsx (effect deps [markdown, registry]); packages/react/test/preview-render.test.tsx (registry-swap test)"
+    status: resolved
+    resolution: "R3: the PreviewSurface render effect deps are now [markdown, registry]; diagnostics stay on a ref so the re-render loop (LESSON-034) stays fixed. A registry-swap test asserts the preview updates when only the renderers change."
+    next_action: "none"
+    history:
+      - "2026-06-07 raised by the review. Caveat: the deps were narrowed to fix a re-render loop caused by onDiagnostics identity (LESSON-034); re-adding a stable registry is safe."
+      - "2026-06-07 resolved (Phase R3); registry-swap test confirms preview re-renders on a stable registry change."
+
+  - id: ISSUE-015
+    title: "Two diagnostics channels; HostServices.reportDiagnostics is unwired (and renderer-naming API drift)"
+    category: react-api
+    severity: low
+    observed: "core HostServices declares reportDiagnostics?() but React only emits via onDiagnostics. Separately, MarkdownEditorProps declares both rendererRegistry and renderers while the React component exposes only renderers (rendererRegistry is unreachable)."
+    expected: "One consistent diagnostics contract; no dead/ambiguous renderer prop."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (emitDiagnostics + getSnapshot); packages/core/src/types.ts (rendererRegistry @deprecated); packages/react/test/preview-render.test.tsx + controls.test.tsx + sanitize.test.ts"
+    status: resolved
+    resolution: "R4: emitDiagnostics now dispatches to both onDiagnostics and hostServices.reportDiagnostics (both-channels test); rendererRegistry is marked @deprecated in core (component already exposes only renderers); getSnapshot.selection is populated as a SelectionSnapshot from the live CM selection (test); sanitizePreviewHtml documents its trusted-renderer policy with a regression test pinning that a stray top-level <style> is dropped while SVG-scoped diagram CSS is kept."
+    next_action: "none"
+    history:
+      - "2026-06-07 raised by the review; verified against source."
+      - "2026-06-07 resolved (Phase R4); all four sub-items implemented + tested."
+
+  - id: ISSUE-010
+    title: "Hybrid rendered-block widget injected renderer HTML unsanitized (XSS)"
+    category: security
+    severity: high
+    observed: "The preview surface ran renderer HTML through sanitizePreviewHtml, but the hybrid rendered-block widget injected the same renderer HTML raw (MarkdownEditor.tsx hybridRenderMarkdown -> codemirror widget innerHTML). A custom/host renderer emitting an event handler or javascript: URL executed in hybrid but not preview."
+    expected: "Hybrid sanitizes renderer HTML exactly like preview (XSS parity)."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (hybridRenderMarkdown); packages/react/test/hybrid-sanitize.test.tsx; .changeset/hybrid-render-sanitize.md"
+    status: resolved
+    resolution: "hybridRenderMarkdown now returns sanitizePreviewHtml(result.html). Regression test fails if a renderer's onerror handler reaches the editor DOM (verified by reverting the fix)."
+    lesson: LESSON-041
+    next_action: "none"
+    history:
+      - "2026-06-07 surfaced by the QA/test-expert audit; verified the raw injection (negative test), fixed + tested."
+
+  - id: ISSUE-011
+    title: "No render debounce or large-document guard in the React component"
+    category: performance
+    severity: medium
+    observed: "Preview/WYSIWYG re-run full renderMarkdownToHtml on every change with no debounce or size guard; a large (200KB+) document re-renders synchronously per keystroke."
+    expected: "Large-document typing stays responsive (debounce/threshold or incremental render)."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (PreviewSurface effect); docs/bdd-coverage-and-test-plan.md"
+    status: open
+    next_action: "Add a large-document typing-latency e2e to characterize, then add a debounce/size guard for preview/wysiwyg rendering."
+    history:
+      - "2026-06-07 raised by the QA audit (UNCOVERED); tracked as a follow-up."
+
+  - id: ISSUE-001
+    title: "Mermaid injects its own error graphic onto the page for invalid diagrams"
+    category: renderers
+    severity: medium
+    observed: "An invalid Mermaid block showed a 'Syntax error in text / mermaid version 11.x' graphic floating on the page, even though createMermaidRenderer already caught the throw and rendered a clean source fallback."
+    expected: "Invalid diagrams surface only through the renderer's inline fallback + a diagnostic; no library-injected graphic leaks into the DOM."
+    trace_link: "packages/renderers/src/mermaid.ts; .changeset/mermaid-suppress-error-graphic.md; e2e/mermaid-rendering.spec.ts"
+    status: resolved
+    resolution: "Initialize Mermaid with suppressErrorRendering:true. Regression test asserts the bomb graphic never appears."
+    lesson: LESSON-040
+    next_action: "none"
+    history:
+      - "2026-06-06 found (the diagnostics fixture is intentional; the leaked graphic was not); fixed + tested."
+
+  - id: ISSUE-002
+    title: "Hybrid table widget vanishes to source for center-aligned or single-column tables"
+    category: hybrid-detection
+    severity: high
+    observed: "Centering a column (`:--:`) or deleting down to one column made the editable table widget disappear and show raw Markdown, though the source stayed valid and table-model parsed it."
+    expected: "Any GFM table the model can parse renders as the editable widget in hybrid mode."
+    trace_link: "packages/codemirror/src/index.ts (isTableSeparator); .changeset/hybrid-table-detection-fix.md; codemirror view test 'detects center-aligned and single-column tables'"
+    status: resolved
+    resolution: "isTableSeparator now matches `^\\|\\s*:?-+:?\\s*(\\|\\s*:?-+:?\\s*)*\\|?$` (any dash run, optional alignment colons, >=1 column), in step with table-model."
+    lesson: LESSON-031
+    next_action: "none"
+    history:
+      - "2026-06-06 surfaced by the BDD pilot's alignment + single-column scenarios; root-caused to the detector regex; fixed + unit test."
+
+  - id: ISSUE-003
+    title: "Harness CSS bleeds into embedded editor internals"
+    category: css-isolation
+    severity: medium
+    observed: "`.mode-card span` forced the active mode-button label to muted gray (dark text on blue); `.quick-edit-modal button` / `.conflict-column button` / `.mobile-note-frame button` restyled the editor's toolbar buttons (washed-out / invisible icons, especially in dark)."
+    expected: "Demo/host CSS styles only its own chrome, never `.me-editor` descendants."
+    trace_link: "examples/dev-harness/src/styles.css"
+    status: resolved
+    resolution: "Removed `.mode-card span`; scoped the leaking button rules to `> header`/`> footer` subtrees and `ul` rules to `> ul`, in both light and dark blocks."
+    lesson: LESSON-032
+    next_action: "none"
+    history:
+      - "2026-06-06 reported as 'Mode Matrix buttons / can't see the icon'; diagnosed via screenshot + computed-style; scoped the selectors."
+
+  - id: ISSUE-004
+    title: "Preview re-renders in an infinite loop (flickering scrollbar)"
+    category: react-effects
+    severity: high
+    observed: "The /renderers preview re-rendered continuously (flicker; ~46 renderMarkdownToHtml calls per load) because MarkdownEditor passed a fresh inline onDiagnostics callback every render and the preview effect depended on it."
+    expected: "The preview renders once per document change."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (PreviewSurface effect); .changeset/preview-flicker-and-mode-accent.md"
+    status: resolved
+    resolution: "Preview effect depends only on `markdown`; diagnostics reported via onDiagnosticsRef. Also reserved the scrollbar gutter."
+    lesson: LESSON-034
+    next_action: "none"
+    history:
+      - "2026-06-06 reported as a flickering scrollbar; first fix used a stable emitDiagnostics; final fix removed onDiagnostics from the deps entirely."
+
+  - id: ISSUE-005
+    title: "Editor switched to dark inside a light page"
+    category: theming
+    severity: medium
+    observed: "After adding `@media (prefers-color-scheme: dark)` to the editor stylesheet, the editor rendered dark inside the light harness page on a dark-OS machine."
+    expected: "The editor follows the host page theme, not the OS."
+    trace_link: "packages/react/src/styles.css; examples/dev-harness/src/main.tsx (useTheme + theme toggle)"
+    status: resolved
+    resolution: "Reverted the editor's prefers-color-scheme block; the editor follows `--me-*` tokens. Added a harness Light/Dark/Auto page-theme toggle that drives both chrome and editor tokens."
+    lesson: LESSON-033
+    next_action: "none"
+    history:
+      - "2026-06-06 reported ('why did it go dark while I'm in light mode'); reverted + added page-theme toggle, verified both schemes via Playwright colorScheme."
+
+  - id: ISSUE-006
+    title: "Date property shows two calendar icons and flickers on click"
+    category: properties
+    severity: low
+    observed: "Native `<input type=date>` shows its own picker icon and our custom 'Pick' button added a second; clicking flickered."
+    expected: "One picker affordance; no flicker."
+    trace_link: "packages/codemirror/src/index.ts; .changeset/date-picker-icon.md"
+    status: resolved
+    resolution: "Only render the custom (icon) button when `HTMLInputElement.showPicker` is unavailable; otherwise rely on the native control."
+    next_action: "none"
+    history:
+      - "2026-06-06 reported; first replaced 'Pick' text with an icon, then removed it entirely when a native picker exists."
+
+  - id: ISSUE-007
+    title: "Renderers preview blank with no diagnostics when reached by navigation"
+    category: mode-resolution
+    severity: high
+    observed: "Navigating markdown -> renderers showed an empty preview ('No renderer diagnostics'); fresh load and away+back worked. renderMarkdownToHtml was never called; the preview editor had data-mode='markdown'."
+    expected: "The preview renders on every navigation path."
+    trace_link: "packages/react/src/MarkdownEditor.tsx (activeMode clamp); react controls test 'clamps the active mode into modes'"
+    status: resolved
+    resolution: "React reconciled the prior route's markdown-mode editor into the preview editor; initialMode only applies on mount. Clamp activeMode to allowedModes (and re-sync internalMode on modes change)."
+    lesson: LESSON-035
+    next_action: "none"
+    history:
+      - "2026-06-07 reported; ruled out Vite dev artifact via production build; instrumented to prove the effect never ran; root-caused to reconciliation + stale mode."
+
+  - id: ISSUE-008
+    title: "Controlled editor accumulates blank lines / churns the table widget on repeated structural commits"
+    category: react-controlled
+    severity: medium
+    observed: "A controlled editor (value+onChange, e.g. the full-page-docs example) re-serializes the whole document on each structural commit, adding blank lines and intermittently dropping the hybrid table widget. The BDD pilot therefore drives an uncontrolled fixture (example-bdd-table)."
+    expected: "Repeated structural edits on a controlled editor keep the document stable (no blank-line growth, no widget churn)."
+    trace_link: "docs/bdd-coverage-and-test-plan.md (Phase 2 follow-up); packages/codemirror/test/markdown-editor-view.test.ts ('hybrid mode preserves the source byte-for-byte')"
+    status: resolved
+    resolution: "Not a defect. getMarkdown()/onChange output is byte-stable in hybrid mode and a structural edit adds no doubled blank lines (proven by a new regression test). The 'growth' was a `.cm-content` innerText measurement artifact (CodeMirror renders each line as a div; innerText inflates blank-line counts)."
+    lesson: LESSON-042
+    next_action: "none"
+    history:
+      - "2026-06-06 discovered while wiring the BDD pilot; worked around with an uncontrolled fixture."
+      - "2026-06-07 re-characterized: no per-edit/per-switch accumulation; getMarkdown byte-stable; closed as a measurement artifact with a byte-stability test."
+
+  - id: ISSUE-009
+    title: "Executable BDD does not yet cover all interaction features / both device projects"
+    category: testing
+    severity: low
+    observed: "playwright-bdd initially ran two features on chromium-desktop only."
+    expected: "All interaction-level features execute as BDD on desktop + mobile."
+    trace_link: "examples/dev-harness/playwright.bdd.config.ts; examples/dev-harness/bdd-steps/; docs/bdd-coverage-and-test-plan.md"
+    status: open
+    next_action: "Bind the remaining features: document_properties, host_integration_services, rich_text_editing, editor_accessibility."
+    history:
+      - "2026-06-06 pilot deliberately scoped to two desktop-validated features."
+      - "2026-06-07 added switching_editor_modes (3 features now) and enabled chromium-mobile — 18 scenarios pass on both desktop and mobile (36 runs). Four features remain to bind."

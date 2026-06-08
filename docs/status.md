@@ -1,18 +1,101 @@
 ---
 type: status
-updated: 2026-05-15
-current_phase: "Post-MVP runtime fix ready for review"
+updated: 2026-06-07
+current_phase: "React wrapper hardening (R1-R5) complete; published to npm; 0.2.0 release pending"
 blockers: []
 next_actions:
-  - "Review refined hybrid properties UX in /modes and /examples"
-  - "Decide whether schema validation, required-property enforcement, and host-service value suggestions belong in the next pass"
-  - "Review complex YAML handling and decide whether unsupported structures should fall back to source editing"
-  - "Review WYSIWYG table operation controls in WYSIWYG mode"
-  - "Review the host-services example for wiki-link suggestions and image upload"
-  - "Review post-MVP QA notes and screenshot artifacts"
+  - "Publish @echozedlabs/* 0.2.0 (bundles the pending changesets incl. the hybrid-XSS fix + react-wrapper-hardening) via OIDC trusted publishing — user owns releases"
+  - "After publish, bump knowledge-e3 + echozed-demo deps to ^0.2.0"
+  - "Follow-up R5: extract ModeToolbar + a useCodeMirrorEditor hook from MarkdownEditor.tsx (deferred — tightly coupled, needs new abstractions)"
+  - "Bind the remaining BDD features (document_properties, host_integration_services, rich_text_editing, editor_accessibility) — ISSUE-009"
+  - "Add a large-document typing-latency e2e + a render debounce/size guard — ISSUE-011"
+  - "Optional: add CODE_OF_CONDUCT.md + issue/PR templates to the open-source repo"
 ---
 
 # Status Log
+
+## Session: 2026-06-07  React wrapper hardening (independent review → plan → R1-R5)
+**Phase:** React API/lifecycle hardening from the 2026-06-07 independent code review
+
+**Actions taken:**
+- Turned the independent review (`docs/react-code-review-2026-06-07.md`) into a verified plan (`docs/react-hardening-plan-2026-06-07.md`): checked all findings against source (all valid, with caveats), tracked as ISSUE-012…ISSUE-015, then executed phases R1–R5 test-first.
+- **R1 — single-source onChange:** `updateMarkdown` now sets CodeMirror silently (`emitChange:false`) and is the sole emit source; `replaceMarkdown` routes through it (extra emit removed). Imperative `setMarkdown`/`replaceMarkdown`/`insertMarkdown` now fire onChange exactly once (was 2–3×).
+- **R2 — keep CodeMirror stable:** narrowed the create-effect deps to `[ariaLabel, hybridRenderMarkdown, isCodeMirrorMode, propertySchema]`; markdown↔hybrid and show/hide-properties now reconfigure in place via a `setMode` effect (read-only via the existing `setReadOnly` effect). Selection/scroll/undo survive in-editor mode switches.
+- **R3 — preview reacts to registry:** `PreviewSurface` render effect deps are now `[markdown, registry]` (diagnostics stay on a ref, so the LESSON-034 loop stays fixed).
+- **R4 — API contract:** `emitDiagnostics` dispatches to both `onDiagnostics` and `hostServices.reportDiagnostics`; `getSnapshot().selection` is populated as a `SelectionSnapshot` from the live CM selection; `rendererRegistry` marked `@deprecated`; `sanitizePreviewHtml` trusted-renderer policy documented + a regression test pins that a stray top-level `<style>` is dropped while SVG-scoped diagram CSS is kept.
+- **R5 — extraction (partial, by design):** pulled `PreviewSurface`, `HostServiceToolbar`, and the toolbar icon helpers into their own files (`PreviewSurface.tsx`, `HostServiceToolbar.tsx`, `icons.tsx`). `MarkdownEditor.tsx` 733 → 458 lines. `ModeToolbar` + a `useCodeMirrorEditor` hook deferred as a tracked follow-up (too coupled to component state to extract safely here).
+- Added/updated tests: imperative call-count, getSnapshot-selection (controls), registry-swap + both-diagnostics-channels (preview-render), selection-survival (lifecycle), `<style>`-allowance (sanitize). Changeset `react-wrapper-hardening` (patch).
+
+**Verification:**
+- Unit: core 48, codemirror 41, react 24, renderers 24, wysiwyg-lexical 46 — all green. React typecheck/build clean.
+- e2e: 48 hand-written specs pass twice on a fresh isolated server (5207/5208) with rebuilt dist — once after R1–R4, once after the R5 extraction.
+- BDD: 36 pass (desktop + mobile). `verify:features` 52/52, intent lint clean.
+
+**Outcome:** All four review findings resolved with test-first evidence (each fix had a test that failed on the pre-fix code), the wrapper's hotspot file is materially thinner, and the full suite is green end-to-end.
+
+**Carry-forward notes:**
+- The R1–R5 changes ship in 0.2.0 (changeset `react-wrapper-hardening`, patch `@echozedlabs/react`); the user owns the release.
+- Deferred R5: `ModeToolbar` + `useCodeMirrorEditor` hook extraction (no behavior pending, purely structural).
+- Still open: ISSUE-009 (4 BDD features), ISSUE-011 (large-doc render debounce/guard).
+
+## Session: 2026-06-07  QA audit, security fix, and abnormal-case coverage
+**Phase:** Test hardening + traceability
+
+**Actions taken:**
+- Ran a test-expert QA audit (subagent) for normal + abnormal/adversarial cases, cross-referenced with existing coverage.
+- **Found and fixed a real XSS bug** (ISSUE-010): the hybrid rendered-block widget injected renderer HTML unsanitized while preview sanitized it. `hybridRenderMarkdown` now runs output through `sanitizePreviewHtml`; guarded by a regression test verified by reverting the fix.
+- Closed ISSUE-008 as a **measurement artifact** — `getMarkdown()` is byte-stable in hybrid and a structural edit adds no doubled blank lines; the "growth" was `.cm-content` innerText. Added a byte-stability regression test.
+- Added abnormal-case unit tests: frontmatter fail-safe edges (unclosed/frontmatter-only/empty/empty-block), code-fence-shaped-table is not an editable widget, dangerous image URL schemes rejected, `searchLinks` rejection reports a diagnostic.
+- Advanced ISSUE-009: bound `switching_editor_modes` as executable BDD and enabled chromium-mobile — 18 scenarios pass on desktop **and** mobile (36 runs). Added a `@security` BDD scenario for the sanitization behavior.
+- Updated docs/test-matrix.md (abnormal-input & security section + BDD lane), features/coverage.yaml (52/52), issues.yaml, lessons.yaml, and the BDD plan.
+
+**Verification:**
+- Unit: core 48, codemirror 41, renderers 24, react 17, wysiwyg-lexical 46 — all green.
+- e2e: 48 hand-written specs pass on chromium-desktop (sanitize fix preserved all rendered content).
+- BDD: 36 pass (desktop + mobile). `pnpm verify:features`: 52/52 covered, intent lint clean.
+
+**Outcome:** One real security bug fixed, ISSUE-008 closed, abnormal-case coverage materially expanded, BDD broadened to 3 features on 2 device projects.
+
+**Carry-forward notes:**
+- The hybrid-XSS fix ships in 0.2.0 (changeset `hybrid-render-sanitize`).
+- Open follow-ups: ISSUE-009 (4 BDD features left), ISSUE-011 (large-doc render debounce/guard), uploadAsset error-path test.
+- The `'html'` block renderer in `registry.ts` is dead code (never emitted) — harmless, noted by the audit.
+
+## Session: 2026-06-04 → 2026-06-07  Packaging, BDD living docs, demo polish, and bug-fix chain
+**Phase:** Open-source publishing + post-MVP stabilization
+
+Consolidated entry for a continuous multi-day batch (the editor was renamed and published to npm during it).
+
+**Packaging & rename:**
+- Renamed all packages `@markdown-editor/*` → `@echozedlabs/*` (npm org `echozedlabs`, brand echozed.com, MIT) and published `core`, `react`, `codemirror`, `renderers`, `wysiwyg-lexical` to npm.
+- Set up Changesets (fixed versioning) + OIDC trusted publishing; switched knowledge-e3 to consume `@echozedlabs/react` / `@echozedlabs/wysiwyg-lexical` `^0.1.0` from npm; removed the workspace glob and the obsolete GitHub Actions checkout/token for the private editor repo.
+- Built a standalone `echozed-demo` (Vite+React) consuming the published packages; wrote a brand blog post + PUBLISHING.md runbook.
+
+**Editable tables (Obsidian-style, hybrid):**
+- Added a dependency-free GFM `table-model` and a `HybridTableWidget`: contenteditable cells, Tab/Shift-Tab nav, commit-on-leave, alignment preserved.
+- Replaced the simple toolbar with Word/Excel-style **icon toolbar + right-click context menu** (insert row above/below, insert col left/right, align L/C/R, delete row/col/table), plus a `setAlign` model op.
+
+**BDD living documentation + CI gate (the /bdd-gherkin-feature-author work):**
+- Authored 10 declarative Gherkin feature files in `features/` + interaction-contract YAML + README; tagged 0.1.0 baseline vs 0.2.0 additions.
+- Built `features/coverage.yaml` (scenario→test manifest, 51 scenarios) and `docs/bdd-coverage-and-test-plan.md` (coverage report + 4-phase plan). Closed all gaps → **51/51 covered**.
+- Made feature files executable with `playwright-bdd` (config + `bdd-steps/`): `inline_table_editing` and `diagram_rendering` run on chromium-desktop (`@performance` excluded, unit-covered).
+- Added CI: `scripts/check-feature-coverage.mjs` (coverage gate) + `scripts/lint-feature-intent.mjs` (no units/selectors/HTML in scenarios) wired into `.github/workflows/ci.yml` (`pnpm verify:features`) plus a `bdd` job. Both gates proven to fail on drift.
+
+**Demo polish + bug-fix chain (all verified live via Playwright, several via screenshot inspection):**
+- Fixed real product bugs (see issues.yaml): Mermaid error-graphic leak (`suppressErrorRendering`), `isTableSeparator` dropping center-aligned/single-column tables, host-CSS bleed into the editor, preview infinite re-render loop, preview blank-on-navigation (`activeMode` not clamped to `modes`).
+- Rendered wiki links in preview (`renderInline`), date property is an icon (only when native `showPicker` absent), preview table gridlines, responsive phone tables (dropped table `min-width`).
+- Restyled the mode switcher (token-based segmented control); added a harness page-theme toggle (Light/Dark/Auto) after reverting an incorrect editor-level `prefers-color-scheme` dark mode — the editor follows the **page**, not the OS.
+- Built real content for the Responsive / Accessibility / Performance harness routes (were placeholders).
+
+**Verification:** unit suites green (core, codemirror 39, renderers 23, react 15, wysiwyg-lexical); typecheck/build clean; targeted Playwright + full hand-written e2e on chromium-desktop green; BDD pilot 14/14; `pnpm verify:features` green (51/51).
+
+**Outcome:** Editor is published and consumable from npm, has executable living documentation with a CI coverage gate, and the demo is materially more polished with several latent bugs fixed.
+
+**Carry-forward notes:**
+- Pending changesets bundle into **0.2.0** (user handles the release); fixes reach knowledge-e3/echozed-demo only after that publish.
+- Several fixes were latent bugs that an old preview **re-render loop masked**; removing the loop exposed them.
+- Controlled editors (`value`+`onChange`) accumulate blank lines on repeated structural commits — open follow-up (ISSUE-008).
+- The harness's broad element selectors must stay scoped (`>`/header/footer) so they never style embedded `.me-editor` internals.
 
 ## Session: 2026-05-15 WYSIWYG Runtime Error Fix
 **Phase:** Post-MVP stabilization

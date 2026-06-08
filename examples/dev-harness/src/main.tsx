@@ -392,6 +392,20 @@ const pageSuggestions = [
   }
 ];
 
+// Uncontrolled fixture for executable BDD coverage of inline table editing.
+// Uncontrolled (defaultValue, no value/onChange) so structural commits stay
+// internal to the editor and never round-trip the whole document.
+const bddTableMarkdown = `# Table editing fixture
+
+Edit the table below directly in Hybrid mode.
+
+| Check | Owner | Status |
+| --- | --- | --- |
+| Syntax highlighting | Docs | Ready |
+| Mermaid rendering | Platform | Ready |
+| PlantUML rendering | Host | Demo |
+`;
+
 const baseConflictMarkdown = `# Release Checklist
 
 - [x] Renderer smoke tests
@@ -434,9 +448,30 @@ function getCurrentPath() {
   return window.location.pathname === "/" ? "/markdown" : window.location.pathname;
 }
 
+type ThemePref = "light" | "dark" | "auto";
+
+// The harness owns the page theme. The editor follows the page (it never imposes
+// its own system theme), so the toggle drives both the harness chrome and the
+// editor tokens. "Auto" resolves to the OS theme; the default is Light so nothing
+// switches to dark unless the page asks for it.
+function useTheme(): { pref: ThemePref; setPref: (next: ThemePref) => void; effective: "light" | "dark" } {
+  const [pref, setPref] = React.useState<ThemePref>("light");
+  const [systemDark, setSystemDark] = React.useState(false);
+  React.useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const update = () => setSystemDark(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  const effective = pref === "auto" ? (systemDark ? "dark" : "light") : pref;
+  return { pref, setPref, effective };
+}
+
 function App() {
   const [path, setPath] = React.useState(getCurrentPath);
   const [markdown, setMarkdown] = React.useState(sampleMarkdown);
+  const { pref, setPref, effective } = useTheme();
   const activeRoute = routes.find((route) => route.path === path) ?? routes[0];
 
   React.useEffect(() => {
@@ -451,7 +486,7 @@ function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-theme={effective} style={{ colorScheme: effective }}>
       <aside className="sidebar" aria-label="Harness routes">
         <div>
           <p className="eyebrow">Dev Harness</p>
@@ -470,6 +505,20 @@ function App() {
             </button>
           ))}
         </nav>
+        <div className="theme-toggle" role="group" aria-label="Page theme">
+          {(["light", "dark", "auto"] as ThemePref[]).map((option) => (
+            <button
+              key={option}
+              type="button"
+              className="theme-button"
+              data-active={pref === option ? "true" : "false"}
+              aria-pressed={pref === option}
+              onClick={() => setPref(option)}
+            >
+              {option[0].toUpperCase() + option.slice(1)}
+            </button>
+          ))}
+        </div>
       </aside>
 
       <section className="workspace" aria-labelledby="route-title">
@@ -556,6 +605,11 @@ function RoutePanel({
         </section>
         <section className="panel" aria-labelledby="renderer-diagnostics-title">
           <h3 id="renderer-diagnostics-title">Diagnostics</h3>
+          <p className="panel-note">
+            This fixture <strong>intentionally</strong> includes an unknown code language and an
+            invalid diagram. The warnings below show the editor degrading gracefully — falling back
+            to plain text and the diagram source — rather than crashing.
+          </p>
           <DiagnosticList diagnostics={diagnostics} />
           <div className="fixture-source" aria-label="Renderer fixture source">
             <MarkdownEditor
@@ -590,6 +644,18 @@ function RoutePanel({
     return <ExamplesGallery renderers={rendererRegistry} />;
   }
 
+  if (route.id === "responsive") {
+    return <ResponsivePanel renderers={rendererRegistry} />;
+  }
+
+  if (route.id === "accessibility") {
+    return <AccessibilityPanel renderers={rendererRegistry} />;
+  }
+
+  if (route.id === "performance") {
+    return <PerformancePanel renderers={rendererRegistry} />;
+  }
+
   return (
     <section className="panel">
       <h3>{route.label} Surface</h3>
@@ -599,6 +665,167 @@ function RoutePanel({
           "Replace placeholder content through public package APIs only.",
           "Record route-specific gates in docs/test-matrix.md as behavior lands."
         ]}
+      />
+    </section>
+  );
+}
+
+const responsiveFrames = [
+  { id: "phone", label: "Phone", width: 360 },
+  { id: "tablet", label: "Tablet", width: 680 },
+  { id: "full", label: "Full width", width: undefined as number | undefined }
+];
+
+function ResponsivePanel({ renderers }: { renderers: RendererRegistry }) {
+  return (
+    <section className="panel" data-testid="responsive-panel">
+      <h3>Responsive layouts</h3>
+      <p>The same editor at phone, tablet, and full-page widths. Toolbars wrap, properties collapse, and tables scroll rather than overflow the page.</p>
+      <div className="responsive-grid">
+        {responsiveFrames.map((frame) => (
+          <div
+            key={frame.id}
+            className="responsive-frame"
+            data-frame={frame.id}
+            style={frame.width ? { maxWidth: `${frame.width}px` } : undefined}
+          >
+            <header>
+              <span>{frame.label}</span>
+              <span>{frame.width ? `${frame.width}px` : "fluid"}</span>
+            </header>
+            <MarkdownEditor
+              ariaLabel={`${frame.label} responsive preview`}
+              defaultValue={quickEditMarkdown}
+              modes={["hybrid", "markdown", "preview"]}
+              initialMode="hybrid"
+              renderers={renderers}
+              propertySchema={editorialPropertySchema}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function useReducedMotion(): boolean {
+  const [reduced, setReduced] = React.useState(false);
+  React.useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return reduced;
+}
+
+function AccessibilityPanel({ renderers }: { renderers: RendererRegistry }) {
+  const reducedMotion = useReducedMotion();
+  return (
+    <div className="panel-grid" data-testid="accessibility-panel">
+      <section className="panel" aria-labelledby="a11y-editor-title">
+        <h3 id="a11y-editor-title">Keyboard &amp; assistive-tech editing</h3>
+        <p>Every control is reachable by keyboard, exposes an accessible name, and reports its state. Tab in and drive the toolbar without a mouse.</p>
+        <MarkdownEditor
+          ariaLabel="Accessibility demonstration editor"
+          defaultValue={knowledgeMarkdown}
+          modes={["hybrid", "markdown", "preview", "wysiwyg"]}
+          initialMode="wysiwyg"
+          renderers={renderers}
+          propertySchema={editorialPropertySchema}
+          wysiwygToolbarIcons={fontAwesomeToolbarIcons}
+        />
+      </section>
+      <section className="panel" aria-labelledby="a11y-checks-title">
+        <h3 id="a11y-checks-title">What to verify</h3>
+        <p className="a11y-status" data-on={reducedMotion ? "true" : "false"}>
+          Reduced motion: <strong>{reducedMotion ? "on — transitions minimized" : "off"}</strong>
+        </p>
+        <CheckList
+          items={[
+            "Tab order reaches the mode switcher, formatting toolbar, and editor surface.",
+            "Toolbar toggles expose aria-pressed; the active mode exposes aria-current.",
+            "Every icon button has a descriptive accessible name.",
+            "Renderer and validation errors appear inline without stealing focus.",
+            "The editor honors the operating-system reduced-motion preference."
+          ]}
+        />
+      </section>
+    </div>
+  );
+}
+
+function buildLargeMarkdown(sections: number): string {
+  const blocks: string[] = ["---", "title: Large document probe", "owner: Performance", "---", "", "# Large document probe", ""];
+  for (let index = 1; index <= sections; index += 1) {
+    blocks.push(
+      `## Section ${index}`,
+      "",
+      `Paragraph ${index} exercises scrolling, hybrid decoration, and incremental rendering on a long document.`,
+      "",
+      "- [ ] Review this section",
+      "- [x] Confirm it stays responsive",
+      ""
+    );
+  }
+  return blocks.join("\n");
+}
+
+const performanceSizes = [
+  { label: "Small", sections: 40 },
+  { label: "Medium", sections: 200 },
+  { label: "Large", sections: 600 }
+];
+
+function PerformancePanel({ renderers }: { renderers: RendererRegistry }) {
+  const [sizeIndex, setSizeIndex] = React.useState(0);
+  const [reloadKey, setReloadKey] = React.useState(0);
+  const [mountMs, setMountMs] = React.useState<number | null>(null);
+  const startRef = React.useRef<number | null>(null);
+
+  const document = React.useMemo(() => buildLargeMarkdown(performanceSizes[sizeIndex].sections), [sizeIndex]);
+
+  const reload = (nextIndex: number) => {
+    startRef.current = performance.now();
+    setSizeIndex(nextIndex);
+    setReloadKey((key) => key + 1);
+  };
+
+  React.useLayoutEffect(() => {
+    if (startRef.current !== null) {
+      setMountMs(Math.round(performance.now() - startRef.current));
+      startRef.current = null;
+    }
+  }, [reloadKey]);
+
+  return (
+    <section className="panel" data-testid="performance-panel">
+      <h3>Large-document &amp; mount probes</h3>
+      <p>Load progressively larger documents and watch mount-to-layout time. Typing, scrolling, and mode switches should stay responsive as the document grows.</p>
+      <div className="perf-controls">
+        {performanceSizes.map((size, index) => (
+          <button
+            key={size.label}
+            type="button"
+            className="perf-button"
+            data-active={index === sizeIndex ? "true" : "false"}
+            onClick={() => reload(index)}
+          >
+            {size.label} · {size.sections} sections
+          </button>
+        ))}
+        <span className="perf-readout">
+          {mountMs === null ? "Pick a size to measure" : `Mount + layout: ${mountMs} ms · ${document.length.toLocaleString()} chars`}
+        </span>
+      </div>
+      <MarkdownEditor
+        key={reloadKey}
+        ariaLabel="Performance probe editor"
+        defaultValue={document}
+        modes={["hybrid", "markdown", "preview"]}
+        initialMode="hybrid"
+        renderers={renderers}
       />
     </section>
   );
@@ -620,6 +847,21 @@ function ExamplesGallery({ renderers }: { renderers: RendererRegistry }) {
 
   return (
     <div className="examples-gallery" data-testid="examples-gallery">
+      <ExampleShell
+        id="bdd-table"
+        eyebrow="BDD fixture"
+        title="Table editing fixture"
+        description="An uncontrolled hybrid editor used by the executable BDD coverage for inline table editing."
+      >
+        <MarkdownEditor
+          ariaLabel="Table editing fixture"
+          defaultValue={bddTableMarkdown}
+          modes={["hybrid", "markdown"]}
+          initialMode="hybrid"
+          renderers={renderers}
+        />
+      </ExampleShell>
+
       <ExampleShell
         id="full-page-docs"
         eyebrow="All modes"

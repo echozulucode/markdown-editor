@@ -1,4 +1,5 @@
 import { escapeAttribute, escapeHtml } from './escape';
+import { renderInline } from './inline';
 import { createPlantUmlRenderer } from './plantuml';
 import type {
   AsyncDiagramRenderer,
@@ -50,10 +51,10 @@ export class RendererRegistry {
 export function createDefaultRendererRegistry(options: RendererRegistryOptions = {}): RendererRegistry {
   const registry = new RendererRegistry();
 
-  registry.register<ParagraphBlock>('paragraph', (block) => ok(`<p>${escapeHtml(block.text)}</p>`));
-  registry.register<HeadingBlock>('heading', (block) => ok(`<h${block.depth}>${escapeHtml(block.text)}</h${block.depth}>`));
+  registry.register<ParagraphBlock>('paragraph', (block) => ok(`<p>${renderInline(block.text)}</p>`));
+  registry.register<HeadingBlock>('heading', (block) => ok(`<h${block.depth}>${renderInline(block.text)}</h${block.depth}>`));
   registry.register<ListBlock>('list', (block) => ok(renderList(block)));
-  registry.register<SimpleBlock>('blockquote', (block) => ok(`<blockquote>${escapeHtml(block.text)}</blockquote>`));
+  registry.register<SimpleBlock>('blockquote', (block) => ok(`<blockquote>${renderInline(block.text)}</blockquote>`));
   registry.register<SimpleBlock>('html', (block) => ok(`<pre class="me-renderer-html">${escapeHtml(block.raw)}</pre>`));
   registry.register<TableBlock>('table', (block) => ok(renderTable(block.rows)));
   registry.register<ImageBlock>('image', (block) => {
@@ -61,9 +62,9 @@ export function createDefaultRendererRegistry(options: RendererRegistryOptions =
     return ok(`<img src="${escapeAttribute(block.url)}" alt="${escapeAttribute(block.alt)}"${title}>`);
   });
   registry.register<CalloutBlock>('callout', (block) => {
-    const title = block.title ? `<strong>${escapeHtml(block.title)}</strong>` : '';
+    const title = block.title ? `<strong>${renderInline(block.title)}</strong>` : '';
     return ok(
-      `<aside class="me-renderer-callout me-renderer-callout-${escapeAttribute(block.calloutType.toLowerCase())}">${title}<p>${escapeHtml(block.body)}</p></aside>`
+      `<aside class="me-renderer-callout me-renderer-callout-${escapeAttribute(block.calloutType.toLowerCase())}">${title}<p>${renderInline(block.body)}</p></aside>`
     );
   });
   registry.register<CodeBlock>('code', async (block, context) => {
@@ -149,11 +150,11 @@ function renderList(block: ListBlock): string {
   const items = block.items
     .map((item) => {
       if (item.checked === undefined) {
-        return `<li>${escapeHtml(item.text)}</li>`;
+        return `<li>${renderInline(item.text)}</li>`;
       }
 
       const checked = item.checked ? ' checked' : '';
-      return `<li class="me-renderer-task-item"><input class="me-renderer-task-checkbox" type="checkbox" disabled${checked}> <span>${escapeHtml(item.text)}</span></li>`;
+      return `<li class="me-renderer-task-item"><input class="me-renderer-task-checkbox" type="checkbox" disabled${checked}> <span>${renderInline(item.text)}</span></li>`;
     })
     .join('');
 
@@ -162,7 +163,7 @@ function renderList(block: ListBlock): string {
 
 function renderTable(rows: string[][]): string {
   const renderedRows = rows
-    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell.trim())}</td>`).join('')}</tr>`)
+    .map((row) => `<tr>${row.map((cell) => `<td>${renderInline(cell.trim())}</td>`).join('')}</tr>`)
     .join('');
   return `<table><tbody>${renderedRows}</tbody></table>`;
 }

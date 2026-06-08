@@ -30,4 +30,16 @@ test.describe('Mermaid renders visible label text', () => {
     await expect(mermaid).toBeVisible({ timeout: 15_000 });
     await expect(mermaid).toContainText('Plan');
   });
+
+  test('an invalid diagram fails soft without leaking Mermaid\'s error graphic', async ({ page }) => {
+    await page.goto('/renderers');
+    // The fixture has an intentionally invalid Mermaid block. It must surface as
+    // our inline source fallback + a diagnostic, NOT Mermaid's own injected
+    // "Syntax error in text / mermaid version X" graphic (suppressErrorRendering).
+    await expect(page.locator('.me-renderer-error[data-language="mermaid"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Syntax error in text')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Diagnostics' }).locator('..')).toContainText(
+      'renderer.mermaid.failed',
+    );
+  });
 });

@@ -1,6 +1,6 @@
 type: lessons
 project: "markdown-editor"
-updated: 2026-05-15
+updated: 2026-06-07
 lessons:
   - id: LESSON-001
     date: 2026-05-11
@@ -253,3 +253,125 @@ lessons:
       - "packages/wysiwyg-lexical"
       - "selection-aware popovers"
       - "future Lexical plugins"
+  - id: LESSON-029
+    date: 2026-06-04
+    area: publishing
+    lesson: "Publish the scoped packages with `pnpm -r publish` (not `npm publish` at the monorepo root) and a 2FA-bypassing token or OIDC."
+    rationale: "`npm publish` at the root targeted the private umbrella (v0.0.0) and collided with an unrelated package; Classic *Publish* tokens hit E403 (need Granular/Automation or OIDC trusted publishing); OIDC needs pnpm >=10.12, so corepack must honor the packageManager pin."
+    applies_to:
+      - "release process"
+      - "PUBLISHING.md"
+      - ".github/workflows/release.yml"
+  - id: LESSON-030
+    date: 2026-06-05
+    area: hybrid-widgets
+    lesson: "Editable hybrid widgets stay stable by keying eq() on (markdown, from), committing on focusout (not per keystroke), and re-deriving the model from the live DOM after toolbar mousedown preventDefault."
+    rationale: "Selection-only changes must not rebuild the contenteditable DOM (focus churn); structural ops must capture pending cell edits before committing. jsdom also needs setAttribute('contenteditable','true') because the property is not reflected to the attribute."
+    applies_to:
+      - "packages/codemirror/src/table-widget.ts"
+      - "future inline-editable widgets"
+  - id: LESSON-031
+    date: 2026-06-06
+    area: hybrid-detection
+    lesson: "Hybrid block detection must accept exactly the grammar the model parser accepts."
+    rationale: "`isTableSeparator` required >=3 dashes and >=2 columns, so a center-aligned separator (`:--:`) or a one-column table stopped being detected and the editable table widget vanished to raw source even though the Markdown was valid and `table-model` parsed it fine."
+    applies_to:
+      - "packages/codemirror/src/index.ts"
+      - "packages/codemirror/src/table-model.ts"
+      - "future hybrid block widgets"
+  - id: LESSON-032
+    date: 2026-06-06
+    area: css-isolation
+    lesson: "Host/demo CSS must scope element selectors so they never reach into embedded `.me-editor` internals."
+    rationale: "`.mode-card span` and `.container button` rules bled into the editor's mode-button labels and toolbar buttons (dark-on-blue text, invisible icons). A component cannot fully defend a bare `<span>`/`<button>` against host element selectors, so the host must scope with `>` / header/footer subtrees."
+    applies_to:
+      - "examples/dev-harness/src/styles.css"
+      - "host integration recipes"
+  - id: LESSON-033
+    date: 2026-06-06
+    area: theming
+    lesson: "An embedded editor follows the PAGE theme, not the OS — never put `prefers-color-scheme` in the component stylesheet."
+    rationale: "Adding `@media (prefers-color-scheme: dark)` to the editor made it go dark inside a light page on a dark-OS machine. The editor should expose `--me-*` tokens and let the host (page) drive light/dark; the harness owns a Light/Dark/Auto toggle. Verify both schemes with Playwright `colorScheme`."
+    applies_to:
+      - "packages/react/src/styles.css"
+      - "host theming"
+  - id: LESSON-034
+    date: 2026-06-07
+    area: react-effects
+    lesson: "Don't put a host callback in an async render effect's deps; report through a ref and depend only on the real input."
+    rationale: "Putting `onDiagnostics` in the preview effect's deps made reporting diagnostics (which updates host state) re-trigger the effect — a continuous re-render loop (flickering scrollbar; 46 renders per load). Depending only on `markdown` and calling `onDiagnosticsRef.current` renders once per document."
+    applies_to:
+      - "packages/react/src/MarkdownEditor.tsx"
+      - "future async effects with host callbacks"
+  - id: LESSON-035
+    date: 2026-06-07
+    area: mode-resolution
+    lesson: "`activeMode` must be clamped into `modes`; `initialMode` only applies on mount."
+    rationale: "React reconciles a reused `<MarkdownEditor>` across routes (same element position), so an instance left in `markdown` mode rendered the `/renderers` preview with no preview surface (blank, no diagnostics). Falling back to a valid mode when the current one leaves `modes` fixes reuse/reconciliation generally."
+    applies_to:
+      - "packages/react/src/MarkdownEditor.tsx"
+      - "host editor reuse"
+  - id: LESSON-036
+    date: 2026-06-07
+    area: debugging
+    lesson: "An infinite re-render loop can MASK a latent single-render hang or race."
+    rationale: "The preview's old re-render loop kept calling the renderer until one call succeeded, hiding a first-mount/navigation failure. Removing the loop exposed it. When you eliminate a loop, explicitly verify the single-fire path on first mount, navigation, and cold lazy-load."
+    applies_to:
+      - "render pipelines"
+      - "future loop removals"
+  - id: LESSON-037
+    date: 2026-06-07
+    area: debugging
+    lesson: "Diagnose UI bugs by observing: screenshot via Playwright and read the image, instrument the pipeline with logs, and test a production build to rule out dev-server artifacts."
+    rationale: "A Playwright screenshot read directly showed the dark-on-blue mode button and washed-out icons; pipeline logs proved the renderer was never called on navigation; a `vite build && preview` run ruled out Vite on-the-fly dependency optimization as the cause of the blank preview."
+    applies_to:
+      - "debugging workflow"
+      - "examples/dev-harness"
+  - id: LESSON-038
+    date: 2026-06-07
+    area: workflow
+    lesson: "Verify against a fresh isolated server on your own port; restart (or `--force`) after rebuilding workspace dist."
+    rationale: "Running e2e against the developer's running dev server risks disrupting them or testing stale optimized deps. Vite pre-bundles workspace `dist` at startup, so changes to a package's built output require a server restart to take effect."
+    applies_to:
+      - "verification workflow"
+      - "examples/dev-harness"
+  - id: LESSON-039
+    date: 2026-06-06
+    area: bdd
+    lesson: "Keep feature files declarative and enforce it with a coverage gate + intent lint in CI."
+    rationale: "Living documentation rots into brittle scripts without guardrails. A `features/coverage.yaml` manifest (every scenario maps to an existing test, none `none`) plus a lint that rejects raw units/selectors/HTML in scenario text keeps the BDD suite honest as code changes."
+    applies_to:
+      - "features/"
+      - "scripts/check-feature-coverage.mjs"
+      - "scripts/lint-feature-intent.mjs"
+  - id: LESSON-040
+    date: 2026-06-06
+    area: renderers
+    lesson: "Set Mermaid `suppressErrorRendering: true` so invalid diagrams surface only through the caught fallback + diagnostics."
+    rationale: "Mermaid v11 injects its own 'Syntax error in text / mermaid version X' graphic into the DOM on parse failure, which leaked onto the page even though the renderer already caught the throw and produced a source fallback."
+    applies_to:
+      - "packages/renderers/src/mermaid.ts"
+  - id: LESSON-041
+    date: 2026-06-07
+    area: security
+    lesson: "Keep the HTML-sanitization boundary symmetric across every surface that injects renderer output."
+    rationale: "Preview sanitized renderer HTML but the hybrid rendered-block widget injected it raw — an asymmetric XSS path. Whoever provides HTML to `innerHTML`/`dangerouslySetInnerHTML` (here, the React default `hybridRenderMarkdown`) must sanitize, and a regression test should fail if a renderer's event handler reaches the DOM."
+    applies_to:
+      - "packages/react/src/MarkdownEditor.tsx"
+      - "any renderer-HTML injection path"
+  - id: LESSON-042
+    date: 2026-06-07
+    area: testing
+    lesson: "Read editor source via getMarkdown()/onChange, never via `.cm-content` innerText."
+    rationale: "CodeMirror renders each line as a div, so innerText inflates blank-line counts and misrepresents the document. A reported 'blank-line churn' bug (ISSUE-008) was actually this measurement artifact; getMarkdown was byte-stable the whole time."
+    applies_to:
+      - "e2e/debug scripts"
+      - "future source assertions"
+  - id: LESSON-043
+    date: 2026-06-07
+    area: qa
+    lesson: "Run a dedicated abnormal/adversarial-input audit; happy-path scenario coverage (even 100%) hides real bugs."
+    rationale: "A test-expert audit focused on malformed frontmatter, code-fence-shaped tables, dangerous URLs, and renderer-injected HTML surfaced a real XSS asymmetry and several untested fail-safe paths that the BDD coverage manifest's '51/51 covered' did not reflect — that manifest tracks happy-path traceability, not adversarial inputs."
+    applies_to:
+      - "test strategy"
+      - "docs/bdd-coverage-and-test-plan.md"

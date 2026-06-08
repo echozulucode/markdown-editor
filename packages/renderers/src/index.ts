@@ -1,5 +1,6 @@
 export { RendererRegistry, createDefaultRendererRegistry } from './registry';
 export { parseMarkdownBlocks, renderMarkdownToHtml } from './markdown';
+export { renderInline } from './inline';
 export { createMermaidRenderer } from './mermaid';
 export { createPlantUmlRenderer, constrainDiagramSvgWidth } from './plantuml';
 export { createShikiCodeRenderer } from './shiki';

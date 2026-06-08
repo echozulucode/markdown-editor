@@ -222,4 +222,25 @@ test.describe('examples gallery', () => {
       expect(box!.height, `editor ${index} should remain accessible`).toBeGreaterThanOrEqual(160);
     }
   });
+
+  test('rich text tables render with visible cell borders', async ({ page }) => {
+    const example = page.getByTestId('example-full-page-docs');
+    await example.scrollIntoViewIfNeeded();
+    await example.getByRole('button', { name: 'Rich Text' }).click();
+
+    const cell = example.locator('.me-wysiwyg-table-cell').first();
+    await expect(cell).toBeVisible();
+    const borderWidth = await cell.evaluate((el) => getComputedStyle(el).borderRightWidth);
+    expect(parseFloat(borderWidth)).toBeGreaterThan(0);
+  });
+
+  test('page suggestions exclude pages that do not match the search', async ({ page }) => {
+    const example = page.getByTestId('example-host-services');
+    await example.scrollIntoViewIfNeeded();
+
+    await example.getByLabel('Search pages').fill('mobile');
+    const listbox = example.getByRole('listbox', { name: 'Page suggestions' });
+    await expect(listbox.getByRole('option', { name: /Mobile Session Policy/ })).toBeVisible();
+    await expect(listbox.getByRole('option', { name: /Release Runbook/ })).toHaveCount(0);
+  });
 });

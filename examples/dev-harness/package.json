@@ -10,14 +10,15 @@
     "test": "echo \"Run pnpm --filter @echozedlabs/dev-harness test:e2e for browser smoke coverage.\"",
     "test:e2e": "playwright test",
     "test:smoke": "playwright test",
+    "test:bdd": "bddgen --config playwright.bdd.config.ts && playwright test --config playwright.bdd.config.ts",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@echozedlabs/react": "workspace:*",
+    "@echozedlabs/renderers": "workspace:^",
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
     "@fortawesome/free-solid-svg-icons": "^7.2.0",
     "@fortawesome/react-fontawesome": "^3.3.1",
-    "@echozedlabs/react": "workspace:*",
-    "@echozedlabs/renderers": "workspace:^",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
@@ -26,6 +27,7 @@
     "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.2.1",
+    "playwright-bdd": "^9.0.0",
     "typescript": "^5.4.0",
     "vite": "^5.2.0"
   }

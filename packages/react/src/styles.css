@@ -37,18 +37,34 @@
 }
 
 .me-mode-button {
-  min-height: 32px;
+  min-height: 30px;
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
   color: var(--me-muted);
   cursor: pointer;
   font: inherit;
-  padding: 0 10px;
+  font-size: 0.9em;
+  padding: 0 11px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.me-mode-button:hover {
+  color: var(--me-text);
+  background: var(--me-surface);
+  border-color: var(--me-border);
+}
+
+.me-mode-button:focus-visible {
+  outline: 2px solid var(--me-accent);
+  outline-offset: 1px;
 }
 
 .me-mode-button[data-icon-only="true"] {
@@ -76,10 +92,11 @@
   border: 0;
 }
 
-.me-mode-button[data-active="true"] {
-  border-color: var(--me-border);
-  background: var(--me-surface);
-  color: var(--me-text);
+.me-mode-button[data-active="true"],
+.me-mode-button[data-active="true"]:hover {
+  border-color: var(--me-accent);
+  background: var(--me-accent);
+  color: #ffffff;
 }
 
 .me-properties-toggle {
@@ -223,8 +240,22 @@
   min-height: inherit;
   flex: 1;
   overflow: auto;
+  /* Reserve the scrollbar gutter so content height crossing the boundary never
+     toggles the scrollbar and reflows (no flicker). */
+  scrollbar-gutter: stable;
   padding: 16px;
   line-height: 1.65;
+}
+
+.me-renderer-wiki-link {
+  color: var(--me-accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--me-accent), transparent 70%);
+  cursor: pointer;
+}
+
+.me-renderer-wiki-link:hover {
+  border-bottom-color: var(--me-accent);
 }
 
 .me-preview h1,
@@ -321,6 +352,13 @@
 .me-preview table {
   width: 100%;
   border-collapse: collapse;
+}
+
+.me-preview table th,
+.me-preview table td {
+  border: 1px solid var(--me-border);
+  padding: 6px 10px;
+  text-align: left;
 }
 
 .me-renderer-properties {
@@ -500,6 +538,193 @@
   max-width: 100%;
   height: auto;
   margin: 8px 0;
+}
+
+/* Hybrid editable table (Obsidian-style inline editing). */
+.me-codemirror .cm-me-table-wrap {
+  margin: 10px 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.me-codemirror .cm-me-table {
+  border-collapse: collapse;
+  width: 100%;
+  /* No table-level min-width: the per-cell min-widths drive horizontal scroll
+     (contained by .cm-me-table-wrap) only when a table is genuinely too wide, so
+     small tables fit narrow containers (phone frames) without scrolling. */
+  border: 1px solid var(--me-border);
+  background: var(--me-surface);
+  font-size: 0.95em;
+}
+
+.me-codemirror .cm-me-table-row {
+  border-bottom: 1px solid var(--me-border);
+}
+
+.me-codemirror .cm-me-table-row:last-child {
+  border-bottom: 0;
+}
+
+.me-codemirror .cm-me-table-cell {
+  border-right: 1px solid var(--me-border);
+  padding: 6px 9px;
+  min-width: 60px;
+  vertical-align: top;
+  outline: none;
+}
+
+.me-codemirror .cm-me-table-cell:last-child {
+  border-right: 0;
+}
+
+.me-codemirror .cm-me-table-cell-header {
+  background: var(--me-surface-muted, var(--me-code-bg));
+  font-weight: 600;
+}
+
+.me-codemirror .cm-me-table-cell:focus {
+  box-shadow: inset 0 0 0 2px var(--me-accent);
+  border-radius: 2px;
+}
+
+/* Contextual table toolbar (Word/Excel-style ribbon). */
+.me-codemirror .cm-me-table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  margin-top: 6px;
+  padding: 3px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--me-border);
+  border-radius: 8px;
+  background: var(--me-surface);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.me-codemirror .cm-me-table-wrap:hover .cm-me-table-toolbar,
+.me-codemirror .cm-me-table-wrap:focus-within .cm-me-table-toolbar {
+  opacity: 1;
+}
+
+.me-codemirror .cm-me-table-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 3px;
+  background: var(--me-border);
+}
+
+.me-codemirror .cm-me-table-btn {
+  font: inherit;
+  font-size: 0.8em;
+  line-height: 1.4;
+  min-width: 26px;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--me-muted);
+  cursor: pointer;
+}
+
+.me-codemirror .cm-me-table-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 4px;
+}
+
+.me-codemirror .cm-me-table-btn-icon svg {
+  display: block;
+}
+
+.me-codemirror .cm-me-table-btn:hover {
+  color: var(--me-text);
+  background: var(--me-surface-muted, var(--me-code-bg));
+  border-color: var(--me-border);
+}
+
+.me-codemirror .cm-me-table-btn[aria-pressed='true'] {
+  color: var(--me-accent);
+  border-color: var(--me-accent);
+  background: var(--me-surface-muted, var(--me-code-bg));
+}
+
+.me-codemirror .cm-me-table-btn-danger:hover {
+  color: #b91c1c;
+  border-color: #fca5a5;
+  background: var(--me-error-bg, #fef2f2);
+}
+
+/* Right-click context menu (appended to <body>, so not scoped to .me-codemirror). */
+.cm-me-table-menu {
+  position: fixed;
+  z-index: 2147483000;
+  min-width: 184px;
+  padding: 5px;
+  border: 1px solid var(--me-border, #d4d4d8);
+  border-radius: 10px;
+  background: var(--me-surface, #ffffff);
+  color: var(--me-text, #18181b);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+
+.cm-me-table-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cm-me-table-menu-item:hover {
+  background: var(--me-surface-muted, #f4f4f5);
+}
+
+.cm-me-table-menu-item[aria-disabled='true'] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cm-me-table-menu-item[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.cm-me-table-menu-item[data-align]::before {
+  content: '';
+  width: 1em;
+  flex: 0 0 auto;
+}
+
+.cm-me-table-menu-item[data-align].cm-me-table-menu-item-active::before {
+  content: '✓';
+}
+
+.cm-me-table-menu-item-danger {
+  color: #b91c1c;
+}
+
+.cm-me-table-menu-item-danger:hover {
+  background: var(--me-error-bg, #fef2f2);
+}
+
+.cm-me-table-menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--me-border, #e4e4e7);
 }
 
 .me-codemirror .cm-me-rendered-block .me-renderer-callout {
@@ -742,6 +967,24 @@
   cursor: pointer;
   font: inherit;
   padding: 0 8px;
+}
+
+.me-codemirror .cm-me-property-picker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  padding: 0;
+  color: var(--me-muted);
+}
+
+.me-codemirror .cm-me-property-picker svg {
+  display: block;
+}
+
+.me-codemirror .cm-me-property-picker:hover {
+  border-color: var(--me-accent);
+  color: var(--me-accent);
 }
 
 .me-codemirror .cm-me-property-type-option[data-active="true"] {
@@ -1096,6 +1339,68 @@ ul.me-wysiwyg-list ul.me-wysiwyg-list ul.me-wysiwyg-list {
   border-left: 4px solid var(--me-accent);
   color: var(--me-muted);
   padding-left: 12px;
+}
+
+/* Rich Text (WYSIWYG) tables. Kept in sync with @echozedlabs/wysiwyg-lexical's
+   stylesheet; consumers only import this (react) stylesheet, so the table rules
+   must live here too. */
+.me-wysiwyg-table-action {
+  font-family: var(--me-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.me-wysiwyg-table-scroll {
+  max-width: 100%;
+  margin: 14px 0;
+  overflow-x: auto;
+}
+
+.me-wysiwyg-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--me-border, #d9dee5);
+  background: var(--me-surface, #ffffff);
+  font-size: 0.95rem;
+}
+
+.me-wysiwyg-table-row {
+  border-bottom: 1px solid var(--me-border, #d9dee5);
+}
+
+.me-wysiwyg-table-row:last-child {
+  border-bottom: 0;
+}
+
+.me-wysiwyg-table-cell {
+  min-width: 120px;
+  border-right: 1px solid var(--me-border, #d9dee5);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.me-wysiwyg-table-cell:last-child {
+  border-right: 0;
+}
+
+.me-wysiwyg-table-cell-header {
+  background: var(--me-surface-muted, #f8fafc);
+  color: var(--me-text, #18202a);
+  font-weight: 650;
+}
+
+.me-wysiwyg-table-cell-selected {
+  outline: 2px solid color-mix(in srgb, var(--me-accent, #2563eb), transparent 15%);
+  outline-offset: -2px;
+}
+
+.me-wysiwyg-table-selection {
+  user-select: none;
+}
+
+.me-wysiwyg-table-cell .me-wysiwyg-paragraph {
+  margin: 0;
 }
 
 .me-wysiwyg-code {
