@@ -1,6 +1,6 @@
 {
   "name": "@echozedlabs/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Markdown parsing and serialization core (mdast + frontmatter) for the echozed markdown editor.",
   "type": "module",
   "license": "MIT",
